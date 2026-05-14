@@ -128,16 +128,43 @@ class MechaBuilder:
                position=(0, 0, 0),
                scale=1.0,
                rotation=(0, 0, 0)) -> str | None:
-        """Instancia un módulo y lo parenta al grupo raíz."""
+        """Instancia un módulo y lo parenta al grupo raíz.
+
+        Los errores dentro de generate() se aíslan aquí para que un módulo
+        roto no cancele el build completo. Los nodos huérfanos que pudiera
+        haber creado el módulo antes de fallar se eliminan automáticamente.
+        """
         cls = get_module(module_name)
         if cls is None:
             print(f'[RetroMecha] Módulo "{module_name}" no registrado, omitiendo')
             return None
 
+        # Snapshot de nodos antes de intentar el generate, para poder
+        # limpiar cualquier nodo huérfano si el módulo lanza una excepción.
+        nodes_before = set(mc.ls(dag=True) or [])
+
         instance = cls(self.params)
-        node = instance.generate(position=position,
-                                 scale=scale,
-                                 rotation=rotation)
+        try:
+            node = instance.generate(position=position,
+                                     scale=scale,
+                                     rotation=rotation)
+        except Exception as e:
+            print(f'[RetroMecha] ERROR en módulo "{module_name}": {e}')
+            import traceback
+            traceback.print_exc()
+
+            # Limpia nodos huérfanos creados durante el generate() fallido
+            nodes_after = set(mc.ls(dag=True) or [])
+            orphans = list(nodes_after - nodes_before)
+            if orphans:
+                try:
+                    mc.delete(orphans)
+                    print(f'[RetroMecha] Limpiados {len(orphans)} nodo(s) huérfano(s) '
+                          f'de "{module_name}"')
+                except Exception:
+                    pass
+            return None
+
         if node and mc.objExists(node):
             mc.parent(node, self._root_group)
         return node
