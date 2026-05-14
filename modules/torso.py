@@ -43,7 +43,7 @@ class TorsoModule(BaseModule):
         mc.move(0, torso_h * 0.18, 0.60, nucleus, relative=True)
 
         # Anillo exterior del núcleo
-        ring = mc.polyTorus(r=0.38, sr=0.04, sa=16, sc=8,
+        ring = mc.polyTorus(r=0.38, sr=0.04, sa=16, sh=8,
                             name='rm_torso_ring_#')[0]
         mc.rotate(90, 0, 0, ring)
         mc.move(0, torso_h * 0.18, 0.58, ring, relative=True)
