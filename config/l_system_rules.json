@@ -1,0 +1,19 @@
+{
+  "_comment": "RetroMecha — Reglas L-System. Editar sin tocar código Python.",
+  "_format": "símbolo: [[expansión, probabilidad], ...]  — probabilidades deben sumar 1.0",
+
+  "T": [["T [A J S A] [N J] [W] [W]", 1.0]],
+  "A": [
+    ["A [J] [P C] S", 0.70],
+    ["A [J] S",        0.30]
+  ],
+  "W": [
+    ["W [S]",    0.60],
+    ["W [S S]",  0.40]
+  ],
+  "J": [["J", 1.0]],
+  "N": [["N", 1.0]],
+  "P": [["P", 1.0]],
+  "C": [["C", 1.0]],
+  "S": [["S", 1.0]]
+}

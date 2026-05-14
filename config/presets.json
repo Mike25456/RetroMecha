@@ -1,0 +1,47 @@
+{
+  "_comment": "RetroMecha — Presets de parámetros. Cargar desde UI (próxima fase).",
+
+  "balanced": {
+    "_name": "Balanceado",
+    "separation":      0.35,
+    "connector_angle": 15.0,
+    "aggressiveness":  0.50,
+    "decay":           0.85,
+    "height_scale":    1.00,
+    "symmetry":        true,
+    "use_panels":      true
+  },
+
+  "aggressive": {
+    "_name": "Agresivo",
+    "separation":      0.45,
+    "connector_angle": 25.0,
+    "aggressiveness":  0.90,
+    "decay":           0.80,
+    "height_scale":    1.15,
+    "symmetry":        true,
+    "use_panels":      true
+  },
+
+  "compact": {
+    "_name": "Compacto",
+    "separation":      0.20,
+    "connector_angle": 8.0,
+    "aggressiveness":  0.30,
+    "decay":           0.90,
+    "height_scale":    0.80,
+    "symmetry":        true,
+    "use_panels":      false
+  },
+
+  "asymmetric": {
+    "_name": "Asimétrico",
+    "separation":      0.40,
+    "connector_angle": 20.0,
+    "aggressiveness":  0.65,
+    "decay":           0.82,
+    "height_scale":    1.10,
+    "symmetry":        false,
+    "use_panels":      true
+  }
+}
