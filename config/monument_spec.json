@@ -1,0 +1,102 @@
+{
+  "_comment": "RetroMecha — Especificación de diseño del MONUMENTO (módulo M).",
+  "_version": "design-v1",
+  "_principio": "ESTÉTICA SOBRE VARIACIÓN. El monumento tiene una composición FIJA bien diseñada. Las variaciones son mínimas y controladas. Nunca se genera aleatoriamente.",
+
+  "referencia_artistica": {
+    "artista": "Syd Mead",
+    "obra": "Diseño arquitectónico futurista (imagen de referencia del proyecto)",
+    "rasgos_clave": [
+      "Planos triangulares/angulares intersectados",
+      "Verticalidad dominante (mucho más alto que ancho)",
+      "Hendiduras/ranuras verticales entre planos",
+      "Base ligeramente más ancha que la punta",
+      "Sin detalles decorativos — geometría pura",
+      "Silueta facetada reconocible desde cualquier ángulo"
+    ]
+  },
+
+  "composicion_fija": {
+    "_nota": "El monumento se construye con 5 piezas fijas. Las proporciones son constantes. Solo monument_damage afecta la alineación de los planos.",
+
+    "pieza_1_plano_central": {
+      "tipo": "polyCube",
+      "proporciones": "w=1.8, h=10.0, d=0.3",
+      "posicion": "(0, 5.0, 0)",
+      "rotacion": "(0, 0, 0)",
+      "rol": "Plano vertical central — la columna vertebral del monumento. Define la silueta principal."
+    },
+
+    "pieza_2_ala_izquierda": {
+      "tipo": "polyCube",
+      "proporciones": "w=1.2, h=7.5, d=0.25",
+      "posicion": "(-0.9, 3.75, 0.15)",
+      "rotacion": "(0, -18, 3)",
+      "rol": "Plano lateral izquierdo — crea la silueta triangular. Ángulo de 18° en Y abre la forma como un libro. La rotación de 3° en Z genera la inclinación sutil que da dinamismo."
+    },
+
+    "pieza_3_ala_derecha": {
+      "tipo": "polyCube",
+      "proporciones": "w=1.2, h=7.5, d=0.25",
+      "posicion": "(0.9, 3.75, -0.15)",
+      "rotacion": "(0, 18, -3)",
+      "rol": "Espejo del ala izquierda. El offset en Z (opuesto) crea profundidad cuando se mira de perfil."
+    },
+
+    "pieza_4_cuña_frontal": {
+      "tipo": "polyCube",
+      "proporciones": "w=0.6, h=5.5, d=0.8",
+      "posicion": "(0, 2.75, 0.5)",
+      "rotacion": "(8, 0, 0)",
+      "rol": "Cuña inclinada hacia adelante — rompe la simetría frontal y crea la hendidura entre ella y el plano central. La inclinación de 8° en X es la que le da esa sensación de estructura que 'apunta' hacia algo."
+    },
+
+    "pieza_5_base": {
+      "tipo": "polyCube",
+      "proporciones": "w=3.0, h=0.6, d=2.0",
+      "posicion": "(0, 0.3, 0)",
+      "rotacion": "(0, 0, 0)",
+      "rol": "Base horizontal — ancla visual. Sin esta pieza el monumento 'flota'. Ligeramente más ancha que la estructura superior para dar sensación de peso."
+    }
+  },
+
+  "efecto_de_damage": {
+    "_nota": "monument_damage [0.0-1.0] controla cuánto se desalinean los planos. Con damage=0 la estructura es perfecta. Con damage=1.0 los planos están desplazados hasta 15° adicionales en cada eje.",
+
+    "formula": "rotacion_final = rotacion_base + (random(-1,1) * damage * 15°)",
+    "aplica_a": ["pieza_2_ala_izquierda", "pieza_3_ala_derecha", "pieza_4_cuña_frontal"],
+    "no_aplica_a": ["pieza_1_plano_central", "pieza_5_base"],
+    "razon": "El plano central y la base se mantienen firmes — son la referencia visual. Si todo se desalinea pierde legibilidad. Solo las alas y la cuña se mueven."
+  },
+
+  "escalado": {
+    "_nota": "El monumento se escala uniformemente por monument_scale (3.0-5.0). Las proporciones internas NO cambian.",
+    "escala_base": 1.0,
+    "escala_min": 3.0,
+    "escala_max": 5.0,
+    "altura_resultante_min": "30 unidades (mecha ≈ 3u → monumento = 10x)",
+    "altura_resultante_max": "50 unidades (mecha ≈ 3u → monumento = 16x)"
+  },
+
+  "posicionamiento": {
+    "eje_z": "Siempre en Z negativo (detrás del mecha desde vista frontal).",
+    "distancia_z": "Definida por monument_distance_z del preset (-8 a -15).",
+    "eje_x": "Centrado en X=0 o con offset aleatorio de ±2.0 (para composición asimétrica).",
+    "eje_y": "Base apoyada en el ground plane (Y = ground_plane_y)."
+  },
+
+  "torres_ornamentales": {
+    "_nota": "Si el L-System genera M [V V], se añaden dos torres hexagonales a los lados del monumento.",
+    "posicion_relativa": "±(ancho_base * 0.6), Y = altura_base * 0.3",
+    "escala_torre": "0.3 del monument_scale",
+    "tipo": "polyCylinder sa=6 (hexagonal, consistente con las torres de plataforma)"
+  },
+
+  "principios_esteticos": [
+    "La silueta debe ser RECONOCIBLE desde cualquier ángulo de cámara (360° viewport requirement).",
+    "La composición es ASIMÉTRICA pero BALANCEADA — no es simétrica perfecta, pero tiene equilibrio visual.",
+    "Las hendiduras entre planos son TAN IMPORTANTES como los planos mismos — el espacio negativo define la forma.",
+    "El monumento NUNCA debe competir visualmente con el mecha — es fondo, no protagonista. Su escala lo hace imponente pero su opacidad/material lo mantiene en segundo plano.",
+    "Con damage=0 debe verse como arquitectura intencional. Con damage=1.0 debe verse como ruinas reconocibles."
+  ]
+}

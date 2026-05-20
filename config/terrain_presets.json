@@ -1,0 +1,166 @@
+{
+  "_comment": "RetroMecha — Presets de composición de escena (terreno + mecha).",
+  "_version": "design-v1",
+  "_nota": "Cada preset define CÓMO se comporta el terreno, NO los params del mecha. Los params del mecha (aggressiveness, decay, etc.) se leen directamente de la UI y se comparten con el terreno.",
+
+  "hangar": {
+    "_name": "Hangar — Base de operaciones",
+    "_descripcion": "Plataformas limpias, monumento intacto, debris mínimo. Pista de aterrizaje industrial.",
+    "_estilo_dominante": "Syd Mead",
+
+    "terrain_iterations": 1,
+    "ground_plane_scale": 4.0,
+    "ground_plane_y": -0.1,
+
+    "monument_scale": 4.0,
+    "monument_distance_z": -12.0,
+    "monument_damage": 0.0,
+
+    "platform_count_bias": 3,
+    "platform_y_levels": [0.0, -0.3],
+    "platform_scale_range": [0.8, 1.2],
+
+    "fragment_count_bias": 1,
+    "fragment_rotation_range": [5, 15],
+    "fragment_scale_range": [0.3, 0.5],
+
+    "debris_density": 0.2,
+    "debris_cluster_size": [2, 4],
+
+    "tower_probability": 0.8,
+
+    "skyline_count": 2,
+    "skyline_distance_z": -18.0,
+
+    "ring_radius_multiplier": 1.2,
+    "ring_distribution": "semicircle_back"
+  },
+
+  "avanzada": {
+    "_name": "Avanzada — Posición táctica",
+    "_descripcion": "Balance entre estructura y destrucción. Plataformas fracturadas, fragmentos medianos.",
+    "_estilo_dominante": "Mix equilibrado",
+
+    "terrain_iterations": 2,
+    "ground_plane_scale": 5.0,
+    "ground_plane_y": -0.15,
+
+    "monument_scale": 3.5,
+    "monument_distance_z": -14.0,
+    "monument_damage": 0.3,
+
+    "platform_count_bias": 2,
+    "platform_y_levels": [0.0, -0.3, -0.6],
+    "platform_scale_range": [0.6, 1.0],
+
+    "fragment_count_bias": 3,
+    "fragment_rotation_range": [15, 35],
+    "fragment_scale_range": [0.4, 0.8],
+
+    "debris_density": 0.5,
+    "debris_cluster_size": [3, 6],
+
+    "tower_probability": 0.5,
+
+    "skyline_count": 2,
+    "skyline_distance_z": -16.0,
+
+    "ring_radius_multiplier": 1.5,
+    "ring_distribution": "full_ring"
+  },
+
+  "campo_de_batalla": {
+    "_name": "Campo de batalla — Zona hostil",
+    "_descripcion": "Fragmentos dominan, debris por todas partes, una plataforma rota como vestigio.",
+    "_estilo_dominante": "Yoji Shinkawa",
+
+    "terrain_iterations": 2,
+    "ground_plane_scale": 6.0,
+    "ground_plane_y": -0.2,
+
+    "monument_scale": 3.0,
+    "monument_distance_z": -15.0,
+    "monument_damage": 0.7,
+
+    "platform_count_bias": 1,
+    "platform_y_levels": [0.0, -0.5, -1.0],
+    "platform_scale_range": [0.4, 0.7],
+
+    "fragment_count_bias": 6,
+    "fragment_rotation_range": [20, 45],
+    "fragment_scale_range": [0.5, 1.0],
+
+    "debris_density": 0.8,
+    "debris_cluster_size": [4, 8],
+
+    "tower_probability": 0.2,
+
+    "skyline_count": 1,
+    "skyline_distance_z": -18.0,
+
+    "ring_radius_multiplier": 2.0,
+    "ring_distribution": "full_ring"
+  },
+
+  "centinela": {
+    "_name": "Centinela — Ante el monumento",
+    "_descripcion": "Monumento dominante, mecha pequeño frente a él. Composición de escala.",
+    "_estilo_dominante": "Syd Mead (monumental)",
+
+    "terrain_iterations": 1,
+    "ground_plane_scale": 5.0,
+    "ground_plane_y": -0.1,
+
+    "monument_scale": 5.0,
+    "monument_distance_z": -8.0,
+    "monument_damage": 0.1,
+
+    "platform_count_bias": 2,
+    "platform_y_levels": [0.0, -0.2],
+    "platform_scale_range": [0.7, 1.0],
+
+    "fragment_count_bias": 2,
+    "fragment_rotation_range": [10, 25],
+    "fragment_scale_range": [0.3, 0.6],
+
+    "debris_density": 0.3,
+    "debris_cluster_size": [2, 4],
+
+    "tower_probability": 0.6,
+
+    "skyline_count": 2,
+    "skyline_distance_z": -14.0,
+
+    "ring_radius_multiplier": 1.0,
+    "ring_distribution": "semicircle_back"
+  },
+
+  "_parametros_explicados": {
+    "terrain_iterations": "Profundidad de expansión del L-System (1-2). Más = más objetos.",
+    "ground_plane_scale": "Multiplicador del tamaño del plano de suelo respecto al mecha.",
+    "ground_plane_y": "Altura Y del plano de suelo (ligeramente debajo de 0 para evitar z-fighting).",
+
+    "monument_scale": "Factor de escala del monumento (3.0-5.0). Mecha ≈ 3u alto → monumento 9-15u.",
+    "monument_distance_z": "Posición en Z negativo (lejos de cámara). Más negativo = más lejos.",
+    "monument_damage": "0.0 = intacto, 1.0 = planos muy desalineados. Afecta rotación de sub-planos.",
+
+    "platform_count_bias": "Número base de plataformas antes de L-System. El L-System puede agregar más.",
+    "platform_y_levels": "Alturas cuantizadas permitidas para plataformas.",
+    "platform_scale_range": "[min, max] de escala aleatoria por plataforma.",
+
+    "fragment_count_bias": "Número base de fragmentos. Más = más caótico.",
+    "fragment_rotation_range": "[min°, max°] de rotación angular en X/Z.",
+    "fragment_scale_range": "[min, max] de escala aleatoria por fragmento.",
+
+    "debris_density": "0.0-1.0. Probabilidad de generar debris alrededor de cada fragmento.",
+    "debris_cluster_size": "[min, max] piezas por cluster de debris.",
+
+    "tower_probability": "0.0-1.0. Probabilidad de que una plataforma tenga torre.",
+
+    "skyline_count": "Cantidad de elementos de skyline genérico en el fondo.",
+    "skyline_distance_z": "Posición Z de los skylines (más lejos que el monumento).",
+
+    "ring_radius_multiplier": "Escala del radio del anillo de distribución. 1.0 = pegado al mecha, 2.0 = lejos.",
+    "ring_distribution": "semicircle_back = solo detrás (render). full_ring = 360° (viewport)."
+  }
+}
