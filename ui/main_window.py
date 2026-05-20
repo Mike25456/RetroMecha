@@ -198,9 +198,10 @@ def build_ui():
     mc.setParent('..')  # frameLayout terreno
 
     # =========================================================================
-    #  BOTONES GLOBALES
+    #  BOTONES GLOBALES + TOGGLE TERRENO
     # =========================================================================
     mc.separator(h=8, style='in')
+
     mc.rowLayout(nc=3, cw3=[107, 107, 107],
                  columnAttach3=['both', 'both', 'both'],
                  columnOffset3=[3, 3, 3])
@@ -267,12 +268,9 @@ def build_ui():
             'ring_max_r':       mc.floatSliderGrp(t_ring_sl, q=True, value=True),
         }
 
-    def _terrain_visible() -> bool:
-        """True si la sección terreno está expandida."""
-        try:
-            return not mc.frameLayout(terrain_frame, q=True, collapse=True)
-        except Exception:
-            return False
+    def _terrain_active() -> bool:
+        """Siempre True — terreno incluido por defecto."""
+        return True
 
     def _clean_mecha():
         for n in (mc.ls('RetroMecha_*', type='transform') or []):
@@ -305,7 +303,7 @@ def build_ui():
                 pass
             mc.select(grp)
             # Si terreno visible, actualizarlo también
-            if _terrain_visible():
+            if _terrain_active():
                 _rebuild_terrain_only()
             else:
                 mc.viewFit()
@@ -347,7 +345,7 @@ def build_ui():
         params = _collect_mecha()
         params['_seed'] = seed
 
-        if _terrain_visible():
+        if _terrain_active():
             # Escena completa
             preset_label = mc.optionMenu(preset_menu, q=True, value=True)
             preset_name  = PRESET_MAP.get(preset_label, 'avanzada')
@@ -415,7 +413,7 @@ def build_ui():
     def _random_all(*_):
         """Aleatoriza TODO y genera escena completa."""
         _random_mecha()
-        if _terrain_visible():
+        if _terrain_active():
             _random_terrain()
 
     def _on_reset(*_):
