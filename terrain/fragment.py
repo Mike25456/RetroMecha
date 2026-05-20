@@ -1,8 +1,7 @@
 """
-RetroMecha — terrain/fragment.py
-Fragmento angular emergente del suelo.
-Estilo Yoji Shinkawa: poliedros irregulares, rotaciones pronunciadas,
-alto contraste, espacio negativo dramático.
+RetroMecha — terrain/fragment.py  v2
+Fragmento angular emergente. Escalas corregidas (más grandes).
+Estilo Yoji Shinkawa.
 """
 
 import random
@@ -18,22 +17,9 @@ from core.module_registry import register
 
 @register('FRAGMENT')
 class FragmentModule(BaseModule):
-    """
-    Poliedro irregular emergiendo del suelo con ángulo pronunciado.
-    Se construye deformando un polyCube con polyMoveVertex.
-
-    Parámetros usados:
-        aggressiveness → intensidad de deformación y ángulo
-        height_scale   → estira la verticalidad del fragmento
-        _seed          → forma única por fragmento
-    """
     MODULE_NAME = 'FRAGMENT'
 
-    def generate(self,
-                 position: tuple = (0, 0, 0),
-                 scale: float = 1.0,
-                 rotation: tuple = (0, 0, 0)) -> str:
-
+    def generate(self, position=(0,0,0), scale=1.0, rotation=(0,0,0)) -> str:
         if mc is None:
             return 'rm_fragment_DEBUG'
 
@@ -42,63 +28,66 @@ class FragmentModule(BaseModule):
         aggr = self._get('aggressiveness', 0.5)
         h_sc = self._get('height_scale', 1.0)
         seed = self._get('_seed', 42)
-        rng = random.Random(seed + hash(str(position)) % 10000)
+        rng  = random.Random(seed + hash(str(position)) % 9999)
 
-        # Proporciones base: alto y delgado (losa fracturada)
-        frag_w = rng.uniform(0.3, 0.7)
-        frag_h = rng.uniform(1.2, 2.5) * h_sc
-        frag_d = rng.uniform(0.15, 0.4)
+        # ── Dimensiones amplias ───────────────────────────────────────────────
+        # La escala que llega del terrain_builder (0.8-2.5) multiplica esto
+        fw = rng.uniform(0.6, 1.2)
+        fh = rng.uniform(2.0, 4.5) * h_sc
+        fd = rng.uniform(0.25, 0.7)
 
-        # ── Geometría base ────────────────────────────────────────────────────
-        slab = mc.polyCube(
-            w=frag_w, h=frag_h, d=frag_d,
-            sx=1, sy=2, sz=1,
-            name='rm_fragment_slab_#'
-        )[0]
+        # ── Losa principal ────────────────────────────────────────────────────
+        slab = mc.polyCube(w=fw, h=fh, d=fd, sx=1, sy=2, sz=1,
+                           name='rm_frag_slab_#')[0]
+        # Emerge del suelo — base en Y=0 local
+        mc.move(0, fh*0.5, 0, slab, relative=True)
 
-        # Centrar la base del fragmento en Y=0 (emerge del suelo)
-        mc.move(0, frag_h * 0.5, 0, slab, relative=True)
-
-        # ── Deformación de vértices (forma irregular) ─────────────────────────
-        # Mover 3-5 vértices para romper la regularidad del cubo
+        # ── Deformación de vértices ───────────────────────────────────────────
         try:
-            vtx_count = mc.polyEvaluate(slab, vertex=True)
-            deform_count = rng.randint(3, min(5, vtx_count))
-            deform_intensity = 0.08 + aggr * 0.15
-
-            for _ in range(deform_count):
-                vi = rng.randint(0, vtx_count - 1)
-                ox = rng.uniform(-1, 1) * deform_intensity
-                oy = rng.uniform(-0.5, 1) * deform_intensity * 0.5
-                oz = rng.uniform(-1, 1) * deform_intensity
-                mc.polyMoveVertex(
-                    f'{slab}.vtx[{vi}]',
-                    translateX=ox, translateY=oy, translateZ=oz,
-                    localTranslate=True
-                )
+            vn = mc.polyEvaluate(slab, vertex=True)
+            intensity = 0.10 + aggr * 0.18
+            for _ in range(rng.randint(3, min(5, vn))):
+                vi = rng.randint(0, vn-1)
+                mc.polyMoveVertex(f'{slab}.vtx[{vi}]',
+                                  translateX=rng.uniform(-1,1)*intensity,
+                                  translateY=rng.uniform(-0.5,1)*intensity*0.4,
+                                  translateZ=rng.uniform(-1,1)*intensity,
+                                  localTranslate=True)
         except Exception:
-            pass  # Si falla, fragmento queda como cubo — aceptable
+            pass
 
-        # ── Rotación angular (marca Shinkawa) ─────────────────────────────────
-        # Siempre inclinado, nunca plano
-        rot_range_min = 15.0 + aggr * 5.0
-        rot_range_max = 30.0 + aggr * 15.0
-
-        rx = rng.uniform(rot_range_min, rot_range_max) * rng.choice([-1, 1])
-        rz = rng.uniform(rot_range_min * 0.3, rot_range_max * 0.5) * rng.choice([-1, 1])
+        # ── Rotación angular Shinkawa ─────────────────────────────────────────
+        rmin = 15.0 + aggr * 5.0
+        rmax = 32.0 + aggr * 13.0
+        rx = rng.uniform(rmin, rmax) * rng.choice([-1, 1])
+        rz = rng.uniform(rmin*0.3, rmax*0.5) * rng.choice([-1, 1])
         mc.rotate(rx, 0, rz, slab, relative=True)
 
-        # ── Punta afilada (cono superior, opcional con alta aggr) ─────────────
-        if aggr > 0.35:
-            tip_h = rng.uniform(0.15, 0.35) * h_sc
-            tip = mc.polyCone(
-                r=frag_w * 0.35, h=tip_h, sa=rng.choice([3, 4, 5]),
-                name='rm_fragment_tip_#'
-            )[0]
-            mc.move(0, frag_h * 0.85, 0, tip, relative=True)
-            mc.rotate(rx * 0.8, 0, rz * 0.8, tip, relative=True)
-            mc.parent(tip, grp)
+        parts = [slab]
 
-        mc.parent(slab, grp)
+        # ── Losa secundaria adosada ───────────────────────────────────────────
+        if rng.random() < 0.55:
+            fw2 = fw * rng.uniform(0.4, 0.75)
+            fh2 = fh * rng.uniform(0.5, 0.8)
+            fd2 = fd * rng.uniform(0.6, 1.0)
+            slab2 = mc.polyCube(w=fw2, h=fh2, d=fd2,
+                                name='rm_frag_slab2_#')[0]
+            ox = rng.uniform(-fw*0.6, fw*0.6)
+            mc.move(ox, fh2*0.5, 0, slab2, relative=True)
+            rx2 = rx * rng.uniform(0.6, 1.4)
+            rz2 = rz * rng.uniform(0.6, 1.4)
+            mc.rotate(rx2, 0, rz2, slab2, relative=True)
+            parts.append(slab2)
 
+        # ── Punta/spike (alta aggr) ───────────────────────────────────────────
+        if aggr > 0.30:
+            tip_h = rng.uniform(0.4, 0.9) * h_sc
+            tip = mc.polyCone(r=fw*0.3, h=tip_h,
+                              sa=rng.choice([3, 4, 5]),
+                              name='rm_frag_tip_#')[0]
+            mc.move(0, fh*0.85, 0, tip, relative=True)
+            mc.rotate(rx*0.7, 0, rz*0.7, tip, relative=True)
+            parts.append(tip)
+
+        mc.parent(*parts, grp)
         return self._finalize_group(grp, position, rotation, scale)

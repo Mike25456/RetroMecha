@@ -1,7 +1,7 @@
 """
-RetroMecha — terrain/scene_composer.py
-Combina MechaBuilder + TerrainBuilder bajo un grupo raíz de escena unificado.
-Punto de entrada cuando el usuario activa "Generar terreno" en la UI.
+RetroMecha — terrain/scene_composer.py  v2
+Combina MechaBuilder + TerrainBuilder.
+Levanta el mecha sobre el suelo para evitar interpenetración.
 """
 
 try:
@@ -13,19 +13,13 @@ except ImportError:
 from core.mecha_builder import MechaBuilder
 from terrain.terrain_builder import TerrainBuilder
 
+# Y del top del ground plane (surface.h=0.1 centrada en gp_y=-0.05 → top=0.0)
+GROUND_TOP_Y = 0.0
+# Distancia de flotación del mecha sobre el suelo
+MECHA_FLOAT_Y = 0.5
+
 
 class SceneComposer:
-    """
-    Orquesta la generación completa: mecha + terreno + composición.
-
-    Flujo:
-        1. MechaBuilder.build() → genera el robot
-        2. Calcula bounding box del mecha
-        3. TerrainBuilder.build() → genera terreno alrededor
-        4. Parent ambos bajo grupo de escena
-        5. viewFit() para encuadrar todo
-    """
-
     TERRAIN_SEED_OFFSET = 1000
 
     def __init__(self, params: dict, seed: int,
@@ -35,36 +29,39 @@ class SceneComposer:
         self.terrain_preset = terrain_preset
 
     def compose(self) -> str:
-        """
-        Genera mecha + terreno como escena completa.
-
-        Returns:
-            Nombre del grupo raíz de la escena
-        """
         if not MAYA_AVAILABLE:
-            print('[RetroMecha][Scene] Maya no disponible')
             return 'RetroMecha_Scene_DEBUG'
 
-        print(f'[RetroMecha][Scene] Composición iniciada | '
-              f'Seed: {self.seed} | Preset: {self.terrain_preset}')
+        print(f'[RetroMecha][Scene] Composición | '
+              f'Seed:{self.seed} Preset:{self.terrain_preset}')
 
         scene_group = mc.group(empty=True, name='RetroMecha_Scene_#')
 
-        # ── Paso 1: Generar mecha ─────────────────────────────────────────────
+        # ── 1. Generar mecha ──────────────────────────────────────────────────
         mecha_builder = MechaBuilder(self.params, seed=self.seed)
-        mecha_group = mecha_builder.build()
+        mecha_group   = mecha_builder.build()
 
         if mecha_group and mc.objExists(mecha_group):
+            # Levantar el mecha: su bounding box min Y debe quedar en GROUND_TOP_Y + FLOAT
+            try:
+                bb = mc.exactWorldBoundingBox(mecha_group)
+                mecha_min_y = bb[1]
+                lift = (GROUND_TOP_Y + MECHA_FLOAT_Y) - mecha_min_y
+                if abs(lift) > 0.01:
+                    mc.move(0, lift, 0, mecha_group, relative=True, worldSpace=True)
+                    print(f'[RetroMecha][Scene] Mecha elevado {lift:.2f} u')
+            except Exception as e:
+                print(f'[RetroMecha][Scene] No se pudo elevar mecha: {e}')
+
             mc.parent(mecha_group, scene_group)
 
-        # ── Paso 2: Calcular bounding box del mecha ──────────────────────────
+        # ── 2. Bounding box post-elevación ────────────────────────────────────
         mecha_bbox = self._get_bbox(mecha_group)
 
-        # ── Paso 3: Generar terreno ───────────────────────────────────────────
-        terrain_seed = self.seed + self.TERRAIN_SEED_OFFSET
+        # ── 3. Generar terreno ────────────────────────────────────────────────
         terrain_builder = TerrainBuilder(
             params=self.params,
-            seed=terrain_seed,
+            seed=self.seed + self.TERRAIN_SEED_OFFSET,
             preset_name=self.terrain_preset,
             mecha_bbox=mecha_bbox
         )
@@ -73,20 +70,20 @@ class SceneComposer:
         if terrain_group and mc.objExists(terrain_group):
             mc.parent(terrain_group, scene_group)
 
-        # ── Paso 4: Encuadrar escena ──────────────────────────────────────────
+        # ── 4. Encuadrar ──────────────────────────────────────────────────────
         mc.select(scene_group)
-        mc.viewFit(allObjects=False)
+        try:
+            mc.viewFit(allObjects=False)
+        except Exception:
+            mc.viewFit()
 
-        print(f'[RetroMecha][Scene] Composición completa: {scene_group}')
+        print(f'[RetroMecha][Scene] Completo: {scene_group}')
         return scene_group
 
     def _get_bbox(self, group: str) -> tuple:
-        """Calcula el bounding box de un grupo."""
         try:
             if group and mc.objExists(group):
-                bb = mc.exactWorldBoundingBox(group)
-                return tuple(bb)
+                return tuple(mc.exactWorldBoundingBox(group))
         except Exception:
             pass
-        # Fallback conservador
-        return (-1.5, -1.5, -1.0, 1.5, 3.5, 1.0)
+        return (-2.0, 0.5, -1.5, 2.0, 5.0, 1.5)
