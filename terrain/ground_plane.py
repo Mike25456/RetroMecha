@@ -1,7 +1,6 @@
 """
-RetroMecha — terrain/ground_plane.py
-Plano de suelo. Siempre presente, no es símbolo del L-System.
-Delimita el piso de la escena.
+RetroMecha — terrain/ground_plane.py  v2
+Plano de suelo fijo, grande, con subdivisiones y borde.
 """
 
 try:
@@ -15,40 +14,25 @@ from core.module_registry import register
 
 @register('GROUND_PLANE')
 class GroundPlaneModule(BaseModule):
-    """
-    Plano horizontal grande que delimita el suelo de la escena.
-    Se crea antes de cualquier otro elemento del terreno.
-    """
     MODULE_NAME = 'GROUND_PLANE'
 
-    def generate(self,
-                 position: tuple = (0, 0, 0),
-                 scale: float = 1.0,
-                 rotation: tuple = (0, 0, 0)) -> str:
-
+    def generate(self, position=(0,0,0), scale=1.0, rotation=(0,0,0)) -> str:
         if mc is None:
             return 'rm_ground_DEBUG'
 
         grp = mc.group(empty=True, name='rm_ground_#')
 
-        sep = self._get('separation', 0.35)
+        # Tamaño fijo amplio — scale del terrain_builder ya es 1.0 para el suelo,
+        # el tamaño se controla aquí directamente.
+        gs = 60.0   # 60 unidades de lado — cubre toda la escena holgadamente
 
-        # Tamaño proporcional al mecha (3-5x)
-        ground_size = max(8.0, sep * 25.0)
+        surface = mc.polyCube(w=gs, h=0.10, d=gs,
+                              sx=4, sz=4,
+                              name='rm_ground_surface_#')[0]
 
-        ground = mc.polyCube(
-            w=ground_size, h=0.08, d=ground_size,
-            sx=2, sz=2,
-            name='rm_ground_surface_#'
-        )[0]
+        border = mc.polyCube(w=gs + 0.5, h=0.06, d=gs + 0.5,
+                             name='rm_ground_border_#')[0]
+        mc.move(0, -0.08, 0, border, relative=True)
 
-        # Borde sutil (labio exterior)
-        border = mc.polyCube(
-            w=ground_size + 0.3, h=0.04, d=ground_size + 0.3,
-            name='rm_ground_border_#'
-        )[0]
-        mc.move(0, -0.06, 0, border, relative=True)
-
-        mc.parent(ground, border, grp)
-
+        mc.parent(surface, border, grp)
         return self._finalize_group(grp, position, rotation, scale)

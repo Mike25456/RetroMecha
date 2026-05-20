@@ -1,7 +1,7 @@
 """
-RetroMecha — terrain/platform.py
-Plataforma industrial horizontal con alturas cuantizadas.
-Estilo Syd Mead: geometría fabricada, bordes rectos, superficies planas.
+RetroMecha — terrain/platform.py  v2
+Plataforma industrial elevada con columnas de soporte.
+Alturas reales positivas — estilo Syd Mead.
 """
 
 import random
@@ -17,25 +17,9 @@ from core.module_registry import register
 
 @register('PLATFORM')
 class PlatformModule(BaseModule):
-    """
-    Bloque horizontal industrial con borde perimetral.
-
-    Parámetros usados:
-        aggressiveness → deformación sutil de bordes (alta = bordes rotos)
-        decay          → escala de sub-plataformas
-        separation     → grosor del borde perimetral
-        _seed          → variación de proporciones
-    """
     MODULE_NAME = 'PLATFORM'
 
-    # Alturas cuantizadas permitidas (sensación de diseño intencional)
-    Y_LEVELS = [0.0, -0.3, -0.6, -1.0]
-
-    def generate(self,
-                 position: tuple = (0, 0, 0),
-                 scale: float = 1.0,
-                 rotation: tuple = (0, 0, 0)) -> str:
-
+    def generate(self, position=(0,0,0), scale=1.0, rotation=(0,0,0)) -> str:
         if mc is None:
             return 'rm_platform_DEBUG'
 
@@ -43,57 +27,72 @@ class PlatformModule(BaseModule):
 
         aggr = self._get('aggressiveness', 0.5)
         seed = self._get('_seed', 42)
-        rng = random.Random(seed + hash(str(position)) % 10000)
+        rng  = random.Random(seed + hash(str(position)) % 9999)
 
-        # Proporciones con variación por seed
-        base_w = rng.uniform(2.2, 3.5)
-        base_d = rng.uniform(1.6, 2.8)
-        base_h = rng.uniform(0.18, 0.35)
+        # ── Dimensiones del tablero ───────────────────────────────────────────
+        # Tamaños generosos — la escala del terrain_builder los reduce si hace falta
+        bw = rng.uniform(3.5, 6.5)
+        bd = rng.uniform(2.5, 5.0)
+        bh = rng.uniform(0.22, 0.40)
 
-        # ── Superficie principal ──────────────────────────────────────────────
-        surface = mc.polyCube(
-            w=base_w, h=base_h, d=base_d,
-            name='rm_platform_surface_#'
-        )[0]
+        # ── Tablero principal ─────────────────────────────────────────────────
+        surface = mc.polyCube(w=bw, h=bh, d=bd,
+                              name='rm_plat_surface_#')[0]
+        # Centrar en Y=0 local — _finalize_group lo lleva a position
+        # El tablero queda arriba, las columnas cuelgan hacia abajo
 
-        # ── Borde perimetral (labio) ──────────────────────────────────────────
-        lip_h = 0.06
-        lip_offset = 0.05
-        lip = mc.polyCube(
-            w=base_w + lip_offset * 2,
-            h=lip_h,
-            d=base_d + lip_offset * 2,
-            name='rm_platform_lip_#'
-        )[0]
-        mc.move(0, -(base_h * 0.5 + lip_h * 0.5), 0, lip, relative=True)
+        # ── Borde perimetral ──────────────────────────────────────────────────
+        lip = mc.polyCube(w=bw + 0.12, h=bh*0.4, d=bd + 0.12,
+                          name='rm_plat_lip_#')[0]
+        mc.move(0, -(bh*0.5 + bh*0.2), 0, lip, relative=True)
 
-        # ── Detalle de superficie (línea de separación) ───────────────────────
-        line_w = base_w * 0.8
-        line = mc.polyCube(
-            w=line_w, h=0.015, d=0.03,
-            name='rm_platform_line_#'
-        )[0]
-        mc.move(0, base_h * 0.5 + 0.008, rng.uniform(-0.3, 0.3) * base_d,
-                line, relative=True)
+        # ── Ranura decorativa en superficie ──────────────────────────────────
+        slot = mc.polyCube(w=bw*0.7, h=0.03, d=0.06,
+                           name='rm_plat_slot_#')[0]
+        slot_z = rng.uniform(-bd*0.25, bd*0.25)
+        mc.move(0, bh*0.5 + 0.015, slot_z, slot, relative=True)
 
-        # ── Deformación por agresividad (bordes rotos) ────────────────────────
-        # Con aggr alta, desplazamos 1-2 vértices del borde
-        if aggr > 0.4 and mc:
+        parts = [surface, lip, slot]
+
+        # ── Columnas de soporte ───────────────────────────────────────────────
+        # Van desde la base del tablero hasta el suelo (position[1] arriba, 0 abajo)
+        col_h = position[1]          # altura real sobre el suelo
+        if col_h > 0.15:
+            col_r  = rng.uniform(0.10, 0.18)
+            col_sa = rng.choice([4, 6, 8])
+            offsets = [
+                (-bw*0.38,  bd*0.38),
+                ( bw*0.38,  bd*0.38),
+                (-bw*0.38, -bd*0.38),
+                ( bw*0.38, -bd*0.38),
+            ]
+            for cx, cz in offsets:
+                col = mc.polyCylinder(r=col_r, h=col_h, sa=col_sa,
+                                      name='rm_plat_col_#')[0]
+                # posición local: la mitad de la columna está en -col_h/2 desde
+                # el centro del tablero (que luego _finalize_group sube a position[1])
+                mc.move(cx, -(bh*0.5 + col_h*0.5), cz, col, relative=True)
+                parts.append(col)
+
+            # Anillo de refuerzo a media columna
+            for cx, cz in offsets[:2]:
+                ring = mc.polyTorus(r=col_r*2.2, sr=col_r*0.28, sa=8, sh=4,
+                                    name='rm_plat_ring_#')[0]
+                mc.move(cx, -(bh*0.5 + col_h*0.5), cz, ring, relative=True)
+                parts.append(ring)
+
+        # ── Deformación de bordes (alta agresividad) ──────────────────────────
+        if aggr > 0.45:
             try:
-                vtx_count = mc.polyEvaluate(surface, vertex=True)
-                # Mover 2 vértices aleatorios ligeramente
-                for _ in range(min(2, vtx_count)):
-                    vi = rng.randint(0, vtx_count - 1)
-                    ox = rng.uniform(-0.1, 0.1) * aggr
-                    oy = rng.uniform(-0.05, 0.02) * aggr
-                    mc.polyMoveVertex(
-                        f'{surface}.vtx[{vi}]',
-                        translateX=ox, translateY=oy,
-                        localTranslate=True
-                    )
+                vtx_n = mc.polyEvaluate(surface, vertex=True)
+                for _ in range(2):
+                    vi = rng.randint(0, vtx_n - 1)
+                    mc.polyMoveVertex(f'{surface}.vtx[{vi}]',
+                                      translateX=rng.uniform(-0.12, 0.12)*aggr,
+                                      translateY=rng.uniform(-0.06, 0.0)*aggr,
+                                      localTranslate=True)
             except Exception:
-                pass  # Si falla, la plataforma queda intacta — OK
+                pass
 
-        mc.parent(surface, lip, line, grp)
-
+        mc.parent(*parts, grp)
         return self._finalize_group(grp, position, rotation, scale)
