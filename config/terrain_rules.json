@@ -1,0 +1,64 @@
+{
+  "_comment": "RetroMecha — Reglas L-System de TERRENO. Separadas de las reglas del mecha.",
+  "_version": "design-v1",
+  "_decisions": {
+    "profundidad": "5 capas: skyline, monumento, mecha+plataformas, fragmentos, debris",
+    "extension": "3-5x el tamaño del mecha",
+    "budget_objetos": "50-150 objetos Maya",
+    "ground_plane": "siempre presente, no es símbolo L-System",
+    "monumento": "estructura fija estéticamente diseñada, variaciones mínimas",
+    "skyline": "genérico, siempre el mismo estilo",
+    "mezcla_estilos": "aggressiveness controla proporción Mead/Shinkawa",
+    "fragmentos": "terreno abstracto geológico, rocas angulares",
+    "viewport": "funciona en 360° y en composición de render"
+  },
+
+  "_alfabeto": {
+    "G": "Ground — axioma raíz, no genera geometría propia",
+    "B": "Platform — bloque horizontal industrial (Mead)",
+    "F": "Fragment — poliedro angular emergente (Shinkawa)",
+    "D": "Debris — cubos diminutos esparcidos en clusters",
+    "V": "Tower — cilindro hexagonal vertical sobre plataforma",
+    "M": "Monument — mega-estructura de fondo (Mead), composición fija",
+    "K": "Skyline — silueta genérica de fondo lejano"
+  },
+
+  "_axioma": "G",
+  "_iteraciones_recomendadas": 2,
+
+  "_regla_1_nota": "Expansión principal: aggressiveness decide la variante. prob_industrial = 1.0 - aggr, prob_hostil = aggr. AMBAS variantes SIEMPRE incluyen M (monumento) para garantizar fondo.",
+
+  "G": [
+    ["G [M K K] [B V] [B] [F] [D D]",     "1.0 - aggr",  "industrial: más plataformas, skyline doble"],
+    ["G [M K] [F F F] [F D D] [D D] [B]",  "aggr",        "hostil: más fragmentos, una sola plataforma"]
+  ],
+
+  "_regla_2_nota": "Plataformas se sub-dividen con decay. 70% genera torre, 30% plataforma sola.",
+
+  "B": [
+    ["B [V] S",  0.70, "sub-plataforma con torre"],
+    ["B S",      0.30, "sub-plataforma sola"]
+  ],
+
+  "_regla_3_nota": "Fragmentos generan debris y rotación angular. 65% con debris, 35% fragmento solo.",
+
+  "F": [
+    ["F [D D] R S",  0.65, "fragmento + cluster debris + rotación"],
+    ["F R S",        0.35, "fragmento solo, más pequeño"]
+  ],
+
+  "_regla_4_nota": "Monumento: composición FIJA estéticamente diseñada. Las variantes solo cambian si tiene torres ornamentales. NO se genera aleatoriamente.",
+
+  "M": [
+    ["M [V V]",  0.60, "monumento con torres ornamentales laterales"],
+    ["M",        0.40, "monumento solo, silueta limpia"]
+  ],
+
+  "_terminales": "No se expanden — representan geometría final.",
+
+  "D": [["D", 1.0]],
+  "V": [["V", 1.0]],
+  "K": [["K", 1.0]],
+  "S": [["S", 1.0]],
+  "R": [["R", 1.0]]
+}

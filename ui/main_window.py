@@ -78,6 +78,15 @@ def build_ui():
     # -- Checkboxes -----------------------------------------------------------
     sym_cb    = mc.checkBox(label='Simetría',            value=True)
     panels_cb = mc.checkBox(label='Emplear Paneles',     value=True)
+    terrain_cb = mc.checkBox(label='Generar Terreno',    value=False)
+
+    # -- Preset de escena (visible cuando terreno activo) ---------------------
+    mc.text(label='Preset de escena', align='left', font='smallPlainLabelFont')
+    terrain_preset_menu = mc.optionMenu(width=290)
+    mc.menuItem(label='Avanzada')
+    mc.menuItem(label='Hangar')
+    mc.menuItem(label='Campo de batalla')
+    mc.menuItem(label='Centinela')
 
     mc.separator(h=8)
 
@@ -123,9 +132,27 @@ def build_ui():
         params = _collect_params()
         params['_seed'] = seed
 
-        from core.mecha_builder import MechaBuilder
-        builder = MechaBuilder(params, seed=seed)
-        result  = builder.build()
+        use_terrain = mc.checkBox(terrain_cb, q=True, value=True)
+
+        if use_terrain:
+            # Mapeo label → nombre interno del preset
+            preset_map = {
+                'Avanzada':          'avanzada',
+                'Hangar':            'hangar',
+                'Campo de batalla':  'campo_de_batalla',
+                'Centinela':         'centinela',
+            }
+            preset_label = mc.optionMenu(terrain_preset_menu, q=True, value=True)
+            preset_name = preset_map.get(preset_label, 'avanzada')
+
+            from terrain.scene_composer import SceneComposer
+            composer = SceneComposer(params, seed=seed,
+                                     terrain_preset=preset_name)
+            result = composer.compose()
+        else:
+            from core.mecha_builder import MechaBuilder
+            builder = MechaBuilder(params, seed=seed)
+            result = builder.build()
 
         if result:
             mc.select(result)
@@ -133,10 +160,17 @@ def build_ui():
 
     def on_reset(*_):
         # Elimina todos los grupos RetroMecha de la escena
-        existing = mc.ls('RetroMecha_*', type='transform') or []
-        if existing:
-            mc.delete(existing)
-            print(f'[RetroMecha] Eliminados: {existing}')
+        patterns = ['RetroMecha_*', 'rm_terrain_*', 'rm_ground_*',
+                    'rm_monument_*', 'rm_platform_*', 'rm_fragment_*',
+                    'rm_debris_*', 'rm_tower_*', 'rm_skyline_*']
+        for pat in patterns:
+            existing = mc.ls(pat, type='transform') or []
+            if existing:
+                try:
+                    mc.delete(existing)
+                except Exception:
+                    pass
+        print('[RetroMecha] Escena limpiada')
         mc.textField(seed_field, e=True, text='')
         _LAST_SEED[0] = None
 
