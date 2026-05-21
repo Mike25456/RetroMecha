@@ -1,91 +1,131 @@
 {
-  "_comment": "RetroMecha — Presets terreno v4. safe_radius, monumento lejos y lateral.",
-
+  "_comment": "RetroMecha — Presets terreno v5. Perspectiva central, monumento centrado X=0.",
   "avanzada": {
-    "ground_plane_y":       -0.05,
-    "safe_radius":           6.0,
-    "monument_scale":        5.5,
+    "ground_plane_y": -0.05,
+    "safe_radius": 6.0,
+    "front_exclusion_deg": 50.0,
+    "monument_scale": 5.5,
     "monument_distance_z": -45.0,
-    "monument_offset_x":    12.0,
-    "platform_count":        9,
-    "platform_y_levels":  [0.6, 1.4, 2.5, 4.0],
-    "platform_scale_range": [1.0, 1.8],
-    "fragment_count":       12,
-    "fragment_scale_range": [0.8, 2.0],
-    "pillar_count":          8,
-    "ramp_probability":      0.55,
-    "debris_count":         80,
-    "tower_probability":     0.65,
-    "skyline_count":          3,
-    "skyline_distance_z":  -55.0,
-    "skyline_spread_x":     40.0,
-    "ring_min_r":           10.0,
-    "ring_max_r":           35.0
+    "platform_count": 16,
+    "platform_y_levels": [
+      0.6,
+      1.4,
+      2.5,
+      4.0
+    ],
+    "platform_scale_range": [
+      1.0,
+      1.8
+    ],
+    "fragment_count": 22,
+    "fragment_scale_range": [
+      0.8,
+      2.0
+    ],
+    "pillar_count": 14,
+    "ramp_probability": 0.65,
+    "debris_count": 140,
+    "tower_probability": 0.8,
+    "skyline_count": 3,
+    "skyline_distance_z": -56.0,
+    "skyline_spread_x": 44.0,
+    "ring_min_r": 8.0,
+    "ring_max_r": 26.0
   },
-
   "hangar": {
-    "ground_plane_y":       -0.05,
-    "safe_radius":           6.0,
-    "monument_scale":        6.0,
+    "ground_plane_y": -0.05,
+    "safe_radius": 6.0,
+    "front_exclusion_deg": 55.0,
+    "monument_scale": 6.0,
     "monument_distance_z": -40.0,
-    "monument_offset_x":    10.0,
-    "platform_count":       12,
-    "platform_y_levels":  [0.4, 1.0, 1.8, 2.8],
-    "platform_scale_range": [1.2, 2.2],
-    "fragment_count":        5,
-    "fragment_scale_range": [0.5, 1.2],
-    "pillar_count":         10,
-    "ramp_probability":      0.75,
-    "debris_count":         40,
-    "tower_probability":     0.80,
-    "skyline_count":          4,
-    "skyline_distance_z":  -52.0,
-    "skyline_spread_x":     45.0,
-    "ring_min_r":            8.0,
-    "ring_max_r":           30.0
+    "platform_count": 20,
+    "platform_y_levels": [
+      0.4,
+      1.0,
+      1.8,
+      2.8
+    ],
+    "platform_scale_range": [
+      1.2,
+      2.2
+    ],
+    "fragment_count": 8,
+    "fragment_scale_range": [
+      0.5,
+      1.2
+    ],
+    "pillar_count": 16,
+    "ramp_probability": 0.85,
+    "debris_count": 70,
+    "tower_probability": 0.9,
+    "skyline_count": 4,
+    "skyline_distance_z": -52.0,
+    "skyline_spread_x": 48.0,
+    "ring_min_r": 7.0,
+    "ring_max_r": 24.0
   },
-
   "campo_de_batalla": {
-    "ground_plane_y":       -0.05,
-    "safe_radius":           5.0,
-    "monument_scale":        4.5,
+    "ground_plane_y": -0.05,
+    "safe_radius": 5.0,
+    "front_exclusion_deg": 45.0,
+    "monument_scale": 4.5,
     "monument_distance_z": -48.0,
-    "monument_offset_x":    15.0,
-    "platform_count":        5,
-    "platform_y_levels":  [0.3, 0.8, 1.6, 2.2],
-    "platform_scale_range": [0.8, 1.5],
-    "fragment_count":       20,
-    "fragment_scale_range": [1.0, 2.8],
-    "pillar_count":          5,
-    "ramp_probability":      0.30,
-    "debris_count":        120,
-    "tower_probability":     0.35,
-    "skyline_count":          2,
-    "skyline_distance_z":  -58.0,
-    "skyline_spread_x":     35.0,
-    "ring_min_r":            8.0,
-    "ring_max_r":           40.0
+    "platform_count": 9,
+    "platform_y_levels": [
+      0.3,
+      0.8,
+      1.6,
+      2.2
+    ],
+    "platform_scale_range": [
+      0.8,
+      1.5
+    ],
+    "fragment_count": 30,
+    "fragment_scale_range": [
+      1.0,
+      2.8
+    ],
+    "pillar_count": 8,
+    "ramp_probability": 0.4,
+    "debris_count": 200,
+    "tower_probability": 0.4,
+    "skyline_count": 2,
+    "skyline_distance_z": -58.0,
+    "skyline_spread_x": 36.0,
+    "ring_min_r": 6.0,
+    "ring_max_r": 30.0
   },
-
   "centinela": {
-    "ground_plane_y":       -0.05,
-    "safe_radius":           5.0,
-    "monument_scale":        8.0,
+    "ground_plane_y": -0.05,
+    "safe_radius": 5.0,
+    "front_exclusion_deg": 50.0,
+    "monument_scale": 8.0,
     "monument_distance_z": -30.0,
-    "monument_offset_x":     8.0,
-    "platform_count":        7,
-    "platform_y_levels":  [0.5, 1.2, 2.0, 3.2],
-    "platform_scale_range": [1.0, 2.0],
-    "fragment_count":        6,
-    "fragment_scale_range": [0.6, 1.4],
-    "pillar_count":          9,
-    "ramp_probability":      0.60,
-    "debris_count":         50,
-    "tower_probability":     0.70,
-    "skyline_count":          3,
-    "skyline_distance_z":  -50.0,
-    "skyline_spread_x":     40.0,
-    "ring_min_r":            7.0,
-    "ring_max_r":           28.0
+    "platform_count": 14,
+    "platform_y_levels": [
+      0.5,
+      1.2,
+      2.0,
+      3.2
+    ],
+    "platform_scale_range": [
+      1.0,
+      2.0
+    ],
+    "fragment_count": 10,
+    "fragment_scale_range": [
+      0.6,
+      1.4
+    ],
+    "pillar_count": 14,
+    "ramp_probability": 0.7,
+    "debris_count": 90,
+    "tower_probability": 0.8,
+    "skyline_count": 3,
+    "skyline_distance_z": -48.0,
+    "skyline_spread_x": 40.0,
+    "ring_min_r": 6.0,
+    "ring_max_r": 22.0
   }
 }

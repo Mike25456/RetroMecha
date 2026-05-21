@@ -1,13 +1,21 @@
 """
-RetroMecha — terrain/terrain_builder.py  v4
+RetroMecha — terrain/terrain_builder.py  v5
 
-Composición basada en el boceto del usuario:
-  SIDE: monumento izq, plataformas elevadas con pilares, rampas, debris
-  TOP:  monumento arriba-derecha lejos, mecha al centro con RADIO DE SEGURIDAD,
-        plataformas y fragmentos distribuidos FUERA del radio, bien espaciados.
+COMPOSICIÓN EN PERSPECTIVA CENTRAL (boceto del usuario):
+  - Cámara en Z+ mirando hacia Z-
+  - Monumento SIEMPRE centrado en X=0, lejos en Z-
+  - FRENTE (Z+): ZONA PROHIBIDA — nada se genera ahí
+  - LATERALES (X+ y X-): alta densidad — elementos guían la vista al mecha
+  - FONDO (Z-): densidad media — espacio para el monumento
 
-RADIO DE SEGURIDAD: nada se genera dentro de safe_radius del centro (0,0,0).
-Esto evita que los elementos choquen con el mecha.
+  Ángulos (0=X+, π/2=Z+FRENTE, π=X-, 3π/2=Z-FONDO):
+  ┌─────────────────────────────────────────────────────────┐
+  │  Lateral dcho  │  FRENTE      │  Lateral izq           │
+  │  ████████████  │  ░░ VACÍO ░░ │  ████████████          │
+  │  -60° → +40°   │  40° → 140°  │  140° → 240°           │
+  │  peso: 40%     │  PROHIBIDO   │  peso: 40%             │
+  └─────────────────────────────────────────────────────────┘
+  Fondo (240°→300°, Z-): peso 20% — skylines y fragmentos lejanos
 """
 
 import random
@@ -30,36 +38,58 @@ class TerrainBuilder:
 
     DEFAULT_PRESET = {
         'ground_plane_y':       -0.05,
-        'safe_radius':           6.0,     # NADA dentro de este radio
+        'safe_radius':           6.0,
+        'front_exclusion_deg':  50.0,   # grados excluidos alrededor de Z+
+
+        # Monumento SIEMPRE centrado X=0
         'monument_scale':        5.5,
-        'monument_distance_z': -45.0,     # muy lejos atrás
-        'monument_offset_x':    12.0,     # lateral (boceto: arriba-derecha)
+        'monument_distance_z': -45.0,
+
+        # Skylines a los lados del monumento (pero en Z-)
+        'skyline_count':          3,
+        'skyline_distance_z':  -55.0,
+        'skyline_spread_x':     40.0,
+
+        # Plataformas
         'platform_count':        8,
         'platform_y_levels':  [0.6, 1.4, 2.5, 4.0],
         'platform_scale_range': [1.0, 1.8],
+
+        # Fragmentos
         'fragment_count':       12,
         'fragment_scale_range': [0.8, 2.0],
+
+        # Pilares, rampas, debris
         'pillar_count':          8,
         'ramp_probability':      0.55,
         'debris_count':         80,
         'tower_probability':     0.65,
-        'skyline_count':          3,
-        'skyline_distance_z':  -55.0,     # detrás del monumento
-        'skyline_spread_x':     40.0,     # ancho de distribución skylines
-        'ring_min_r':           10.0,     # mínimo desde centro
-        'ring_max_r':           35.0,     # máximo desde centro
+
+        # Radios del anillo
+        'ring_min_r':           10.0,
+        'ring_max_r':           35.0,
     }
 
-    def __init__(self, params, seed, preset_name='avanzada', mecha_bbox=None):
-        self.params     = params
-        self.seed       = seed
-        self._rng       = random.Random(seed)
-        self.preset     = self._load_preset(preset_name)
-        self.mecha_bbox = mecha_bbox or (-2, 0.5, -1.5, 2, 5, 1.5)
-        self._root      = None
-        self._plat_pos  = []
+    # Zonas de distribución angular (en radianes, 0=X+, π/2=Z+FRENTE PROHIBIDO)
+    # Definidas como (angle_start, angle_end, weight)
+    ZONES = [
+        (math.radians(-60), math.radians(40),  0.44),  # lateral derecho
+        (math.radians(140), math.radians(240), 0.44),  # lateral izquierdo
+        (math.radians(240), math.radians(300), 0.12),  # fondo (Z-)
+    ]
 
-    # ── Build ─────────────────────────────────────────────────────────────────
+    def __init__(self, params, seed, preset_name='avanzada', mecha_bbox=None):
+        self.params    = params
+        self.seed      = seed
+        self._rng      = random.Random(seed)
+        self.preset    = self._load_preset(preset_name)
+        self.mecha_bbox = mecha_bbox or (-2, 0.5, -1.5, 2, 5, 1.5)
+        self._root     = None
+        self._plat_pos = []
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  PUNTO DE ENTRADA
+    # ─────────────────────────────────────────────────────────────────────────
 
     def build(self):
         print(f'[RetroMecha][Terrain] Build | Seed:{self.seed}')
@@ -83,81 +113,124 @@ class TerrainBuilder:
             import traceback; traceback.print_exc()
         return self._root
 
-    # ── Helpers de posición ───────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    #  DISTRIBUCIÓN ANGULAR — perspectiva central
+    # ─────────────────────────────────────────────────────────────────────────
 
-    def _safe_pos(self, r_min=None, r_max=None):
-        """Genera (x, z) fuera del radio de seguridad del mecha."""
+    def _composition_pos(self, n, r_min=None, r_max=None):
+        """
+        Genera n posiciones (x, z) respetando la composición en perspectiva
+        central: laterales con alta densidad, frente prohibido.
+        """
         safe  = self.preset.get('safe_radius', 6.0)
         r_lo  = max(safe, r_min or self.preset.get('ring_min_r', 10.0))
         r_hi  = r_max or self.preset.get('ring_max_r', 35.0)
-        r     = self._rng.uniform(r_lo, r_hi)
-        angle = self._rng.uniform(0, math.tau)
-        return (math.cos(angle) * r, math.sin(angle) * r)
+        zones = self.ZONES
 
-    def _safe_angles(self, n, r_min=None, r_max=None):
-        """N posiciones en anillo fuera del radio seguro."""
-        safe = self.preset.get('safe_radius', 6.0)
-        r_lo = max(safe, r_min or self.preset.get('ring_min_r', 10.0))
-        r_hi = r_max or self.preset.get('ring_max_r', 35.0)
-        step = math.tau / max(n, 1)
+        # Excluir frente dinámicamente si el preset lo ajusta
+        excl_deg = self.preset.get('front_exclusion_deg', 50.0)
+        excl     = math.radians(excl_deg)
+        front    = math.pi / 2   # Z+ (frente cámara)
+        dyn_zones = [
+            (front - excl - math.radians(70), front - excl, 0.40),  # lateral dcho
+            (front + excl,                    front + excl + math.radians(100), 0.40),  # lateral izq
+            (front + excl + math.radians(100),front + excl + math.radians(160), 0.20),  # fondo
+        ]
+
         result = []
-        for i in range(n):
-            angle = step * i + self._rng.uniform(-step*0.3, step*0.3)
-            r = self._rng.uniform(r_lo, r_hi)
-            result.append((math.cos(angle)*r, math.sin(angle)*r))
+        for _ in range(n):
+            # Elegir zona con su peso
+            rv = self._rng.random()
+            cumul = 0.0
+            chosen = dyn_zones[-1]
+            for z in dyn_zones:
+                cumul += z[2]
+                if rv <= cumul:
+                    chosen = z
+                    break
+
+            angle  = self._rng.uniform(chosen[0], chosen[1])
+            radius = self._rng.uniform(r_lo, r_hi)
+            px = math.cos(angle) * radius
+            pz = math.sin(angle) * radius
+            result.append((px, pz))
+
         return result
 
-    # ── Ground ────────────────────────────────────────────────────────────────
+    def _random_lateral_pos(self, r_lo, r_hi):
+        """Posición aleatoria en zona lateral (no frente) para debris."""
+        excl_deg = self.preset.get('front_exclusion_deg', 50.0)
+        excl     = math.radians(excl_deg)
+        front    = math.pi / 2
+
+        # Elegir entre lateral derecho, izquierdo o fondo
+        choice = self._rng.random()
+        if choice < 0.40:
+            angle = self._rng.uniform(front - excl - math.radians(70), front - excl)
+        elif choice < 0.80:
+            angle = self._rng.uniform(front + excl, front + excl + math.radians(100))
+        else:
+            angle = self._rng.uniform(math.radians(240), math.radians(310))
+
+        r  = self._rng.uniform(r_lo, r_hi)
+        return math.cos(angle) * r, math.sin(angle) * r
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  GROUND
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _ground(self):
         gp_y = self.preset.get('ground_plane_y', -0.05)
         self._spawn('GROUND_PLANE', position=(0, gp_y, 0), scale=1.0)
 
-    # ── Background: monumento + skylines ──────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    #  BACKGROUND — monumento CENTRADO + skylines laterales
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _background(self):
         p    = self.preset
         gp_y = p.get('ground_plane_y', -0.05)
 
-        # Monumento: lejos en Z negativo, con offset lateral (boceto: arriba-derecha)
+        # ── Monumento: SIEMPRE X=0, centrado en el eje de perspectiva ─────────
         ms = p.get('monument_scale', 5.5)
         mz = p.get('monument_distance_z', -45.0)
-        mx = p.get('monument_offset_x', 12.0) * self._rng.choice([-1, 1])
 
-        self._spawn('MONUMENT', position=(mx, gp_y, mz), scale=ms)
+        self._spawn('MONUMENT', position=(0, gp_y, mz), scale=ms)
 
-        # Torres del monumento
+        # Torres ornamentales a los lados del monumento (simétricas)
         for side in [-1, 1]:
             if self._rng.random() < 0.7:
                 self._spawn('TOWER',
-                            position=(mx + side * ms * 1.5, gp_y, mz + 2.0),
+                            position=(side * ms * 1.5, gp_y, mz + 2.0),
                             scale=ms * 0.5)
 
-        # Skylines: distribuidos a lo ancho DETRÁS del monumento
+        # ── Skylines: distribuidos lateralmente DETRÁS del monumento ──────────
         sky_n    = p.get('skyline_count', 3)
         sky_z    = p.get('skyline_distance_z', -55.0)
         spread_x = p.get('skyline_spread_x', 40.0)
 
         for i in range(sky_n):
-            # Distribuir equidistantes en X con jitter
-            sx = -spread_x*0.5 + (spread_x / max(sky_n-1, 1)) * i
-            sx += self._rng.uniform(-3.0, 3.0)
-            sz = sky_z + self._rng.uniform(-3.0, 3.0)
-            ss = self._rng.uniform(1.5, 2.5)
+            if sky_n == 1:
+                sx = 0.0
+            else:
+                sx = -spread_x*0.5 + (spread_x / (sky_n-1)) * i
+            sx += self._rng.uniform(-2.0, 2.0)
+            sz  = sky_z + self._rng.uniform(-4.0, 4.0)
+            ss  = self._rng.uniform(1.6, 2.8)
             self._spawn('SKYLINE', position=(sx, gp_y, sz), scale=ss)
 
-    # ── Plataformas ───────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    #  PLATAFORMAS — distribuidas en laterales
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _platforms(self):
         p      = self.preset
         aggr   = self.params.get('aggressiveness', 0.5)
         y_lvls = p.get('platform_y_levels', [0.6, 1.4, 2.5, 4.0])
         sc_rng = p.get('platform_scale_range', [1.0, 1.8])
+        n      = max(4, int(p.get('platform_count', 8) * (1.4 - aggr * 0.4)))
 
-        n = p.get('platform_count', 8)
-        n = max(4, int(n * (1.4 - aggr * 0.4)))
-
-        positions = self._safe_angles(n)
+        positions = self._composition_pos(n)
 
         for (px, pz) in positions:
             py = GROUND_Y + self._rng.choice(y_lvls)
@@ -172,28 +245,30 @@ class TerrainBuilder:
                             position=(px, py, pz),
                             scale=ps * self._rng.uniform(0.5, 0.9))
 
-            # Sub-plataforma adyacente (diferente Y)
-            if self._rng.random() < 0.5:
+            # Sub-plataformas adyacentes (2 intentos para más densidad)
+            for _sp in range(2):
+             if self._rng.random() < 0.80:
                 ox = px + self._rng.uniform(-3.0, 3.0)
                 oz = pz + self._rng.uniform(-3.0, 3.0)
-                # Verificar que sigue fuera del safe radius
-                dist = math.sqrt(ox*ox + oz*oz)
                 safe = p.get('safe_radius', 6.0)
+                dist = math.sqrt(ox*ox + oz*oz)
                 if dist > safe:
                     oy = GROUND_Y + self._rng.choice(y_lvls) * 0.65
                     ss = ps * self._rng.uniform(0.4, 0.7)
                     self._spawn('PLATFORM', position=(ox, oy, oz), scale=ss)
                     self._plat_pos.append((ox, oy, oz))
 
-        # Landing pad central (justo bajo el mecha, a nivel de suelo)
+        # Landing pad central bajo el mecha (siempre)
         self._spawn('PLATFORM', position=(0, GROUND_Y, 0), scale=1.4)
         self._plat_pos.append((0, GROUND_Y, 0))
 
-    # ── Rampas ────────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    #  RAMPAS
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _ramps(self):
         prob = self.preset.get('ramp_probability', 0.55)
-        MAX_DIST = 18.0
+        MAX_D = 18.0
         grp = mc.group(empty=True, name='rm_ramps_#')
         created = 0
 
@@ -204,17 +279,14 @@ class TerrainBuilder:
             for j, p2 in enumerate(self._plat_pos):
                 if i == j: continue
                 d = math.dist(p1, p2)
-                if d < best_d and d < MAX_DIST:
+                if d < best_d and d < MAX_D:
                     best_d, best = d, p2
             if best is None:
                 continue
-
             mx = (p1[0]+best[0])*0.5
             my = (p1[1]+best[1])*0.5
             mz = (p1[2]+best[2])*0.5
-
-            ramp = mc.polyCube(w=0.5, h=0.10, d=best_d,
-                               name='rm_ramp_#')[0]
+            ramp = mc.polyCube(w=0.5, h=0.10, d=best_d, name='rm_ramp_#')[0]
             mc.move(mx, my+0.06, mz, ramp)
             ay = math.degrees(math.atan2(best[0]-p1[0], best[2]-p1[2]))
             ax = -math.degrees(math.atan2(best[1]-p1[1], best_d))
@@ -228,13 +300,15 @@ class TerrainBuilder:
         else:
             mc.delete(grp)
 
-    # ── Pilares ───────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    #  PILARES — laterales
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _pillars(self):
         n   = self.preset.get('pillar_count', 8)
         grp = mc.group(empty=True, name='rm_pillars_#')
 
-        positions = self._safe_angles(n)
+        positions = self._composition_pos(n)
         for (px, pz) in positions:
             ph  = self._rng.uniform(3.0, 9.0)
             pr  = self._rng.uniform(0.15, 0.35)
@@ -256,7 +330,9 @@ class TerrainBuilder:
 
         mc.parent(grp, self._root)
 
-    # ── Fragmentos ────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    #  FRAGMENTOS — laterales + fondo, respetando safe_radius
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _fragments(self):
         p    = self.preset
@@ -264,30 +340,32 @@ class TerrainBuilder:
         sr   = p.get('fragment_scale_range', [0.8, 2.0])
         n    = max(4, int(p.get('fragment_count', 12) * (0.5 + aggr)))
 
-        positions = self._safe_angles(n)
+        positions = self._composition_pos(n)
+        safe = p.get('safe_radius', 6.0)
+
         for (fx, fz) in positions:
             fs = self._rng.uniform(*sr)
             self._spawn('FRAGMENT', position=(fx, GROUND_Y, fz), scale=fs)
 
-            # 1-2 satélites
-            for _ in range(self._rng.randint(1, 2)):
+            # Satélites
+            for _ in range(self._rng.randint(2, 4)):
                 sx = fx + self._rng.uniform(-4.0, 4.0)
                 sz = fz + self._rng.uniform(-4.0, 4.0)
-                dist = math.sqrt(sx*sx + sz*sz)
-                safe = p.get('safe_radius', 6.0)
-                if dist > safe:
+                if math.sqrt(sx*sx + sz*sz) > safe:
                     self._spawn('FRAGMENT',
                                 position=(sx, GROUND_Y, sz),
                                 scale=fs * self._rng.uniform(0.2, 0.5))
 
-    # ── Debris ────────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    #  DEBRIS — solo en laterales y fondo, respeta frente vacío
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _debris(self):
-        n      = self.preset.get('debris_count', 80)
-        gp_y   = self.preset.get('ground_plane_y', -0.05)
-        r_max  = self.preset.get('ring_max_r', 35.0)
-        safe   = self.preset.get('safe_radius', 6.0)
-        spread = r_max * 1.2
+        n     = self.preset.get('debris_count', 80)
+        gp_y  = self.preset.get('ground_plane_y', -0.05)
+        safe  = self.preset.get('safe_radius', 6.0)
+        r_lo  = self.preset.get('ring_min_r', 10.0)
+        r_hi  = self.preset.get('ring_max_r', 35.0)
 
         mash_ok = False
         try:
@@ -296,67 +374,38 @@ class TerrainBuilder:
         except Exception:
             pass
 
-        if mash_ok:
-            self._debris_mash(n, spread, gp_y)
-        else:
-            self._debris_manual(n, spread, gp_y, safe)
+        # MASH no respeta la zona frontal — siempre usar scatter manual
+        self._debris_manual(n, gp_y, safe, r_lo, r_hi)
 
-    def _debris_mash(self, count, spread, gp_y):
-        try:
-            import MASH.api as mapi
-            base = mc.polyCube(w=0.18, h=0.12, d=0.14,
-                               name='rm_debris_base_#')[0]
-            mc.move(0, gp_y+0.06, 0, base)
-            net = mapi.Network()
-            net.createNetwork(base, count=count)
-            rnd = net.addNode('MASH_Random')
-            mc.setAttr(rnd+'.positionX', spread)
-            mc.setAttr(rnd+'.positionY', 0.4)
-            mc.setAttr(rnd+'.positionZ', spread)
-            mc.setAttr(rnd+'.rotationX', 180)
-            mc.setAttr(rnd+'.rotationY', 180)
-            mc.setAttr(rnd+'.rotationZ', 180)
-            mc.setAttr(rnd+'.scaleX', 0.8)
-            mc.setAttr(rnd+'.scaleY', 0.8)
-            mc.setAttr(rnd+'.scaleZ', 0.8)
-            mc.setAttr(rnd+'.randomSeed', self.seed)
-            print(f'[RetroMecha][Terrain] MASH debris: {count}')
-        except Exception as e:
-            print(f'[RetroMecha][Terrain] MASH falló ({e}), manual')
-            safe = self.preset.get('safe_radius', 6.0)
-            self._debris_manual(count, spread,
-                                self.preset.get('ground_plane_y', -0.05), safe)
-
-    def _debris_manual(self, count, spread, gp_y, safe):
+    def _debris_manual(self, count, gp_y, safe, r_lo, r_hi):
         grp = mc.group(empty=True, name='rm_debris_scatter_#')
         placed = 0
         attempts = 0
-        while placed < count and attempts < count * 3:
+        while placed < count and attempts < count * 4:
             attempts += 1
+            px, pz = self._random_lateral_pos(r_lo, r_hi)
+            if math.sqrt(px*px + pz*pz) < safe:
+                continue
+
             s  = self._rng.uniform(0.06, 0.25)
             sw = s * self._rng.uniform(0.5, 2.2)
             sh = s * self._rng.uniform(0.3, 1.6)
             sd = s * self._rng.uniform(0.4, 1.9)
-            px = self._rng.uniform(-spread, spread)
-            pz = self._rng.uniform(-spread, spread)
-
-            # Respetar radio de seguridad
-            if math.sqrt(px*px + pz*pz) < safe:
-                continue
-
-            p = mc.polyCube(w=sw, h=sh, d=sd,
-                            name=f'rm_deb_{placed}_#')[0]
-            mc.move(px, gp_y + sh*0.5, pz, p)
+            piece = mc.polyCube(w=sw, h=sh, d=sd,
+                                name=f'rm_deb_{placed}_#')[0]
+            mc.move(px, gp_y + sh*0.5, pz, piece)
             mc.rotate(self._rng.uniform(0,360),
                       self._rng.uniform(0,360),
-                      self._rng.uniform(0,360), p)
-            mc.parent(p, grp)
+                      self._rng.uniform(0,360), piece)
+            mc.parent(piece, grp)
             placed += 1
 
         mc.parent(grp, self._root)
-        print(f'[RetroMecha][Terrain] Debris manual: {placed}')
+        print(f'[RetroMecha][Terrain] Debris: {placed}')
 
-    # ── Spawn / Load ──────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    #  SPAWN / LOAD
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _spawn(self, name, position=(0,0,0), scale=1.0, rotation=(0,0,0)):
         cls = get_module(name)
