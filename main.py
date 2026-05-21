@@ -1,14 +1,15 @@
 """
 RetroMecha — main.py
-Punto de entrada. Correr este archivo desde el bridge de VS Code → Maya.
+Punto de entrada del plugin (se ejecuta dentro de Maya).
+
+Forma recomendada de arrancar (desde el proyecto, sin bridge):
+  python run_retromecha.py
+  o doble clic en Run RetroMecha.bat
 
 Orden de ejecución:
-  1. Agrega la carpeta del proyecto al sys.path (por si el bridge no lo hace)
+  1. Agrega la carpeta del proyecto al sys.path
   2. Importa todos los módulos para que se auto-registren en el Registry
   3. Lanza la UI
-
-Para recargar durante desarrollo (hot-reload desde VS Code):
-  exec(open('ruta/a/RetroMecha/main.py').read())
 """
 
 import sys

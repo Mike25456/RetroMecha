@@ -1,0 +1,5 @@
+{
+  "_comment": "Copia este archivo como retromecha.local.json (no se sube a git si lo agregas al ignore)",
+  "maya_executable": "C:/Program Files/Autodesk/Maya2024/bin/maya.exe",
+  "maya_version": "2024"
+}

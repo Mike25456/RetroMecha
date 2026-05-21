@@ -1,5 +1,5 @@
 {
-  "_comment": "RetroMecha — Presets de parámetros. Cargar desde UI (próxima fase).",
+  "_comment": "RetroMecha — Presets. separation = brazos/alas/hombreras (no la cabeza). Altura cabeza = automática según torso.",
 
   "balanced": {
     "_name": "Balanceado",

@@ -205,6 +205,10 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# RetroMecha launcher (local / generado)
+retromecha.local.json
+launcher/_launch_generated.mel
+
 # Ruff stuff:
 .ruff_cache/
 

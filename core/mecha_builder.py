@@ -17,6 +17,7 @@ except ImportError:
 
 from core.l_system import LSystem
 from core.module_registry import get as get_module, is_registered
+from utils.maya_materials import assign_material
 
 
 class MechaBuilder:
@@ -77,40 +78,51 @@ class MechaBuilder:
         angle      = self.params.get('connector_angle',  15.0)
         h_scale    = self.params.get('height_scale',     1.0)
 
-        # ── HEAD ─────────────────────────────────────────────────────────────
-        self._spawn('HEAD',
-                    position=(0, (2.6 + sep) * h_scale, 0))
+        # ── TORSO primero (la cabeza se apoya en su bbox, no en separation) ───
+        torso = self._spawn('TORSO', position=(0, 0, 0), scale=h_scale)
 
-        # ── TORSO (núcleo) ────────────────────────────────────────────────────
-        self._spawn('TORSO',
-                    position=(0, 0, 0),
-                    scale=h_scale)
+        head_y = 1.15 * h_scale
+        if torso and mc.objExists(torso):
+            bb = mc.exactWorldBoundingBox(torso)
+            # Pivot de cabeza ≈ centro; subir media altura de cabeza + hueco cuello
+            head_y = bb[4] + 0.06 + 0.48 * h_scale
+
+        self._spawn('HEAD', position=(0, head_y, 0))
 
         # ── ARMS ──────────────────────────────────────────────────────────────
-        arm_x = 1.25 + sep
+        arm_x = 1.18 + sep * 0.35
         arm_y = 0.5 * h_scale
         self._spawn('ARM',
-                    position=(-arm_x, arm_y, 0),
-                    rotation=(0, 0,  angle),
+                    position=(-arm_x, arm_y, 0.16),
+                    rotation=(0, 0, angle * 0.18),
                     scale=decay)
 
         if symmetry:
             self._spawn('ARM',
-                        position=( arm_x, arm_y, 0),
-                        rotation=(0, 0, -angle),
+                        position=( arm_x, arm_y, 0.16),
+                        rotation=(0, 0, -angle * 0.18),
                         scale=decay)
 
-        # ── WINGS ─────────────────────────────────────────────────────────────
-        wing_x = 0.9 + sep
-        wing_y = 1.1 * h_scale
+        # ── WINGS: alta en la espalda; separation aleja del torso en Z ─────────
+        wing_x = 0.40
+        wing_y = 1.05 * h_scale
+        wing_z = -0.50 - sep * 0.55
+        if torso and mc.objExists(torso):
+            bb = mc.exactWorldBoundingBox(torso)
+            wing_y = bb[1] + (bb[4] - bb[1]) * 0.86
+            wing_z = bb[2] - 0.32 - sep * 1.55
+            wing_x = (bb[3] - bb[0]) * 0.24
+
         self._spawn('WING',
-                    position=(-wing_x, wing_y, -0.3),
-                    rotation=(0, 0,  angle * 1.5))
+                    position=(-wing_x, wing_y, wing_z),
+                    rotation=(-4, -16, 0))
 
         if symmetry:
             self._spawn('WING',
-                        position=( wing_x, wing_y, -0.3),
-                        rotation=(0, 0, -angle * 1.5))
+                        position=(wing_x, wing_y, wing_z),
+                        rotation=(-4, 16, 0))
+
+        self._build_energy_fields(arm_x, arm_y, head_y, h_scale, symmetry)
 
     # ── Capa de paneles ────────────────────────────────────────────────────────
 
@@ -123,6 +135,43 @@ class MechaBuilder:
             print('[RetroMecha] panel_layer no disponible, omitiendo')
 
     # ── Helpers ────────────────────────────────────────────────────────────────
+
+    def _build_energy_fields(self, arm_x: float, arm_y: float, head_y: float,
+                             h_scale: float, symmetry: bool) -> None:
+        """Cyan connector rings for the separated, floating mecha parts."""
+        if not MAYA_AVAILABLE or not self._root_group:
+            return
+
+        grp = mc.group(empty=True, name='rm_energy_fields_#')
+        rings = [
+            self._energy_ring((0, head_y - 0.52, 0), 0.24, (0, 0, 0)),
+            self._energy_ring((0, -0.98 * h_scale, 0), 0.30, (0, 0, 0)),
+            self._energy_ring((-arm_x * 0.58, arm_y + 0.22, 0), 0.22, (0, 90, 0)),
+        ]
+        if symmetry:
+            rings.append(self._energy_ring((arm_x * 0.58, arm_y + 0.22, 0),
+                                           0.22, (0, 90, 0)))
+
+        rings = [r for r in rings if r and mc.objExists(r)]
+        if rings:
+            mc.parent(rings, grp)
+            mc.parent(grp, self._root_group)
+        else:
+            mc.delete(grp)
+
+    def _energy_ring(self, position: tuple, radius: float,
+                     rotation: tuple) -> str | None:
+        try:
+            ring = mc.polyTorus(r=radius, sr=0.011, sa=32, sh=4,
+                                name='rm_energy_ring_#')[0]
+            mc.move(position[0], position[1], position[2], ring)
+            mc.rotate(rotation[0], rotation[1], rotation[2], ring)
+            assign_material(ring, "rm_cyan_glow_mat")
+            if mc.objExists(ring):
+                mc.delete(ring, ch=True)
+            return ring
+        except Exception:
+            return None
 
     def _spawn(self, module_name: str,
                position=(0, 0, 0),

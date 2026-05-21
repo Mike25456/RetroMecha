@@ -305,8 +305,6 @@ def build_ui():
             # Si terreno visible, actualizarlo también
             if _terrain_active():
                 _rebuild_terrain_only()
-            else:
-                mc.viewFit()
 
     def _rebuild_terrain_only(*_):
         """Regenera el terreno usando el mecha que ya existe."""
@@ -337,7 +335,6 @@ def build_ui():
         grp = tb.build()
         if grp and mc.objExists(grp):
             mc.select(grp)
-            mc.viewFit()
 
     def _on_generar(*_):
         """Botón GENERAR: usa semilla actual y decide qué construir."""
@@ -370,7 +367,6 @@ def build_ui():
 
             if grp and mc.objExists(grp):
                 mc.select(grp)
-                mc.viewFit()
         else:
             # Solo mecha
             _clean_mecha()
@@ -385,7 +381,6 @@ def build_ui():
                 except Exception:
                     pass
                 mc.select(grp)
-                mc.viewFit()
 
     def _random_mecha(*_):
         """Aleatoriza sliders del mecha y reconstruye."""
