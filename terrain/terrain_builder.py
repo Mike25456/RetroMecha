@@ -30,6 +30,7 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from core.module_registry import get as get_module
+from utils.hard_surface import apply_support_edges
 
 GROUND_Y = 0.0
 
@@ -105,6 +106,8 @@ class TerrainBuilder:
             self._pillars()
             self._fragments()
             self._debris()
+            count = apply_support_edges(self._root, offset=0.018, max_faces=70)
+            print(f'[RetroMecha][Terrain] Support edges aplicados: {count}')
             n = len(mc.listRelatives(self._root,
                     allDescendents=True, type='transform') or [])
             print(f'[RetroMecha][Terrain] OK: {self._root} ({n} objs)')

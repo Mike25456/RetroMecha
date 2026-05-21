@@ -9,7 +9,15 @@
     "decay":           0.85,
     "height_scale":    1.00,
     "symmetry":        true,
-    "use_panels":      true
+    "use_panels":      true,
+    "use_head":        true,
+    "use_arms":        true,
+    "use_wings":       true,
+    "head_style":      "helmet",
+    "arm_style":       "standard",
+    "wing_style":      "needle",
+    "torso_style":     "core",
+    "nucleus_style":   "ring"
   },
 
   "aggressive": {
@@ -20,7 +28,15 @@
     "decay":           0.80,
     "height_scale":    1.15,
     "symmetry":        true,
-    "use_panels":      true
+    "use_panels":      true,
+    "use_head":        true,
+    "use_arms":        true,
+    "use_wings":       true,
+    "head_style":      "sentinel",
+    "arm_style":       "blade",
+    "wing_style":      "fan",
+    "torso_style":     "heavy",
+    "nucleus_style":   "orb"
   },
 
   "compact": {
@@ -31,7 +47,15 @@
     "decay":           0.90,
     "height_scale":    0.80,
     "symmetry":        true,
-    "use_panels":      false
+    "use_panels":      false,
+    "use_head":        true,
+    "use_arms":        true,
+    "use_wings":       false,
+    "head_style":      "drone",
+    "arm_style":       "cannon",
+    "wing_style":      "compact",
+    "torso_style":     "compact",
+    "nucleus_style":   "column"
   },
 
   "asymmetric": {
@@ -42,6 +66,52 @@
     "decay":           0.82,
     "height_scale":    1.10,
     "symmetry":        false,
-    "use_panels":      true
+    "use_panels":      true,
+    "use_head":        true,
+    "use_arms":        true,
+    "use_wings":       true,
+    "head_style":      "helmet",
+    "arm_style":       "standard",
+    "wing_style":      "fan",
+    "torso_style":     "core",
+    "nucleus_style":   "orb"
+  },
+
+  "aerial": {
+    "_name": "Aereo",
+    "separation":      0.52,
+    "connector_angle": 12.0,
+    "aggressiveness":  0.62,
+    "decay":           0.78,
+    "height_scale":    1.18,
+    "symmetry":        true,
+    "use_panels":      true,
+    "use_head":        true,
+    "use_arms":        false,
+    "use_wings":       true,
+    "head_style":      "drone",
+    "arm_style":       "blade",
+    "wing_style":      "needle",
+    "torso_style":     "slim",
+    "nucleus_style":   "column"
+  },
+
+  "sentinel": {
+    "_name": "Centinela",
+    "separation":      0.28,
+    "connector_angle": 6.0,
+    "aggressiveness":  0.38,
+    "decay":           0.92,
+    "height_scale":    1.35,
+    "symmetry":        true,
+    "use_panels":      true,
+    "use_head":        true,
+    "use_arms":        false,
+    "use_wings":       false,
+    "head_style":      "sentinel",
+    "arm_style":       "heavy",
+    "wing_style":      "compact",
+    "torso_style":     "heavy",
+    "nucleus_style":   "ring"
   }
 }

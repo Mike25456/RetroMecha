@@ -17,6 +17,7 @@ except ImportError:
 
 from core.l_system import LSystem
 from core.module_registry import get as get_module, is_registered
+from utils.hard_surface import apply_support_edges
 from utils.maya_materials import assign_material
 
 
@@ -60,6 +61,10 @@ class MechaBuilder:
             self._build_body()
             if self.params.get('use_panels', True):
                 self._apply_panel_layer()
+            if self.params.get('use_support_edges', True):
+                count = apply_support_edges(self._root_group, offset=0.010,
+                                            max_faces=90)
+                print(f'[RetroMecha] Support edges aplicados: {count}')
             mc.select(self._root_group)
             print(f'[RetroMecha] Build completo: {self._root_group}')
         except Exception as e:
@@ -77,6 +82,9 @@ class MechaBuilder:
         symmetry   = self.params.get('symmetry',         True)
         angle      = self.params.get('connector_angle',  15.0)
         h_scale    = self.params.get('height_scale',     1.0)
+        use_head   = self.params.get('use_head',         True)
+        use_arms   = self.params.get('use_arms',         True)
+        use_wings  = self.params.get('use_wings',        True)
 
         # ── TORSO primero (la cabeza se apoya en su bbox, no en separation) ───
         torso = self._spawn('TORSO', position=(0, 0, 0), scale=h_scale)
@@ -87,17 +95,19 @@ class MechaBuilder:
             # Pivot de cabeza ≈ centro; subir media altura de cabeza + hueco cuello
             head_y = bb[4] + 0.06 + 0.48 * h_scale
 
-        self._spawn('HEAD', position=(0, head_y, 0))
+        if use_head:
+            self._spawn('HEAD', position=(0, head_y, 0))
 
         # ── ARMS ──────────────────────────────────────────────────────────────
         arm_x = 1.18 + sep * 0.35
         arm_y = 0.5 * h_scale
-        self._spawn('ARM',
-                    position=(-arm_x, arm_y, 0.16),
-                    rotation=(0, 0, angle * 0.18),
-                    scale=decay)
+        if use_arms:
+            self._spawn('ARM',
+                        position=(-arm_x, arm_y, 0.16),
+                        rotation=(0, 0, angle * 0.18),
+                        scale=decay)
 
-        if symmetry:
+        if use_arms and symmetry:
             self._spawn('ARM',
                         position=( arm_x, arm_y, 0.16),
                         rotation=(0, 0, -angle * 0.18),
@@ -113,16 +123,18 @@ class MechaBuilder:
             wing_z = bb[2] - 0.32 - sep * 1.55
             wing_x = (bb[3] - bb[0]) * 0.24
 
-        self._spawn('WING',
-                    position=(-wing_x, wing_y, wing_z),
-                    rotation=(-4, -16, 0))
+        if use_wings:
+            self._spawn('WING',
+                        position=(-wing_x, wing_y, wing_z),
+                        rotation=(-4, -16, 0))
 
-        if symmetry:
+        if use_wings and symmetry:
             self._spawn('WING',
                         position=(wing_x, wing_y, wing_z),
                         rotation=(-4, 16, 0))
 
-        self._build_energy_fields(arm_x, arm_y, head_y, h_scale, symmetry)
+        self._build_energy_fields(arm_x, arm_y, head_y, h_scale, symmetry,
+                                  use_head, use_arms)
 
     # ── Capa de paneles ────────────────────────────────────────────────────────
 
@@ -137,18 +149,22 @@ class MechaBuilder:
     # ── Helpers ────────────────────────────────────────────────────────────────
 
     def _build_energy_fields(self, arm_x: float, arm_y: float, head_y: float,
-                             h_scale: float, symmetry: bool) -> None:
+                             h_scale: float, symmetry: bool,
+                             use_head: bool, use_arms: bool) -> None:
         """Cyan connector rings for the separated, floating mecha parts."""
         if not MAYA_AVAILABLE or not self._root_group:
             return
 
         grp = mc.group(empty=True, name='rm_energy_fields_#')
         rings = [
-            self._energy_ring((0, head_y - 0.52, 0), 0.24, (0, 0, 0)),
             self._energy_ring((0, -0.98 * h_scale, 0), 0.30, (0, 0, 0)),
-            self._energy_ring((-arm_x * 0.58, arm_y + 0.22, 0), 0.22, (0, 90, 0)),
         ]
-        if symmetry:
+        if use_head:
+            rings.append(self._energy_ring((0, head_y - 0.52, 0), 0.24, (0, 0, 0)))
+        if use_arms:
+            rings.append(self._energy_ring((-arm_x * 0.58, arm_y + 0.22, 0),
+                                           0.22, (0, 90, 0)))
+        if use_arms and symmetry:
             rings.append(self._energy_ring((arm_x * 0.58, arm_y + 0.22, 0),
                                            0.22, (0, 90, 0)))
 
