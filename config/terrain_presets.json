@@ -1,12 +1,12 @@
 {
-  "_comment": "RetroMecha — Presets de terreno v3. Valores corregidos con alturas POSITIVAS.",
+  "_comment": "RetroMecha — Presets terreno v4. safe_radius, monumento lejos y lateral.",
 
   "avanzada": {
-    "_name": "Avanzada",
     "ground_plane_y":       -0.05,
+    "safe_radius":           6.0,
     "monument_scale":        5.5,
-    "monument_distance_z": -30.0,
-    "monument_damage":       0.35,
+    "monument_distance_z": -45.0,
+    "monument_offset_x":    12.0,
     "platform_count":        9,
     "platform_y_levels":  [0.6, 1.4, 2.5, 4.0],
     "platform_scale_range": [1.0, 1.8],
@@ -17,17 +17,18 @@
     "debris_count":         80,
     "tower_probability":     0.65,
     "skyline_count":          3,
-    "skyline_distance_z":  -42.0,
-    "ring_min_r":            8.0,
-    "ring_max_r":           22.0
+    "skyline_distance_z":  -55.0,
+    "skyline_spread_x":     40.0,
+    "ring_min_r":           10.0,
+    "ring_max_r":           35.0
   },
 
   "hangar": {
-    "_name": "Hangar",
     "ground_plane_y":       -0.05,
+    "safe_radius":           6.0,
     "monument_scale":        6.0,
-    "monument_distance_z": -28.0,
-    "monument_damage":       0.05,
+    "monument_distance_z": -40.0,
+    "monument_offset_x":    10.0,
     "platform_count":       12,
     "platform_y_levels":  [0.4, 1.0, 1.8, 2.8],
     "platform_scale_range": [1.2, 2.2],
@@ -38,17 +39,18 @@
     "debris_count":         40,
     "tower_probability":     0.80,
     "skyline_count":          4,
-    "skyline_distance_z":  -40.0,
-    "ring_min_r":            7.0,
-    "ring_max_r":           20.0
+    "skyline_distance_z":  -52.0,
+    "skyline_spread_x":     45.0,
+    "ring_min_r":            8.0,
+    "ring_max_r":           30.0
   },
 
   "campo_de_batalla": {
-    "_name": "Campo de batalla",
     "ground_plane_y":       -0.05,
+    "safe_radius":           5.0,
     "monument_scale":        4.5,
-    "monument_distance_z": -32.0,
-    "monument_damage":       0.75,
+    "monument_distance_z": -48.0,
+    "monument_offset_x":    15.0,
     "platform_count":        5,
     "platform_y_levels":  [0.3, 0.8, 1.6, 2.2],
     "platform_scale_range": [0.8, 1.5],
@@ -59,17 +61,18 @@
     "debris_count":        120,
     "tower_probability":     0.35,
     "skyline_count":          2,
-    "skyline_distance_z":  -44.0,
-    "ring_min_r":            7.0,
-    "ring_max_r":           25.0
+    "skyline_distance_z":  -58.0,
+    "skyline_spread_x":     35.0,
+    "ring_min_r":            8.0,
+    "ring_max_r":           40.0
   },
 
   "centinela": {
-    "_name": "Centinela",
     "ground_plane_y":       -0.05,
+    "safe_radius":           5.0,
     "monument_scale":        8.0,
-    "monument_distance_z": -18.0,
-    "monument_damage":       0.10,
+    "monument_distance_z": -30.0,
+    "monument_offset_x":     8.0,
     "platform_count":        7,
     "platform_y_levels":  [0.5, 1.2, 2.0, 3.2],
     "platform_scale_range": [1.0, 2.0],
@@ -80,8 +83,9 @@
     "debris_count":         50,
     "tower_probability":     0.70,
     "skyline_count":          3,
-    "skyline_distance_z":  -38.0,
-    "ring_min_r":            6.0,
-    "ring_max_r":           18.0
+    "skyline_distance_z":  -50.0,
+    "skyline_spread_x":     40.0,
+    "ring_min_r":            7.0,
+    "ring_max_r":           28.0
   }
 }
