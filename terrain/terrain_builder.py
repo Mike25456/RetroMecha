@@ -22,6 +22,7 @@ import random
 import json
 import os
 import math
+import importlib
 
 try:
     import maya.cmds as mc
@@ -30,9 +31,19 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from core.module_registry import get as get_module
-from utils.hard_surface import apply_support_edges
+from utils import hard_surface
+from utils.maya_scene import force_preview_one
 
 GROUND_Y = 0.0
+
+
+def _apply_support_edges(root: str, **kwargs) -> int:
+    """Reload the support pass so Maya does not keep a stale dev module."""
+    try:
+        module = importlib.reload(hard_surface)
+    except Exception:
+        module = hard_surface
+    return module.apply_support_edges(root, **kwargs)
 
 
 class TerrainBuilder:
@@ -106,8 +117,12 @@ class TerrainBuilder:
             self._pillars()
             self._fragments()
             self._debris()
-            count = apply_support_edges(self._root, offset=0.018, max_faces=70)
-            print(f'[RetroMecha][Terrain] Support edges aplicados: {count}')
+            if self.params.get('use_support_edges', True):
+                count = _apply_support_edges(self._root, offset=0.018,
+                                             fraction=0.045, segments=2,
+                                             max_faces=500)
+                print(f'[RetroMecha][Terrain] Support edges aplicados: {count}')
+            force_preview_one(self._root)
             n = len(mc.listRelatives(self._root,
                     allDescendents=True, type='transform') or [])
             print(f'[RetroMecha][Terrain] OK: {self._root} ({n} objs)')

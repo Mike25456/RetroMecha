@@ -13,7 +13,15 @@ if _ROOT not in sys.path:
 
 def _reload_project_modules() -> None:
     """Quita módulos cacheados para que un relanzamiento recargue cambios."""
-    prefixes = ("modules.", "terrain.", "core.", "ui.", "layers.", "launcher.")
+    prefixes = (
+        "modules.",
+        "terrain.",
+        "core.",
+        "ui.",
+        "layers.",
+        "utils.",
+        "launcher.",
+    )
     for name in list(sys.modules):
         if name.startswith(prefixes) or name == "main":
             del sys.modules[name]

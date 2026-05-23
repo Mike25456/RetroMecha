@@ -15,6 +15,7 @@ except ImportError:
 WIN_ID = 'RetroMechaWindow'
 _SEED = [None]
 _APPLYING_MECHA_PRESET = [False]
+_APPLYING_TERRAIN_VALUES = [False]
 
 HEAD_STYLE_LABELS = {
     'Casco': 'helmet',
@@ -255,6 +256,8 @@ def build_ui():
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
 
     def _on_terrain_cc(*_):
+        if _APPLYING_TERRAIN_VALUES[0]:
+            return
         _rebuild_terrain_only()
 
     mc.rowLayout(nc=2, cw2=[130, 178],
@@ -304,6 +307,11 @@ def build_ui():
               backgroundColor=[0.40, 0.16, 0.16],
               command=lambda *_: _on_reset())
     mc.setParent('..')
+
+    mc.separator(h=4, style='none')
+    mc.button(label='Delimitar escena', h=32,
+              backgroundColor=[0.18, 0.34, 0.42],
+              command=lambda *_: _on_delimitar())
 
     mc.separator(h=6, style='none')
 
@@ -363,11 +371,12 @@ def build_ui():
             'ring_max_r': mc.floatSliderGrp(t_ring_sl, q=True, value=True),
         }
 
-    def _collect_terrain_params(seed: int) -> dict:
+    def _collect_terrain_params(seed: int, support_edges: bool = True) -> dict:
         return {
             '_seed': seed + 1000,
             'aggressiveness': 0.5,
             'height_scale': 1.0,
+            'use_support_edges': support_edges,
         }
 
     def _find_scene_group():
@@ -395,31 +404,39 @@ def build_ui():
             except Exception:
                 pass
 
-    def _clean_scene():
-        for pat in SCENE_PATTERNS:
-            for node in (mc.ls(pat, type='transform') or []):
+    def _delete_nodes(nodes: list):
+        nodes = [node for node in nodes if node and mc.objExists(node)]
+        if not nodes:
+            return
+        try:
+            mc.delete(nodes)
+        except Exception:
+            for node in nodes:
                 try:
                     mc.delete(node)
                 except Exception:
                     pass
 
+    def _clean_scene():
+        nodes = []
+        for pat in SCENE_PATTERNS:
+            nodes.extend(mc.ls(pat, type='transform') or [])
+        _delete_nodes(nodes)
+
     def _clean_mecha():
+        nodes = []
         for pat in MECHA_PATTERNS:
             for node in (mc.ls(pat, type='transform') or []):
                 if 'Scene' in node:
                     continue
-                try:
-                    mc.delete(node)
-                except Exception:
-                    pass
+                nodes.append(node)
+        _delete_nodes(nodes)
 
     def _clean_terrain():
+        nodes = []
         for pat in TERRAIN_PATTERNS:
-            for node in (mc.ls(pat, type='transform') or []):
-                try:
-                    mc.delete(node)
-                except Exception:
-                    pass
+            nodes.extend(mc.ls(pat, type='transform') or [])
+        _delete_nodes(nodes)
 
     def _lift_mecha(group: str):
         try:
@@ -429,6 +446,28 @@ def build_ui():
                 mc.move(0, lift, 0, group, relative=True, worldSpace=True)
         except Exception:
             pass
+
+    def _scene_update(fn):
+        try:
+            mc.undoInfo(openChunk=True)
+        except Exception:
+            pass
+        try:
+            mc.refresh(suspend=True)
+        except Exception:
+            pass
+        try:
+            return fn()
+        finally:
+            try:
+                mc.refresh(suspend=False)
+                mc.refresh(force=True)
+            except Exception:
+                pass
+            try:
+                mc.undoInfo(closeChunk=True)
+            except Exception:
+                pass
 
     def _set_option_by_value(menu, mapping: dict, value: str):
         for label, mapped in mapping.items():
@@ -478,23 +517,24 @@ def build_ui():
 
         _rebuild_mecha()
 
-    def _build_mecha(seed: int):
+    def _build_mecha(seed: int, support_edges: bool = True):
         params = _collect_mecha()
         params['_seed'] = seed
+        params['use_support_edges'] = support_edges
         from core.mecha_builder import MechaBuilder
         grp = MechaBuilder(params, seed=seed).build()
         if grp and mc.objExists(grp):
             _lift_mecha(grp)
         return grp
 
-    def _build_terrain(seed: int):
+    def _build_terrain(seed: int, support_edges: bool = True):
         preset_label = mc.optionMenu(preset_menu, q=True, value=True)
         preset_name = PRESET_MAP.get(preset_label, 'avanzada')
         overrides = _collect_terrain()
 
         from terrain.terrain_builder import TerrainBuilder
         tb = TerrainBuilder(
-            params=_collect_terrain_params(seed),
+            params=_collect_terrain_params(seed, support_edges=support_edges),
             seed=seed + 1000,
             preset_name=preset_name,
             mecha_bbox=_mecha_bbox(),
@@ -503,40 +543,119 @@ def build_ui():
         return tb.build()
 
     def _rebuild_mecha(*_):
-        seed = _SEED[0] if isinstance(_SEED[0], int) else resolve_seed()
-        _SEED[0] = seed
-        _clean_mecha()
-        grp = _build_mecha(seed)
-        if grp and mc.objExists(grp):
-            _parent_to_scene(grp)
-            mc.select(grp)
+        def _work():
+            seed = _SEED[0] if isinstance(_SEED[0], int) else resolve_seed()
+            _SEED[0] = seed
+            _clean_mecha()
+            grp = _build_mecha(seed, support_edges=False)
+            if grp and mc.objExists(grp):
+                _parent_to_scene(grp)
+                _mark_undelimited(_find_scene_group() or grp)
+                mc.select(grp)
+        return _scene_update(_work)
 
     def _rebuild_terrain_only(*_):
-        seed = _SEED[0] if isinstance(_SEED[0], int) else resolve_seed()
-        _SEED[0] = seed
-        _clean_terrain()
-        grp = _build_terrain(seed)
-        if grp and mc.objExists(grp):
-            _parent_to_scene(grp)
-            mc.select(grp)
+        def _work():
+            seed = _SEED[0] if isinstance(_SEED[0], int) else resolve_seed()
+            _SEED[0] = seed
+            _clean_terrain()
+            grp = _build_terrain(seed, support_edges=False)
+            if grp and mc.objExists(grp):
+                _parent_to_scene(grp)
+                _mark_undelimited(_find_scene_group() or grp)
+                mc.select(grp)
+        return _scene_update(_work)
 
     def _on_generar(*_):
-        seed = resolve_seed()
-        _clean_scene()
-        _clean_mecha()
-        _clean_terrain()
+        def _work():
+            seed = resolve_seed()
+            _clean_scene()
+            _clean_mecha()
+            _clean_terrain()
 
-        scene_grp = mc.group(empty=True, name='RetroMecha_Scene_#')
+            scene_grp = mc.group(empty=True, name='RetroMecha_Scene_#')
 
-        mecha_grp = _build_mecha(seed)
-        if mecha_grp and mc.objExists(mecha_grp):
-            mc.parent(mecha_grp, scene_grp)
+            mecha_grp = _build_mecha(seed, support_edges=False)
+            if mecha_grp and mc.objExists(mecha_grp):
+                mc.parent(mecha_grp, scene_grp)
 
-        terrain_grp = _build_terrain(seed)
-        if terrain_grp and mc.objExists(terrain_grp):
-            mc.parent(terrain_grp, scene_grp)
+            terrain_grp = _build_terrain(seed, support_edges=False)
+            if terrain_grp and mc.objExists(terrain_grp):
+                mc.parent(terrain_grp, scene_grp)
 
-        mc.select(scene_grp)
+            mc.select(scene_grp)
+        return _scene_update(_work)
+
+    def _delimit_roots() -> list:
+        scene = _find_scene_group()
+        if scene:
+            return [scene]
+
+        roots = []
+        mecha = _find_mecha_group()
+        if mecha:
+            roots.append(mecha)
+        roots.extend([
+            n for n in (mc.ls('rm_terrain_*', type='transform') or [])
+            if mc.objExists(n)
+        ])
+        return roots
+
+    def _is_delimited(root: str) -> bool:
+        try:
+            return (
+                mc.attributeQuery('rm_delimited', node=root, exists=True)
+                and mc.getAttr(f'{root}.rm_delimited')
+            )
+        except Exception:
+            return False
+
+    def _mark_delimited(root: str):
+        try:
+            if not mc.attributeQuery('rm_delimited', node=root, exists=True):
+                mc.addAttr(root, longName='rm_delimited', attributeType='bool')
+            mc.setAttr(f'{root}.rm_delimited', True)
+        except Exception:
+            pass
+
+    def _mark_undelimited(root: str):
+        if not root or not mc.objExists(root):
+            return
+        try:
+            if not mc.attributeQuery('rm_delimited', node=root, exists=True):
+                mc.addAttr(root, longName='rm_delimited', attributeType='bool')
+            mc.setAttr(f'{root}.rm_delimited', False)
+        except Exception:
+            pass
+
+    def _on_delimitar(*_):
+        def _work():
+            roots = [root for root in _delimit_roots() if not _is_delimited(root)]
+            if not roots:
+                print('[RetroMecha] No hay escena nueva por delimitar')
+                return
+
+            try:
+                import importlib
+                from utils import hard_surface
+                from utils.maya_scene import force_preview_one
+                hs = importlib.reload(hard_surface)
+            except Exception:
+                from utils import hard_surface as hs
+                from utils.maya_scene import force_preview_one
+
+            total = 0
+            for root in roots:
+                total += hs.apply_support_edges(
+                    root, offset=0.018, fraction=0.045,
+                    segments=2, max_faces=500,
+                )
+                force_preview_one(root)
+                _mark_delimited(root)
+
+            mc.select(roots)
+            print(f'[RetroMecha] Delimitacion aplicada: {total} pieza(s)')
+        return _scene_update(_work)
 
     def _random_mecha(*_):
         _APPLYING_MECHA_PRESET[0] = True
@@ -567,27 +686,62 @@ def build_ui():
         mc.textField(seed_field, e=True, text=str(_SEED[0]))
         _rebuild_mecha()
 
+    def _randomize_terrain_controls():
+        _APPLYING_TERRAIN_VALUES[0] = True
+        try:
+            mc.floatSliderGrp(t_mon_sl, e=True, value=random.uniform(3.0, 9.0))
+            mc.intSliderGrp(t_plat_sl, e=True, value=random.randint(3, 16))
+            mc.intSliderGrp(t_frag_sl, e=True, value=random.randint(2, 24))
+            mc.intSliderGrp(t_deb_sl, e=True, value=random.randint(20, 150))
+            mc.intSliderGrp(t_pil_sl, e=True, value=random.randint(2, 16))
+            mc.floatSliderGrp(t_ramp_sl, e=True, value=random.uniform(0.0, 1.0))
+            mc.floatSliderGrp(t_ring_sl, e=True, value=random.uniform(10.0, 35.0))
+        finally:
+            _APPLYING_TERRAIN_VALUES[0] = False
+
     def _random_terrain(*_):
-        mc.floatSliderGrp(t_mon_sl, e=True, value=random.uniform(3.0, 9.0))
-        mc.intSliderGrp(t_plat_sl, e=True, value=random.randint(3, 16))
-        mc.intSliderGrp(t_frag_sl, e=True, value=random.randint(2, 24))
-        mc.intSliderGrp(t_deb_sl, e=True, value=random.randint(20, 150))
-        mc.intSliderGrp(t_pil_sl, e=True, value=random.randint(2, 16))
-        mc.floatSliderGrp(t_ramp_sl, e=True, value=random.uniform(0.0, 1.0))
-        mc.floatSliderGrp(t_ring_sl, e=True, value=random.uniform(10.0, 35.0))
+        _randomize_terrain_controls()
         _rebuild_terrain_only()
 
     def _random_all(*_):
-        _random_mecha()
-        _random_terrain()
+        _APPLYING_MECHA_PRESET[0] = True
+        try:
+            mc.optionMenu(mecha_preset_menu, e=True, value='Custom')
+            mc.floatSliderGrp(sep_sl, e=True, value=random.uniform(0.10, 0.80))
+            mc.floatSliderGrp(angle_sl, e=True, value=random.uniform(0.0, 45.0))
+            mc.floatSliderGrp(aggr_sl, e=True, value=random.uniform(0.0, 1.0))
+            mc.floatSliderGrp(decay_sl, e=True, value=random.uniform(0.50, 1.0))
+            mc.floatSliderGrp(height_sl, e=True, value=random.uniform(0.50, 2.0))
+            mc.checkBox(sym_cb, e=True, value=random.choice([True, False]))
+            mc.checkBox(head_cb, e=True, value=True)
+            mc.checkBox(arms_cb, e=True, value=random.random() > 0.18)
+            mc.checkBox(wings_cb, e=True, value=random.random() > 0.28)
+            mc.optionMenu(head_style_menu, e=True,
+                          value=random.choice(list(HEAD_STYLE_LABELS.keys())))
+            mc.optionMenu(arm_style_menu, e=True,
+                          value=random.choice(list(ARM_STYLE_LABELS.keys())))
+            mc.optionMenu(wing_style_menu, e=True,
+                          value=random.choice(list(WING_STYLE_LABELS.keys())))
+            mc.optionMenu(torso_style_menu, e=True,
+                          value=random.choice(list(TORSO_STYLE_LABELS.keys())))
+            mc.optionMenu(nucleus_style_menu, e=True,
+                          value=random.choice(list(NUCLEUS_STYLE_LABELS.keys())))
+            _randomize_terrain_controls()
+        finally:
+            _APPLYING_MECHA_PRESET[0] = False
+        _SEED[0] = random.randint(0, 99999)
+        mc.textField(seed_field, e=True, text=str(_SEED[0]))
+        _on_generar()
 
     def _on_reset(*_):
-        _clean_scene()
-        _clean_mecha()
-        _clean_terrain()
-        mc.textField(seed_field, e=True, text='')
-        _SEED[0] = None
-        print('[RetroMecha] Escena limpiada')
+        def _work():
+            _clean_scene()
+            _clean_mecha()
+            _clean_terrain()
+            mc.textField(seed_field, e=True, text='')
+            _SEED[0] = None
+            print('[RetroMecha] Escena limpiada')
+        return _scene_update(_work)
 
     mc.optionMenu(mecha_preset_menu, e=True, changeCommand=_on_mecha_preset)
     mc.showWindow(win)

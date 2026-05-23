@@ -91,7 +91,7 @@ class ArmModule(BaseModule):
             mc.rotate(0, 0, -8 * side, upper)
 
             upper_core = mc.polyCylinder(r=0.14, h=0.22, sa=12, name='rm_arm_shoulder_core_#')[0]
-            mc.rotate(90, 0, 0, upper_core)
+            mc.rotate(90, 0, 0, upper_core) 
             mc.move(0, 0.50, 0, upper_core, relative=True)
             assign_material(upper_core, "rm_graphite_mat")
             _finish(upper_core, 0.0)

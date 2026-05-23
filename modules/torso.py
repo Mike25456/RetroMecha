@@ -90,8 +90,8 @@ def _round_block(mesh: str, bevel: float) -> None:
 def _finish(mesh: str) -> str:
     try:
         mc.displaySmoothness(
-            mesh, divisionsU=3, divisionsV=3,
-            pointsWire=16, pointsShaded=4, polygonObject=3,
+            mesh, divisionsU=0, divisionsV=0,
+            pointsWire=4, pointsShaded=1, polygonObject=1,
         )
     except Exception:
         pass
@@ -315,7 +315,7 @@ def _build_layered_torso(aggr: float, torso_h: float, style: str) -> str:
 def _build_waist(aggr: float, torso_h: float) -> str:
     r = 0.20 + aggr * 0.05
     h = torso_h * 0.12
-    waist = mc.polyCylinder(r=r, h=h, sa=8, name="rm_torso_waist_#")[0]
+    waist = mc.polyCylinder(r=r, h=h, sa=4, name="rm_torso_waist_#")[0]
     mc.move(0, -torso_h * 0.42, 0, waist, relative=True)
     assign_material(waist, "rm_graphite_mat")
     return _finish(waist)
@@ -483,7 +483,7 @@ def _build_shoulder_pads(aggr: float, torso_h: float, sep: float) -> tuple:
     for side, label in ((-1.0, "l"), (1.0, "r")):
         grp = mc.group(empty=True, name=f"rm_torso_shoulder_{label}_#")
 
-        socket = mc.polyCylinder(r=0.22 + aggr * 0.04, h=0.28, sa=10,
+        socket = mc.polyCylinder(r=0.22 + aggr * 0.04, h=0.28, sa=4,
                                  name=f"rm_torso_shoulder_socket_{label}_#")[0]
         mc.rotate(90, 0, 0, socket)
         mc.move(side * (spread - 0.08), y - 0.02, 0.02, socket, relative=True)
@@ -542,7 +542,7 @@ class TorsoModule(BaseModule):
         style_parts = _build_style_details(torso_style, aggr, body)
         pad_l, pad_r = _build_shoulder_pads(aggr, torso_h, sep)
 
-        stub = mc.polyCylinder(r=0.12 + aggr * 0.03, h=0.20, sa=8,
+        stub = mc.polyCylinder(r=0.12 + aggr * 0.03, h=0.20, sa=4,
                                name="rm_torso_stub_#")[0]
         mc.move(0, -(torso_h * 0.52), 0, stub, relative=True)
         assign_material(stub, "rm_graphite_mat")

@@ -19,7 +19,8 @@ def build_maya_command(launcher_path: Path) -> str:
     p = str(launcher_path.resolve()).replace("\\", "\\\\")
     return (
         'python("import runpy; '
-        f'runpy.run_path(r\\\"{p}\\\", run_name=\\\"__main__\\\")")'
+        f'_retromecha_bootstrap = runpy.run_path(r\\\"{p}\\\", '
+        'run_name=\\\"__main__\\\")")'
     )
 
 

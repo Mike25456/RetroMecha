@@ -6,19 +6,194 @@ Este es el único archivo que conoce la estructura global del mecha.
 Los módulos solo saben crear su propia geometría local.
 """
 
+import math
 import random
 
 try:
     import maya.cmds as mc
+    import maya.api.OpenMaya as om
     MAYA_AVAILABLE = True
 except ImportError:
+    om = None
     MAYA_AVAILABLE = False
     print('[RetroMecha] maya.cmds no disponible — modo debug')
 
 from core.l_system import LSystem
 from core.module_registry import get as get_module, is_registered
-from utils.hard_surface import apply_support_edges
 from utils.maya_materials import assign_material
+from utils.maya_scene import force_preview_one
+
+
+SUPPORT_SKIP_TOKENS = (
+    "glow",
+    "ring",
+    "torus",
+    "orb",
+    "eye",
+    "halo",
+)
+
+
+def _mesh_transforms(root: str) -> list[str]:
+    if not root or not mc.objExists(root):
+        return []
+
+    shapes = mc.listRelatives(root, allDescendents=True, type="mesh",
+                              fullPath=True) or []
+    if mc.nodeType(root) == "transform":
+        shapes.extend(mc.listRelatives(root, shapes=True, type="mesh",
+                                       fullPath=True) or [])
+
+    transforms = []
+    seen = set()
+    for shape in shapes:
+        parent = (mc.listRelatives(shape, parent=True, fullPath=True) or [None])[0]
+        if parent and parent not in seen:
+            seen.add(parent)
+            transforms.append(parent)
+    return transforms
+
+
+def _face_vertex_count(face: str) -> int:
+    verts = mc.polyListComponentConversion(face, fromFace=True, toVertex=True)
+    return len(mc.ls(verts, flatten=True) or [])
+
+
+def _triangulate_ngons(node: str) -> int:
+    try:
+        face_count = mc.polyEvaluate(node, face=True) or 0
+    except Exception:
+        return 0
+
+    fixed = 0
+    for index in reversed(range(face_count)):
+        face = f"{node}.f[{index}]"
+        try:
+            if _face_vertex_count(face) <= 4:
+                continue
+            mc.polyTriangulate(face, ch=0)
+            fixed += 1
+        except Exception:
+            continue
+    return fixed
+
+
+def _hard_edge_components(node: str, angle_threshold: float = 35.0) -> list[str]:
+    """Return edges where adjacent faces make a visible hard corner."""
+    if om is None:
+        return []
+
+    shapes = mc.listRelatives(node, shapes=True, type="mesh", fullPath=True) or []
+    if not shapes:
+        return []
+
+    try:
+        selection = om.MSelectionList()
+        selection.add(shapes[0])
+        dag = selection.getDagPath(0)
+        mesh = om.MFnMesh(dag)
+        edge_iter = om.MItMeshEdge(dag)
+    except Exception:
+        return []
+
+    edges = []
+    while not edge_iter.isDone():
+        try:
+            faces = edge_iter.getConnectedFaces()
+            include = len(faces) < 2
+            if len(faces) >= 2:
+                normal = mesh.getPolygonNormal(faces[0], om.MSpace.kWorld)
+                for face in faces[1:]:
+                    other = mesh.getPolygonNormal(face, om.MSpace.kWorld)
+                    if math.degrees(normal.angle(other)) >= angle_threshold:
+                        include = True
+                        break
+            if include:
+                edges.append(f"{node}.e[{edge_iter.index()}]")
+        except Exception:
+            pass
+        edge_iter.next()
+    return edges
+
+
+def _harden_mesh(node: str, fraction: float = 0.045,
+                 segments: int = 2, max_faces: int = 500) -> bool:
+    try:
+        faces = mc.polyEvaluate(node, face=True) or 0
+    except Exception:
+        return False
+    if faces <= 0 or faces > max_faces:
+        return False
+
+    _triangulate_ngons(node)
+    hard_edges = _hard_edge_components(node)
+    if not hard_edges:
+        return False
+
+    changed = False
+    try:
+        mc.select(hard_edges, replace=True)
+        mc.polyBevel3(
+            fraction=fraction,
+            offsetAsFraction=True,
+            autoFit=True,
+            segments=segments,
+            worldSpace=True,
+            smoothingAngle=30,
+            fillNgons=True,
+            mergeVertices=True,
+            mergeVertexTolerance=0.0001,
+            miteringAngle=180,
+            angleTolerance=180,
+            ch=0,
+        )
+        changed = True
+    except Exception:
+        try:
+            mc.select(hard_edges, replace=True)
+            mc.polyBevel(hard_edges, offset=0.022, segments=segments,
+                         chamfer=0, ch=0)
+            changed = True
+        except Exception:
+            pass
+    finally:
+        try:
+            mc.select(clear=True)
+        except Exception:
+            pass
+
+    _triangulate_ngons(node)
+    try:
+        mc.polySoftEdge(node, angle=30, ch=0)
+    except Exception:
+        pass
+    if mc.objExists(node):
+        try:
+            mc.delete(node, ch=True)
+        except Exception:
+            pass
+    return changed
+
+
+def _apply_support_edges(root: str) -> int:
+    """Apply support bevels directly here to avoid stale Maya utility modules."""
+    processed = 0
+    found = 0
+    skipped = 0
+    edge_total = 0
+    for node in _mesh_transforms(root):
+        found += 1
+        short = node.rsplit("|", 1)[-1].lower()
+        if any(token in short for token in SUPPORT_SKIP_TOKENS):
+            skipped += 1
+            continue
+        edge_total += len(_hard_edge_components(node))
+        if _harden_mesh(node):
+            processed += 1
+    print(f'[RetroMecha] Support pass: encontrados={found}, '
+          f'omitidos={skipped}, hard_edges={edge_total}, '
+          f'procesados={processed}')
+    return processed
 
 
 class MechaBuilder:
@@ -62,9 +237,9 @@ class MechaBuilder:
             if self.params.get('use_panels', True):
                 self._apply_panel_layer()
             if self.params.get('use_support_edges', True):
-                count = apply_support_edges(self._root_group, offset=0.010,
-                                            max_faces=90)
+                count = _apply_support_edges(self._root_group)
                 print(f'[RetroMecha] Support edges aplicados: {count}')
+            force_preview_one(self._root_group)
             mc.select(self._root_group)
             print(f'[RetroMecha] Build completo: {self._root_group}')
         except Exception as e:
