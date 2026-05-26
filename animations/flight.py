@@ -226,37 +226,15 @@ class FlightAnimation(BaseAnimation):
     def remove(self):
         if not MAYA_AVAILABLE:
             return
+        self._clean_all()
         mc.currentTime(0)
-        ROOT   = self.mecha_root
+
         HEAD   = self._find('rm_head_1')
         ARM_L  = self._find('rm_arm_1')
         ARM_R  = self._find('rm_arm_2')
         WING_L = self._find('rm_wing_1')
         WING_R = self._find('rm_wing_2')
 
-        # Elimina motionPath conectado al root (por si el nombre varío)
-        if ROOT and mc.objExists(ROOT):
-            for mp in (mc.listConnections(ROOT, type='motionPath') or []):
-                try:
-                    mc.delete(mp)
-                except Exception:
-                    pass
-
-        # Borra curva y demas objetos auxiliares
-        self.delete_objects([
-            'rm_flight_path', 'rm_motionPath', 'rm_look_target',
-            'rm_lookPath', 'rm_bobber',
-        ])
-
-        # Root: corta animacion y fuerza origen + escala 1
-        if ROOT and mc.objExists(ROOT):
-            mc.cutKey(ROOT, clear=True)
-            mc.xform(ROOT, translation=(0, 0, 0), rotation=(0, 0, 0))
-            mc.setAttr(f'{ROOT}.sx', 1)
-            mc.setAttr(f'{ROOT}.sy', 1)
-            mc.setAttr(f'{ROOT}.sz', 1)
-
-        # Hijos: solo limpia y resetea rotacion (translate/scale intactos)
         if HEAD: self._reset_rotation(HEAD, ('rx', 'ry'))
         if ARM_L: self._reset_rotation(ARM_L, ('rx', 'rz'))
         if ARM_R: self._reset_rotation(ARM_R, ('rx', 'rz'))
