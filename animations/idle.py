@@ -150,28 +150,17 @@ class IdleAnimation(BaseAnimation):
         if not MAYA_AVAILABLE:
             return
 
-        # Ir a frame 0 antes de borrar expresiones
+        self._clean_all()
+
         mc.playbackOptions(min=0, max=self.FRAMES,
                            animationStartTime=0, animationEndTime=self.FRAMES)
         mc.currentTime(0)
 
-        for e in ('rm_idle_root', 'rm_idle_head', 'rm_idle_arm_L', 'rm_idle_arm_R',
-                  'rm_idle_wing_L', 'rm_idle_wing_R', 'rm_idle_reactor'):
-            self._remove_expr(e)
-
-        ROOT = self.mecha_root
         HEAD = self._find('rm_head_1')
         ARM_L = self._find('rm_arm_1')
         ARM_R = self._find('rm_arm_2')
         WING_L = self._find('rm_wing_1')
         WING_R = self._find('rm_wing_2')
-
-        if ROOT and mc.objExists(ROOT):
-            mc.cutKey(ROOT, clear=True)
-            mc.xform(ROOT, translation=(0, 0, 0), rotation=(0, 0, 0))
-            mc.setAttr(f'{ROOT}.sx', 1)
-            mc.setAttr(f'{ROOT}.sy', 1)
-            mc.setAttr(f'{ROOT}.sz', 1)
 
         if HEAD: self._reset_rotation(HEAD)
         if ARM_L: self._reset_rotation(ARM_L)

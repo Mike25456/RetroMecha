@@ -111,59 +111,12 @@ class BaseAnimation(ABC):
         if not root or not mc.objExists(root):
             return
 
-        # 1) Mata keyframes
-        try:
-            mc.cutKey(root, clear=True)
-        except Exception:
-            pass
-        mc.refresh()
-
-        # 2) Busca motionPath en toda la escena y lo borra
+        # 1) Borra motionPath en toda la escena + objetos auxiliares
         for mp in (mc.ls(type='motionPath') or []):
             try:
                 mc.delete(mp)
             except Exception:
                 pass
-
-        # 3) Desconecta TODO: individual + compuesto
-        all_attrs = ['tx', 'ty', 'tz', 'rx', 'ry', 'rz',
-                     'translateX', 'translateY', 'translateZ',
-                     'rotateX', 'rotateY', 'rotateZ',
-                     'translate', 'rotate']
-        for attr in all_attrs:
-            plugs = (mc.listConnections(f'{root}.{attr}',
-                                        source=True, destination=False,
-                                        plugs=True) or [])
-            nodes = (mc.listConnections(f'{root}.{attr}',
-                                        source=True, destination=False) or [])
-            for plug in plugs:
-                try:
-                    mc.disconnectAttr(plug, f'{root}.{attr}')
-                except Exception:
-                    pass
-            for node in nodes:
-                try:
-                    nt = mc.nodeType(node)
-                    if nt in ('motionPath', 'expression'):
-                        mc.delete(node)
-                except Exception:
-                    pass
-        mc.refresh()
-
-        # 4) Fuerza cada atributo a 0/1
-        for a in ('tx', 'ty', 'tz', 'rx', 'ry', 'rz'):
-            try:
-                mc.setAttr(f'{root}.{a}', 0)
-            except Exception:
-                pass
-        for a in ('sx', 'sy', 'sz'):
-            try:
-                mc.setAttr(f'{root}.{a}', 1)
-            except Exception:
-                pass
-        mc.refresh()
-
-        # 5) Objetos auxiliares conocidos
         for obj in ('rm_flight_path', 'rm_motionPath', 'rm_look_target',
                     'rm_lookPath', 'rm_bobber'):
             if mc.objExists(obj):
@@ -172,7 +125,55 @@ class BaseAnimation(ABC):
                 except Exception:
                     pass
 
-        # 6) Expressiones conocidas
+        # 2) Desconecta TODO source de cada atributo transform del root
+        for attr in ('tx', 'ty', 'tz', 'rx', 'ry', 'rz',
+                     'translateX', 'translateY', 'translateZ',
+                     'rotateX', 'rotateY', 'rotateZ',
+                     'translate', 'rotate'):
+            for plug in (mc.listConnections(f'{root}.{attr}',
+                                            source=True, destination=False,
+                                            plugs=True) or []):
+                try:
+                    mc.disconnectAttr(plug, f'{root}.{attr}')
+                except Exception:
+                    pass
+            for node in (mc.listConnections(f'{root}.{attr}',
+                                            source=True, destination=False) or []):
+                try:
+                    nt = mc.nodeType(node)
+                    if nt in ('motionPath', 'expression'):
+                        mc.delete(node)
+                except Exception:
+                    pass
+
+        # 3) Keyframes
+        try:
+            mc.cutKey(root, clear=True)
+        except Exception:
+            pass
+
+        # 4) Unlock + force set a 0/1
+        for a in ('tx', 'ty', 'tz', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz'):
+            try:
+                mc.setAttr(f'{root}.{a}', lock=False)
+            except Exception:
+                pass
+        try:
+            mc.xform(root, translation=(0, 0, 0), rotation=(0, 0, 0))
+        except Exception as e:
+            print(f'[RetroMecha] _clean_all xform error: {e}')
+        for a in ('tx', 'ty', 'tz', 'rx', 'ry', 'rz'):
+            try:
+                mc.setAttr(f'{root}.{a}', 0)
+            except Exception as e:
+                print(f'[RetroMecha] _clean_all setAttr {root}.{a} error: {e}')
+        for a in ('sx', 'sy', 'sz'):
+            try:
+                mc.setAttr(f'{root}.{a}', 1)
+            except Exception as e:
+                print(f'[RetroMecha] _clean_all setAttr {root}.{a} error: {e}')
+
+        # 5) Expressiones conocidas
         for expr in ('rm_idle_root', 'rm_idle_head',
                      'rm_idle_arm_L', 'rm_idle_arm_R',
                      'rm_idle_wing_L', 'rm_idle_wing_R', 'rm_idle_reactor',

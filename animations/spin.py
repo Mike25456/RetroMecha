@@ -170,29 +170,18 @@ float $lookDown = $spin * -35.0;'''
         if not MAYA_AVAILABLE:
             return
 
+        self._clean_all()
+
         mc.playbackOptions(min=0, max=self.FRAMES,
                            animationStartTime=0, animationEndTime=self.FRAMES)
         mc.currentTime(0)
 
-        for e in ('rm_spin_root', 'rm_spin_torso', 'rm_spin_head',
-                  'rm_spin_arm_L', 'rm_spin_arm_R',
-                  'rm_spin_wing_L', 'rm_spin_wing_R', 'rm_spin_reactor'):
-            self._remove_expr(e)
-
-        ROOT = self.mecha_root
         HEAD = self._find('rm_head_1')
         TORSO = self._find('rm_torso_1')
         ARM_L = self._find('rm_arm_1')
         ARM_R = self._find('rm_arm_2')
         WING_L = self._find('rm_wing_1')
         WING_R = self._find('rm_wing_2')
-
-        if ROOT and mc.objExists(ROOT):
-            mc.cutKey(ROOT, clear=True)
-            mc.xform(ROOT, translation=(0, 0, 0), rotation=(0, 0, 0))
-            mc.setAttr(f'{ROOT}.sx', 1)
-            mc.setAttr(f'{ROOT}.sy', 1)
-            mc.setAttr(f'{ROOT}.sz', 1)
 
         if HEAD: self._reset_rotation(HEAD)
         if TORSO: self._reset_rotation(TORSO)
