@@ -12,10 +12,13 @@ try:
 except ImportError:
     MAYA_AVAILABLE = False
 
+from ui.module_advanced import get_module_spec, get_slider_specs
+
 WIN_ID = 'RetroMechaWindow'
 _SEED = [None]
 _APPLYING_MECHA_PRESET = [False]
 _APPLYING_TERRAIN_VALUES = [False]
+_UI_BUILDING = [False]
 
 HEAD_STYLE_LABELS = {
     'Casco': 'helmet',
@@ -72,13 +75,19 @@ def _load_mecha_presets() -> dict:
         return {}
 
 
-def build_ui():
+def build_ui(*, recreate: bool = True):
     if not MAYA_AVAILABLE:
         print('[RetroMecha] Ejecutar dentro de Maya')
         return
 
     if mc.window(WIN_ID, exists=True):
+        if not recreate:
+            mc.showWindow(WIN_ID)
+            print('[RetroMecha] UI ya abierta')
+            return
         mc.deleteUI(WIN_ID, window=True)
+
+    _UI_BUILDING[0] = True
 
     win = mc.window(WIN_ID, title='RetroMecha v4',
                     sizeable=True, resizeToFitChildren=True,
@@ -152,7 +161,7 @@ def build_ui():
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
 
     def _on_mecha_cc(*_):
-        if _APPLYING_MECHA_PRESET[0]:
+        if _UI_BUILDING[0] or _APPLYING_MECHA_PRESET[0]:
             return
         _rebuild_mecha()
 
@@ -173,72 +182,257 @@ def build_ui():
 
     mc.separator(h=4)
 
-    sep_sl = fsl('Separacion', 0.10, 0.80, 0.35, on_cc=_on_mecha_cc)
-    angle_sl = fsl('Angulos conectores', 0.0, 45.0, 15.0,
-                   step=0.5, prec=1, on_cc=_on_mecha_cc)
-    aggr_sl = fsl('Agresividad', 0.0, 1.0, 0.5, on_cc=_on_mecha_cc)
-    decay_sl = fsl('Decrecimiento', 0.50, 1.0, 0.85, on_cc=_on_mecha_cc)
-    height_sl = fsl('Altura', 0.50, 2.0, 1.0,
-                    step=0.05, on_cc=_on_mecha_cc)
+    height_sl = fsl('Altura', 0.50, 2.0, 1.0, step=0.05)
 
     mc.separator(h=4)
-    sym_cb = mc.checkBox(label='Simetria', value=True, changeCommand=_on_mecha_cc)
-    panels_cb = mc.checkBox(label='Emplear Paneles',
-                            value=True, changeCommand=_on_mecha_cc)
-    head_cb = mc.checkBox(label='Modulo Cabeza', value=True, changeCommand=_on_mecha_cc)
-    arms_cb = mc.checkBox(label='Modulo Brazos', value=True, changeCommand=_on_mecha_cc)
-    wings_cb = mc.checkBox(label='Modulo Alas', value=True, changeCommand=_on_mecha_cc)
+    _asym_rows = []
+
+    def _toggle_symmetry_ui(*_):
+        if _UI_BUILDING[0]:
+            return
+        on = mc.checkBox(sym_cb, q=True, value=True)
+        for row in _asym_rows:
+            if mc.control(row, exists=True):
+                mc.control(row, e=True, visible=not on)
+
+    sym_cb = mc.checkBox(label='Simetria', value=True, changeCommand=_toggle_symmetry_ui)
+    arms_cb = mc.checkBox(label='Modulo Brazos', value=True)
+    wings_cb = mc.checkBox(label='Modulo Alas', value=True)
+    energy_cb = mc.checkBox(label='Anillos de energia', value=True)
 
     mc.separator(h=4)
     mc.rowLayout(nc=2, cw2=[128, 180],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.text(label='Cabeza', align='right', font='smallPlainLabelFont')
-    head_style_menu = mc.optionMenu(changeCommand=lambda *_: _on_mecha_cc())
+    head_style_menu = mc.optionMenu()
     for label in HEAD_STYLE_LABELS:
         mc.menuItem(label=label)
     mc.setParent('..')
+
+    head_adv_sliders = {}
+    head_adv_spec = get_module_spec('head')
+    if head_adv_spec:
+        mc.frameLayout(
+            label=f"  {head_adv_spec.get('frame_label', 'Cabeza — avanzado')}",
+            collapsable=True, collapse=True,
+            borderStyle='etchedIn',
+            marginHeight=4, marginWidth=4,
+        )
+        mc.columnLayout(adjustableColumn=True, rowSpacing=2)
+        for spec in get_slider_specs('head'):
+            head_adv_sliders[spec['key']] = fsl(
+                spec['label'],
+                float(spec['min']), float(spec['max']), float(spec['default']),
+                step=float(spec.get('step', 0.02)),
+            )
+        mc.setParent('..')
+        mc.setParent('..')
 
     mc.rowLayout(nc=2, cw2=[128, 180],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.text(label='Brazos', align='right', font='smallPlainLabelFont')
-    arm_style_menu = mc.optionMenu(changeCommand=lambda *_: _on_mecha_cc())
+    arm_style_menu = mc.optionMenu()
     for label in ARM_STYLE_LABELS:
         mc.menuItem(label=label)
     mc.setParent('..')
+
+    arm_style_right_row = mc.rowLayout(nc=2, cw2=[128, 180],
+                                       columnAttach2=['both', 'both'],
+                                       columnOffset2=[0, 4])
+    _asym_rows.append(arm_style_right_row)
+    mc.text(label='Brazo der', align='right', font='smallPlainLabelFont')
+    arm_style_right_menu = mc.optionMenu()
+    for label in ARM_STYLE_LABELS:
+        mc.menuItem(label=label)
+    mc.setParent('..')
+
+    arm_adv_sliders = {}
+    arm_adv_spec = get_module_spec('arm')
+    if arm_adv_spec:
+        mc.frameLayout(
+            label=f"  {arm_adv_spec.get('frame_label', 'Brazos — avanzado')}",
+            collapsable=True, collapse=True,
+            borderStyle='etchedIn',
+            marginHeight=4, marginWidth=4,
+        )
+        mc.columnLayout(adjustableColumn=True, rowSpacing=2)
+        for spec in get_slider_specs('arm'):
+            arm_adv_sliders[spec['key']] = fsl(
+                spec['label'],
+                float(spec['min']), float(spec['max']), float(spec['default']),
+                step=float(spec.get('step', 0.02)),
+            )
+        mc.setParent('..')
+        mc.setParent('..')
 
     mc.rowLayout(nc=2, cw2=[128, 180],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.text(label='Alas', align='right', font='smallPlainLabelFont')
-    wing_style_menu = mc.optionMenu(changeCommand=lambda *_: _on_mecha_cc())
+    wing_style_menu = mc.optionMenu()
     for label in WING_STYLE_LABELS:
         mc.menuItem(label=label)
     mc.setParent('..')
+
+    wing_style_right_row = mc.rowLayout(nc=2, cw2=[128, 180],
+                                        columnAttach2=['both', 'both'],
+                                        columnOffset2=[0, 4])
+    _asym_rows.append(wing_style_right_row)
+    mc.text(label='Ala der', align='right', font='smallPlainLabelFont')
+    wing_style_right_menu = mc.optionMenu()
+    for label in WING_STYLE_LABELS:
+        mc.menuItem(label=label)
+    mc.setParent('..')
+
+    wing_adv_sliders = {}
+    wing_adv_spec = get_module_spec('wing')
+    if wing_adv_spec:
+        mc.frameLayout(
+            label=f"  {wing_adv_spec.get('frame_label', 'Alas — avanzado')}",
+            collapsable=True, collapse=True,
+            borderStyle='etchedIn',
+            marginHeight=4, marginWidth=4,
+        )
+        mc.columnLayout(adjustableColumn=True, rowSpacing=2)
+        for spec in get_slider_specs('wing'):
+            wing_adv_sliders[spec['key']] = fsl(
+                spec['label'],
+                float(spec['min']), float(spec['max']), float(spec['default']),
+                step=float(spec.get('step', 0.02)),
+            )
+        mc.setParent('..')
+        mc.setParent('..')
 
     mc.rowLayout(nc=2, cw2=[128, 180],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.text(label='Torso', align='right', font='smallPlainLabelFont')
-    torso_style_menu = mc.optionMenu(changeCommand=lambda *_: _on_mecha_cc())
+    torso_style_menu = mc.optionMenu()
     for label in TORSO_STYLE_LABELS:
         mc.menuItem(label=label)
     mc.setParent('..')
+
+    torso_adv_sliders = {}
+    torso_adv_spec = get_module_spec('torso')
+    if torso_adv_spec:
+        mc.frameLayout(
+            label=f"  {torso_adv_spec.get('frame_label', 'Torso — avanzado')}",
+            collapsable=True, collapse=True,
+            borderStyle='etchedIn',
+            marginHeight=4, marginWidth=4,
+        )
+        mc.columnLayout(adjustableColumn=True, rowSpacing=2)
+        for spec in get_slider_specs('torso'):
+            torso_adv_sliders[spec['key']] = fsl(
+                spec['label'],
+                float(spec['min']), float(spec['max']), float(spec['default']),
+                step=float(spec.get('step', 0.02)),
+            )
+        mc.setParent('..')
+        mc.setParent('..')
 
     mc.rowLayout(nc=2, cw2=[128, 180],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.text(label='Nucleo', align='right', font='smallPlainLabelFont')
-    nucleus_style_menu = mc.optionMenu(changeCommand=lambda *_: _on_mecha_cc())
+    nucleus_style_menu = mc.optionMenu()
     for label in NUCLEUS_STYLE_LABELS:
         mc.menuItem(label=label)
     mc.setParent('..')
+
+    nucleus_adv_sliders = {}
+    nucleus_adv_spec = get_module_spec('nucleus')
+    if nucleus_adv_spec:
+        mc.frameLayout(
+            label=f"  {nucleus_adv_spec.get('frame_label', 'Núcleo — avanzado')}",
+            collapsable=True, collapse=True,
+            borderStyle='etchedIn',
+            marginHeight=4, marginWidth=4,
+        )
+        mc.columnLayout(adjustableColumn=True, rowSpacing=2)
+        for spec in get_slider_specs('nucleus'):
+            nucleus_adv_sliders[spec['key']] = fsl(
+                spec['label'],
+                float(spec['min']), float(spec['max']), float(spec['default']),
+                step=float(spec.get('step', 0.02)),
+            )
+        mc.setParent('..')
+        mc.setParent('..')
 
     mc.separator(h=6)
     mc.button(label='Aleatorio Mecha', h=28,
               backgroundColor=[0.32, 0.18, 0.32],
               command=lambda *_: _random_mecha())
+
+    mc.separator(h=4, style='none')
+    mc.setParent('..')
+    mc.setParent('..')
+
+    # ANIMATIONS
+    mc.separator(h=4, style='none')
+    mc.frameLayout(
+        label='  >  ANIMACIONES',
+        collapsable=True, collapse=True,
+        borderStyle='etchedIn',
+        backgroundColor=[0.28, 0.18, 0.14],
+        marginHeight=6, marginWidth=6,
+    )
+    mc.columnLayout(adjustableColumn=True, rowSpacing=3)
+
+    from animations.registry import list_animations, get_animation
+
+    def _apply_animation(*_):
+        mecha_root = _find_mecha_group()
+        if not mecha_root:
+            print('[RetroMecha][Anim] No hay mecha en escena')
+            return
+        anim_cls = get_animation(_current_anim[0])
+        if not anim_cls:
+            print(f'[RetroMecha][Anim] Animacion "{_current_anim[0]}" no encontrada')
+            return
+        anim = anim_cls(mecha_root)
+        anim.apply()
+
+    def _remove_animation(*_):
+        mecha_root = _find_mecha_group()
+        if not mecha_root:
+            print('[RetroMecha][Anim] No hay mecha en escena')
+            return
+        anim_cls = get_animation(_current_anim[0])
+        if not anim_cls:
+            return
+        anim = anim_cls(mecha_root)
+        anim.remove()
+
+    anims = list_animations()
+    _current_anim = [anims[0] if anims else None]
+
+    if anims:
+        mc.rowLayout(nc=2, cw2=[128, 140],
+                     columnAttach2=['both', 'both'],
+                     columnOffset2=[0, 4])
+        mc.text(label='Animacion', align='right', font='smallPlainLabelFont')
+        anim_menu = mc.optionMenu(
+            changeCommand=lambda val: _current_anim.__setitem__(0, val))
+        for name in anims:
+            mc.menuItem(label=name)
+        mc.setParent('..')
+
+        mc.rowLayout(nc=2, cw2=[134, 134],
+                     columnAttach2=['both', 'both'],
+                     columnOffset2=[3, 3])
+        mc.button(label='Aplicar', h=28,
+                  backgroundColor=[0.28, 0.38, 0.18],
+                  command=_apply_animation)
+        mc.button(label='Remover', h=28,
+                  backgroundColor=[0.38, 0.18, 0.18],
+                  command=_remove_animation)
+        mc.setParent('..')
+    else:
+        mc.text(label='(no hay animaciones registradas)',
+                align='left', font='smallPlainLabelFont')
 
     mc.separator(h=4, style='none')
     mc.setParent('..')
@@ -339,26 +533,37 @@ def build_ui():
     def _collect_mecha() -> dict:
         head_label = mc.optionMenu(head_style_menu, q=True, value=True)
         arm_label = mc.optionMenu(arm_style_menu, q=True, value=True)
+        arm_right_label = mc.optionMenu(arm_style_right_menu, q=True, value=True)
         wing_label = mc.optionMenu(wing_style_menu, q=True, value=True)
+        wing_right_label = mc.optionMenu(wing_style_right_menu, q=True, value=True)
         torso_label = mc.optionMenu(torso_style_menu, q=True, value=True)
         nucleus_label = mc.optionMenu(nucleus_style_menu, q=True, value=True)
-        return {
-            'separation': mc.floatSliderGrp(sep_sl, q=True, value=True),
-            'connector_angle': mc.floatSliderGrp(angle_sl, q=True, value=True),
-            'aggressiveness': mc.floatSliderGrp(aggr_sl, q=True, value=True),
-            'decay': mc.floatSliderGrp(decay_sl, q=True, value=True),
+        params = {
             'height_scale': mc.floatSliderGrp(height_sl, q=True, value=True),
             'symmetry': mc.checkBox(sym_cb, q=True, value=True),
-            'use_panels': mc.checkBox(panels_cb, q=True, value=True),
-            'use_head': mc.checkBox(head_cb, q=True, value=True),
+            'use_head': True,
             'use_arms': mc.checkBox(arms_cb, q=True, value=True),
             'use_wings': mc.checkBox(wings_cb, q=True, value=True),
+            'use_energy_fields': mc.checkBox(energy_cb, q=True, value=True),
             'head_style': HEAD_STYLE_LABELS.get(head_label, 'helmet'),
             'arm_style': ARM_STYLE_LABELS.get(arm_label, 'standard'),
+            'arm_style_right': ARM_STYLE_LABELS.get(arm_right_label),
             'wing_style': WING_STYLE_LABELS.get(wing_label, 'needle'),
+            'wing_style_right': WING_STYLE_LABELS.get(wing_right_label),
             'torso_style': TORSO_STYLE_LABELS.get(torso_label, 'core'),
             'nucleus_style': NUCLEUS_STYLE_LABELS.get(nucleus_label, 'ring'),
         }
+        for key, ctrl in head_adv_sliders.items():
+            params[key] = mc.floatSliderGrp(ctrl, q=True, value=True)
+        for key, ctrl in arm_adv_sliders.items():
+            params[key] = mc.floatSliderGrp(ctrl, q=True, value=True)
+        for key, ctrl in wing_adv_sliders.items():
+            params[key] = mc.floatSliderGrp(ctrl, q=True, value=True)
+        for key, ctrl in torso_adv_sliders.items():
+            params[key] = mc.floatSliderGrp(ctrl, q=True, value=True)
+        for key, ctrl in nucleus_adv_sliders.items():
+            params[key] = mc.floatSliderGrp(ctrl, q=True, value=True)
+        return params
 
     def _collect_terrain() -> dict:
         return {
@@ -374,7 +579,6 @@ def build_ui():
     def _collect_terrain_params(seed: int, support_edges: bool = True) -> dict:
         return {
             '_seed': seed + 1000,
-            'aggressiveness': 0.5,
             'height_scale': 1.0,
             'use_support_edges': support_edges,
         }
@@ -482,36 +686,52 @@ def build_ui():
 
         _APPLYING_MECHA_PRESET[0] = True
         try:
-            mc.floatSliderGrp(sep_sl, e=True,
-                              value=preset.get('separation', 0.35))
-            mc.floatSliderGrp(angle_sl, e=True,
-                              value=preset.get('connector_angle', 15.0))
-            mc.floatSliderGrp(aggr_sl, e=True,
-                              value=preset.get('aggressiveness', 0.5))
-            mc.floatSliderGrp(decay_sl, e=True,
-                              value=preset.get('decay', 0.85))
             mc.floatSliderGrp(height_sl, e=True,
                               value=preset.get('height_scale', 1.0))
             mc.checkBox(sym_cb, e=True,
                         value=preset.get('symmetry', True))
-            mc.checkBox(panels_cb, e=True,
-                        value=preset.get('use_panels', True))
-            mc.checkBox(head_cb, e=True,
-                        value=preset.get('use_head', True))
             mc.checkBox(arms_cb, e=True,
                         value=preset.get('use_arms', True))
             mc.checkBox(wings_cb, e=True,
                         value=preset.get('use_wings', True))
+            mc.checkBox(energy_cb, e=True,
+                        value=preset.get('use_energy_fields', True))
             _set_option_by_value(head_style_menu, HEAD_STYLE_LABELS,
                                  preset.get('head_style', 'helmet'))
             _set_option_by_value(arm_style_menu, ARM_STYLE_LABELS,
                                  preset.get('arm_style', 'standard'))
+            arm_right = preset.get('arm_style_right')
+            if arm_right:
+                _set_option_by_value(arm_style_right_menu, ARM_STYLE_LABELS, arm_right)
             _set_option_by_value(wing_style_menu, WING_STYLE_LABELS,
                                  preset.get('wing_style', 'needle'))
+            wing_right = preset.get('wing_style_right')
+            if wing_right:
+                _set_option_by_value(wing_style_right_menu, WING_STYLE_LABELS, wing_right)
             _set_option_by_value(torso_style_menu, TORSO_STYLE_LABELS,
                                  preset.get('torso_style', 'core'))
             _set_option_by_value(nucleus_style_menu, NUCLEUS_STYLE_LABELS,
                                  preset.get('nucleus_style', 'ring'))
+            for spec in get_slider_specs('head'):
+                ctrl = head_adv_sliders.get(spec['key'])
+                if ctrl and spec['key'] in preset:
+                    mc.floatSliderGrp(ctrl, e=True, value=preset[spec['key']])
+            for spec in get_slider_specs('arm'):
+                ctrl = arm_adv_sliders.get(spec['key'])
+                if ctrl and spec['key'] in preset:
+                    mc.floatSliderGrp(ctrl, e=True, value=preset[spec['key']])
+            for spec in get_slider_specs('wing'):
+                ctrl = wing_adv_sliders.get(spec['key'])
+                if ctrl and spec['key'] in preset:
+                    mc.floatSliderGrp(ctrl, e=True, value=preset[spec['key']])
+            for spec in get_slider_specs('torso'):
+                ctrl = torso_adv_sliders.get(spec['key'])
+                if ctrl and spec['key'] in preset:
+                    mc.floatSliderGrp(ctrl, e=True, value=preset[spec['key']])
+            for spec in get_slider_specs('nucleus'):
+                ctrl = nucleus_adv_sliders.get(spec['key'])
+                if ctrl and spec['key'] in preset:
+                    mc.floatSliderGrp(ctrl, e=True, value=preset[spec['key']])
         finally:
             _APPLYING_MECHA_PRESET[0] = False
 
@@ -525,6 +745,8 @@ def build_ui():
         grp = MechaBuilder(params, seed=seed).build()
         if grp and mc.objExists(grp):
             _lift_mecha(grp)
+            mc.makeIdentity(grp, apply=True, translate=True, rotate=True, scale=True,
+                            normal=False, preserveNormals=True)
         return grp
 
     def _build_terrain(seed: int, support_edges: bool = True):
@@ -635,18 +857,12 @@ def build_ui():
                 print('[RetroMecha] No hay escena nueva por delimitar')
                 return
 
-            try:
-                import importlib
-                from utils import hard_surface
-                from utils.maya_scene import force_preview_one
-                hs = importlib.reload(hard_surface)
-            except Exception:
-                from utils import hard_surface as hs
-                from utils.maya_scene import force_preview_one
+            from utils.hard_surface import apply_support_edges
+            from utils.maya_scene import force_preview_one
 
             total = 0
             for root in roots:
-                total += hs.apply_support_edges(
+                total += apply_support_edges(
                     root, offset=0.018, fraction=0.045,
                     segments=2, max_faces=500,
                 )
@@ -661,25 +877,61 @@ def build_ui():
         _APPLYING_MECHA_PRESET[0] = True
         try:
             mc.optionMenu(mecha_preset_menu, e=True, value='Custom')
-            mc.floatSliderGrp(sep_sl, e=True, value=random.uniform(0.10, 0.80))
-            mc.floatSliderGrp(angle_sl, e=True, value=random.uniform(0.0, 45.0))
-            mc.floatSliderGrp(aggr_sl, e=True, value=random.uniform(0.0, 1.0))
-            mc.floatSliderGrp(decay_sl, e=True, value=random.uniform(0.50, 1.0))
             mc.floatSliderGrp(height_sl, e=True, value=random.uniform(0.50, 2.0))
             mc.checkBox(sym_cb, e=True, value=random.choice([True, False]))
-            mc.checkBox(head_cb, e=True, value=True)
             mc.checkBox(arms_cb, e=True, value=random.random() > 0.18)
             mc.checkBox(wings_cb, e=True, value=random.random() > 0.28)
+            mc.checkBox(energy_cb, e=True, value=random.random() > 0.25)
             mc.optionMenu(head_style_menu, e=True,
                           value=random.choice(list(HEAD_STYLE_LABELS.keys())))
             mc.optionMenu(arm_style_menu, e=True,
                           value=random.choice(list(ARM_STYLE_LABELS.keys())))
+            mc.optionMenu(arm_style_right_menu, e=True,
+                          value=random.choice(list(ARM_STYLE_LABELS.keys())))
             mc.optionMenu(wing_style_menu, e=True,
+                          value=random.choice(list(WING_STYLE_LABELS.keys())))
+            mc.optionMenu(wing_style_right_menu, e=True,
                           value=random.choice(list(WING_STYLE_LABELS.keys())))
             mc.optionMenu(torso_style_menu, e=True,
                           value=random.choice(list(TORSO_STYLE_LABELS.keys())))
             mc.optionMenu(nucleus_style_menu, e=True,
                           value=random.choice(list(NUCLEUS_STYLE_LABELS.keys())))
+            _toggle_symmetry_ui()
+            for spec in get_slider_specs('head'):
+                ctrl = head_adv_sliders.get(spec['key'])
+                if ctrl:
+                    mc.floatSliderGrp(
+                        ctrl, e=True,
+                        value=random.uniform(float(spec['min']), float(spec['max'])),
+                    )
+            for spec in get_slider_specs('arm'):
+                ctrl = arm_adv_sliders.get(spec['key'])
+                if ctrl:
+                    mc.floatSliderGrp(
+                        ctrl, e=True,
+                        value=random.uniform(float(spec['min']), float(spec['max'])),
+                    )
+            for spec in get_slider_specs('wing'):
+                ctrl = wing_adv_sliders.get(spec['key'])
+                if ctrl:
+                    mc.floatSliderGrp(
+                        ctrl, e=True,
+                        value=random.uniform(float(spec['min']), float(spec['max'])),
+                    )
+            for spec in get_slider_specs('torso'):
+                ctrl = torso_adv_sliders.get(spec['key'])
+                if ctrl:
+                    mc.floatSliderGrp(
+                        ctrl, e=True,
+                        value=random.uniform(float(spec['min']), float(spec['max'])),
+                    )
+            for spec in get_slider_specs('nucleus'):
+                ctrl = nucleus_adv_sliders.get(spec['key'])
+                if ctrl:
+                    mc.floatSliderGrp(
+                        ctrl, e=True,
+                        value=random.uniform(float(spec['min']), float(spec['max'])),
+                    )
         finally:
             _APPLYING_MECHA_PRESET[0] = False
         _SEED[0] = random.randint(0, 99999)
@@ -707,25 +959,61 @@ def build_ui():
         _APPLYING_MECHA_PRESET[0] = True
         try:
             mc.optionMenu(mecha_preset_menu, e=True, value='Custom')
-            mc.floatSliderGrp(sep_sl, e=True, value=random.uniform(0.10, 0.80))
-            mc.floatSliderGrp(angle_sl, e=True, value=random.uniform(0.0, 45.0))
-            mc.floatSliderGrp(aggr_sl, e=True, value=random.uniform(0.0, 1.0))
-            mc.floatSliderGrp(decay_sl, e=True, value=random.uniform(0.50, 1.0))
             mc.floatSliderGrp(height_sl, e=True, value=random.uniform(0.50, 2.0))
             mc.checkBox(sym_cb, e=True, value=random.choice([True, False]))
-            mc.checkBox(head_cb, e=True, value=True)
             mc.checkBox(arms_cb, e=True, value=random.random() > 0.18)
             mc.checkBox(wings_cb, e=True, value=random.random() > 0.28)
+            mc.checkBox(energy_cb, e=True, value=random.random() > 0.25)
             mc.optionMenu(head_style_menu, e=True,
                           value=random.choice(list(HEAD_STYLE_LABELS.keys())))
             mc.optionMenu(arm_style_menu, e=True,
                           value=random.choice(list(ARM_STYLE_LABELS.keys())))
+            mc.optionMenu(arm_style_right_menu, e=True,
+                          value=random.choice(list(ARM_STYLE_LABELS.keys())))
             mc.optionMenu(wing_style_menu, e=True,
+                          value=random.choice(list(WING_STYLE_LABELS.keys())))
+            mc.optionMenu(wing_style_right_menu, e=True,
                           value=random.choice(list(WING_STYLE_LABELS.keys())))
             mc.optionMenu(torso_style_menu, e=True,
                           value=random.choice(list(TORSO_STYLE_LABELS.keys())))
             mc.optionMenu(nucleus_style_menu, e=True,
                           value=random.choice(list(NUCLEUS_STYLE_LABELS.keys())))
+            _toggle_symmetry_ui()
+            for spec in get_slider_specs('head'):
+                ctrl = head_adv_sliders.get(spec['key'])
+                if ctrl:
+                    mc.floatSliderGrp(
+                        ctrl, e=True,
+                        value=random.uniform(float(spec['min']), float(spec['max'])),
+                    )
+            for spec in get_slider_specs('arm'):
+                ctrl = arm_adv_sliders.get(spec['key'])
+                if ctrl:
+                    mc.floatSliderGrp(
+                        ctrl, e=True,
+                        value=random.uniform(float(spec['min']), float(spec['max'])),
+                    )
+            for spec in get_slider_specs('wing'):
+                ctrl = wing_adv_sliders.get(spec['key'])
+                if ctrl:
+                    mc.floatSliderGrp(
+                        ctrl, e=True,
+                        value=random.uniform(float(spec['min']), float(spec['max'])),
+                    )
+            for spec in get_slider_specs('torso'):
+                ctrl = torso_adv_sliders.get(spec['key'])
+                if ctrl:
+                    mc.floatSliderGrp(
+                        ctrl, e=True,
+                        value=random.uniform(float(spec['min']), float(spec['max'])),
+                    )
+            for spec in get_slider_specs('nucleus'):
+                ctrl = nucleus_adv_sliders.get(spec['key'])
+                if ctrl:
+                    mc.floatSliderGrp(
+                        ctrl, e=True,
+                        value=random.uniform(float(spec['min']), float(spec['max'])),
+                    )
             _randomize_terrain_controls()
         finally:
             _APPLYING_MECHA_PRESET[0] = False
@@ -743,6 +1031,41 @@ def build_ui():
             print('[RetroMecha] Escena limpiada')
         return _scene_update(_work)
 
+    def _bind_mecha_live_callbacks():
+        for slider in (height_sl,):
+            mc.floatSliderGrp(slider, e=True,
+                              changeCommand=_on_mecha_cc,
+                              dragCommand=_on_mecha_cc)
+        for checkbox in (sym_cb, arms_cb, wings_cb, energy_cb):
+            mc.checkBox(checkbox, e=True, changeCommand=_on_mecha_cc)
+        for menu in (head_style_menu, arm_style_menu, arm_style_right_menu,
+                     wing_style_menu, wing_style_right_menu,
+                     torso_style_menu, nucleus_style_menu):
+            mc.optionMenu(menu, e=True, changeCommand=_on_mecha_cc)
+        for ctrl in head_adv_sliders.values():
+            mc.floatSliderGrp(ctrl, e=True,
+                              changeCommand=_on_mecha_cc,
+                              dragCommand=_on_mecha_cc)
+        for ctrl in arm_adv_sliders.values():
+            mc.floatSliderGrp(ctrl, e=True,
+                              changeCommand=_on_mecha_cc,
+                              dragCommand=_on_mecha_cc)
+        for ctrl in wing_adv_sliders.values():
+            mc.floatSliderGrp(ctrl, e=True,
+                              changeCommand=_on_mecha_cc,
+                              dragCommand=_on_mecha_cc)
+        for ctrl in torso_adv_sliders.values():
+            mc.floatSliderGrp(ctrl, e=True,
+                              changeCommand=_on_mecha_cc,
+                              dragCommand=_on_mecha_cc)
+        for ctrl in nucleus_adv_sliders.values():
+            mc.floatSliderGrp(ctrl, e=True,
+                              changeCommand=_on_mecha_cc,
+                              dragCommand=_on_mecha_cc)
+
     mc.optionMenu(mecha_preset_menu, e=True, changeCommand=_on_mecha_preset)
+    _bind_mecha_live_callbacks()
+    _UI_BUILDING[0] = False
+    _toggle_symmetry_ui()
     mc.showWindow(win)
     print('[RetroMecha] UI v4 abierta')

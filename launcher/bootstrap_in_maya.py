@@ -29,10 +29,8 @@ def _reload_project_modules() -> None:
 
 def run_plugin() -> None:
     _reload_project_modules()
-
-    import runpy
-
-    runpy.run_path(os.path.join(_ROOT, "main.py"), run_name="__main__")
+    import main as retromecha_main
+    retromecha_main.start(reload_modules=True)
 
 
 run_plugin()

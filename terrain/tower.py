@@ -38,7 +38,7 @@ class TowerModule(BaseModule):
 
         grp = mc.group(empty=True, name='rm_tower_#')
 
-        aggr = self._get('aggressiveness', 0.5)
+        aggr = 0.5
         h_sc = self._get('height_scale', 1.0)
         seed = self._get('_seed', 42)
         rng = random.Random(seed + hash(str(position)) % 10000)

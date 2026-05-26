@@ -25,7 +25,7 @@ class PlatformModule(BaseModule):
 
         grp = mc.group(empty=True, name='rm_platform_#')
 
-        aggr = self._get('aggressiveness', 0.5)
+        aggr = 0.5
         seed = self._get('_seed', 42)
         rng  = random.Random(seed + hash(str(position)) % 9999)
 

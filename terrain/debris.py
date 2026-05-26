@@ -36,15 +36,15 @@ class DebrisModule(BaseModule):
 
         grp = mc.group(empty=True, name='rm_debris_#')
 
-        aggr = self._get('aggressiveness', 0.5)
+        aggr = 0.5
         seed = self._get('_seed', 42)
         rng = random.Random(seed + hash(str(position)) % 10000)
 
         # Cantidad de piezas por cluster: 3-8 según agresividad
-        count = rng.randint(3, max(3, int(4 + aggr * 4)))
+        count = rng.randint(3, max(3, int(4 + aggr * 12)))
 
         # Radio de dispersión del cluster
-        spread = 0.3 + aggr * 0.4
+        spread = 0.3 + aggr * 1.2
 
         pieces = []
         for i in range(count):

@@ -25,7 +25,7 @@ class FragmentModule(BaseModule):
 
         grp = mc.group(empty=True, name='rm_fragment_#')
 
-        aggr = self._get('aggressiveness', 0.5)
+        aggr = 0.5
         h_sc = self._get('height_scale', 1.0)
         seed = self._get('_seed', 42)
         rng  = random.Random(seed + hash(str(position)) % 9999)
@@ -45,7 +45,7 @@ class FragmentModule(BaseModule):
         # ── Deformación de vértices ───────────────────────────────────────────
         try:
             vn = mc.polyEvaluate(slab, vertex=True)
-            intensity = 0.10 + aggr * 0.18
+            intensity = 0.10 + aggr * 0.54
             for _ in range(rng.randint(3, min(5, vn))):
                 vi = rng.randint(0, vn-1)
                 mc.polyMoveVertex(f'{slab}.vtx[{vi}]',
@@ -57,8 +57,8 @@ class FragmentModule(BaseModule):
             pass
 
         # ── Rotación angular Shinkawa ─────────────────────────────────────────
-        rmin = 15.0 + aggr * 5.0
-        rmax = 32.0 + aggr * 13.0
+        rmin = 15.0 + aggr * 15.0
+        rmax = 32.0 + aggr * 39.0
         rx = rng.uniform(rmin, rmax) * rng.choice([-1, 1])
         rz = rng.uniform(rmin*0.3, rmax*0.5) * rng.choice([-1, 1])
         mc.rotate(rx, 0, rz, slab, relative=True)

@@ -29,13 +29,10 @@ class BaseModule(ABC):
     El posicionamiento global lo maneja MechaBuilder.
 
     Parámetros que llegan desde la UI (via self.params):
-        separation       float  0.1–0.8   — separación entre piezas
-        connector_angle  float  0–45      — ángulo de conectores
-        aggressiveness   float  0.0–1.0   — "agresividad" visual (afecta spikes, bordes)
-        decay            float  0.5–1.0   — factor de decrecimiento por iteración
+
         height_scale     float  0.5–2.0   — escala vertical global
-        symmetry         bool              — aplicar simetría
-        use_panels       bool              — agregar paneles decorativos
+        symmetry         bool              — si True, ambos lados son idénticos
+        _side_seed       int | None        — semilla para variación local (asimetría)
     """
 
     MODULE_NAME: str = ""  # Sobreescribir en cada subclase

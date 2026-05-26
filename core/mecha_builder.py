@@ -6,194 +6,64 @@ Este es el único archivo que conoce la estructura global del mecha.
 Los módulos solo saben crear su propia geometría local.
 """
 
-import math
 import random
 
 try:
     import maya.cmds as mc
-    import maya.api.OpenMaya as om
     MAYA_AVAILABLE = True
 except ImportError:
-    om = None
     MAYA_AVAILABLE = False
     print('[RetroMecha] maya.cmds no disponible — modo debug')
 
 from core.l_system import LSystem
 from core.module_registry import get as get_module, is_registered
+from utils.hard_surface import apply_support_edges
 from utils.maya_materials import assign_material
 from utils.maya_scene import force_preview_one
 
-
-SUPPORT_SKIP_TOKENS = (
-    "glow",
-    "ring",
-    "torus",
-    "orb",
-    "eye",
-    "halo",
-)
+# Altura del anclaje del hombro dentro del módulo ARM (espacio local, pre-escala).
+_ARM_SHOULDER_JOINT_Y = 0.60
 
 
-def _mesh_transforms(root: str) -> list[str]:
-    if not root or not mc.objExists(root):
-        return []
-
-    shapes = mc.listRelatives(root, allDescendents=True, type="mesh",
-                              fullPath=True) or []
-    if mc.nodeType(root) == "transform":
-        shapes.extend(mc.listRelatives(root, shapes=True, type="mesh",
-                                       fullPath=True) or [])
-
-    transforms = []
-    seen = set()
-    for shape in shapes:
-        parent = (mc.listRelatives(shape, parent=True, fullPath=True) or [None])[0]
-        if parent and parent not in seen:
-            seen.add(parent)
-            transforms.append(parent)
-    return transforms
+def _find_shoulder_pad(torso: str, side: str):
+    """Busca rm_torso_shoulder_l o rm_torso_shoulder_r bajo el grupo torso."""
+    if not torso or not mc.objExists(torso):
+        return None
+    token = f"rm_torso_shoulder_{side}"
+    for node in mc.listRelatives(torso, allDescendents=True,
+                                 type='transform', fullPath=True) or []:
+        short = node.rsplit('|', 1)[-1]
+        if short.startswith(token):
+            return node
+    return None
 
 
-def _face_vertex_count(face: str) -> int:
-    verts = mc.polyListComponentConversion(face, fromFace=True, toVertex=True)
-    return len(mc.ls(verts, flatten=True) or [])
+def _arm_attach_from_torso(torso: str | None, h_scale: float) -> tuple:
+    """
+    Punto de anclaje del brazo (x, y, z) y escala uniforme.
+    x > 0 = lado derecho; el izquierdo usa -x.
+    """
+    arm_scale = 0.75 * h_scale
+    joint_y = _ARM_SHOULDER_JOINT_Y * arm_scale
 
+    pad = _find_shoulder_pad(torso, 'r') or _find_shoulder_pad(torso, 'l')
+    if pad and mc.objExists(pad):
+        bb = mc.exactWorldBoundingBox(pad)
+        arm_x = abs((bb[0] + bb[3]) * 0.5)
+        # El joint del brazo (y≈0.60 local) queda al borde inferior de la hombrera.
+        arm_y = bb[1] - joint_y
+        arm_z = (bb[2] + bb[5]) * 0.5
+        return arm_x, arm_y, arm_z, arm_scale
 
-def _triangulate_ngons(node: str) -> int:
-    try:
-        face_count = mc.polyEvaluate(node, face=True) or 0
-    except Exception:
-        return 0
-
-    fixed = 0
-    for index in reversed(range(face_count)):
-        face = f"{node}.f[{index}]"
-        try:
-            if _face_vertex_count(face) <= 4:
-                continue
-            mc.polyTriangulate(face, ch=0)
-            fixed += 1
-        except Exception:
-            continue
-    return fixed
-
-
-def _hard_edge_components(node: str, angle_threshold: float = 35.0) -> list[str]:
-    """Return edges where adjacent faces make a visible hard corner."""
-    if om is None:
-        return []
-
-    shapes = mc.listRelatives(node, shapes=True, type="mesh", fullPath=True) or []
-    if not shapes:
-        return []
-
-    try:
-        selection = om.MSelectionList()
-        selection.add(shapes[0])
-        dag = selection.getDagPath(0)
-        mesh = om.MFnMesh(dag)
-        edge_iter = om.MItMeshEdge(dag)
-    except Exception:
-        return []
-
-    edges = []
-    while not edge_iter.isDone():
-        try:
-            faces = edge_iter.getConnectedFaces()
-            include = len(faces) < 2
-            if len(faces) >= 2:
-                normal = mesh.getPolygonNormal(faces[0], om.MSpace.kWorld)
-                for face in faces[1:]:
-                    other = mesh.getPolygonNormal(face, om.MSpace.kWorld)
-                    if math.degrees(normal.angle(other)) >= angle_threshold:
-                        include = True
-                        break
-            if include:
-                edges.append(f"{node}.e[{edge_iter.index()}]")
-        except Exception:
-            pass
-        edge_iter.next()
-    return edges
-
-
-def _harden_mesh(node: str, fraction: float = 0.045,
-                 segments: int = 2, max_faces: int = 500) -> bool:
-    try:
-        faces = mc.polyEvaluate(node, face=True) or 0
-    except Exception:
-        return False
-    if faces <= 0 or faces > max_faces:
-        return False
-
-    _triangulate_ngons(node)
-    hard_edges = _hard_edge_components(node)
-    if not hard_edges:
-        return False
-
-    changed = False
-    try:
-        mc.select(hard_edges, replace=True)
-        mc.polyBevel3(
-            fraction=fraction,
-            offsetAsFraction=True,
-            autoFit=True,
-            segments=segments,
-            worldSpace=True,
-            smoothingAngle=30,
-            fillNgons=True,
-            mergeVertices=True,
-            mergeVertexTolerance=0.0001,
-            miteringAngle=180,
-            angleTolerance=180,
-            ch=0,
-        )
-        changed = True
-    except Exception:
-        try:
-            mc.select(hard_edges, replace=True)
-            mc.polyBevel(hard_edges, offset=0.022, segments=segments,
-                         chamfer=0, ch=0)
-            changed = True
-        except Exception:
-            pass
-    finally:
-        try:
-            mc.select(clear=True)
-        except Exception:
-            pass
-
-    _triangulate_ngons(node)
-    try:
-        mc.polySoftEdge(node, angle=30, ch=0)
-    except Exception:
-        pass
-    if mc.objExists(node):
-        try:
-            mc.delete(node, ch=True)
-        except Exception:
-            pass
-    return changed
-
-
-def _apply_support_edges(root: str) -> int:
-    """Apply support bevels directly here to avoid stale Maya utility modules."""
-    processed = 0
-    found = 0
-    skipped = 0
-    edge_total = 0
-    for node in _mesh_transforms(root):
-        found += 1
-        short = node.rsplit("|", 1)[-1].lower()
-        if any(token in short for token in SUPPORT_SKIP_TOKENS):
-            skipped += 1
-            continue
-        edge_total += len(_hard_edge_components(node))
-        if _harden_mesh(node):
-            processed += 1
-    print(f'[RetroMecha] Support pass: encontrados={found}, '
-          f'omitidos={skipped}, hard_edges={edge_total}, '
-          f'procesados={processed}')
-    return processed
+    spread = 1.06
+    torso_h = 2.0 * h_scale
+    pad_y = torso_h * 0.30 + 0.08 * h_scale
+    return (
+        spread * h_scale,
+        pad_y - joint_y,
+        -0.06 * h_scale,
+        arm_scale,
+    )
 
 
 class MechaBuilder:
@@ -234,10 +104,10 @@ class MechaBuilder:
 
         try:
             self._build_body()
-            if self.params.get('use_panels', True):
-                self._apply_panel_layer()
             if self.params.get('use_support_edges', True):
-                count = _apply_support_edges(self._root_group)
+                count = apply_support_edges(
+                    self._root_group, max_faces=500,
+                )
                 print(f'[RetroMecha] Support edges aplicados: {count}')
             force_preview_one(self._root_group)
             mc.select(self._root_group)
@@ -252,96 +122,142 @@ class MechaBuilder:
     # ── Construcción del cuerpo ───────────────────────────────────────────────
 
     def _build_body(self):
-        sep        = self.params.get('separation',       0.35)
-        decay      = self.params.get('decay',            0.85)
         symmetry   = self.params.get('symmetry',         True)
-        angle      = self.params.get('connector_angle',  15.0)
+
         h_scale    = self.params.get('height_scale',     1.0)
         use_head   = self.params.get('use_head',         True)
         use_arms   = self.params.get('use_arms',         True)
         use_wings  = self.params.get('use_wings',        True)
+        use_energy = self.params.get('use_energy_fields', True)
 
-        # ── TORSO primero (la cabeza se apoya en su bbox, no en separation) ───
         torso = self._spawn('TORSO', position=(0, 0, 0), scale=h_scale)
 
         head_y = 1.15 * h_scale
+        arm_x, arm_y, arm_z, arm_scale = _arm_attach_from_torso(torso, h_scale)
+        wing_x = 0.40 * h_scale
+        wing_y = 1.05 * h_scale
+        wing_z = -0.50
+
         if torso and mc.objExists(torso):
             bb = mc.exactWorldBoundingBox(torso)
-            # Pivot de cabeza ≈ centro; subir media altura de cabeza + hueco cuello
+            half_w = (bb[3] - bb[0]) * 0.5
+            height = bb[4] - bb[1]
+
             head_y = bb[4] + 0.06 + 0.48 * h_scale
+            wing_x = half_w * 0.48
+            wing_y = bb[1] + height * 0.86
+            wing_z = bb[2] - 0.32
 
+        head_grp = None
         if use_head:
-            self._spawn('HEAD', position=(0, head_y, 0))
+            head_grp = self._spawn('HEAD', position=(0, head_y, 0))
 
-        # ── ARMS ──────────────────────────────────────────────────────────────
-        arm_x = 1.18 + sep * 0.35
-        arm_y = 0.5 * h_scale
+        wing_left = wing_right = None
+
         if use_arms:
             self._spawn('ARM',
-                        position=(-arm_x, arm_y, 0.16),
-                        rotation=(0, 0, angle * 0.18),
-                        scale=decay)
+                        position=(-arm_x, arm_y, arm_z),
+                        rotation=(0, 0, 2.7),
+                        scale=arm_scale)
 
-        if use_arms and symmetry:
-            self._spawn('ARM',
-                        position=( arm_x, arm_y, 0.16),
-                        rotation=(0, 0, -angle * 0.18),
-                        scale=decay)
-
-        # ── WINGS: alta en la espalda; separation aleja del torso en Z ─────────
-        wing_x = 0.40
-        wing_y = 1.05 * h_scale
-        wing_z = -0.50 - sep * 0.55
-        if torso and mc.objExists(torso):
-            bb = mc.exactWorldBoundingBox(torso)
-            wing_y = bb[1] + (bb[4] - bb[1]) * 0.86
-            wing_z = bb[2] - 0.32 - sep * 1.55
-            wing_x = (bb[3] - bb[0]) * 0.24
+            if symmetry:
+                self._spawn('ARM',
+                            position=(arm_x, arm_y, arm_z),
+                            rotation=(0, 0, -2.7),
+                            scale=arm_scale)
+            else:
+                right_overrides = {'_side_seed': self.seed + 1}
+                right_style = self.params.get('arm_style_right')
+                if right_style:
+                    right_overrides['arm_style'] = right_style
+                self._spawn('ARM',
+                            position=(arm_x, arm_y, arm_z),
+                            rotation=(0, 0, -2.7),
+                            scale=arm_scale,
+                            overrides=right_overrides)
 
         if use_wings:
-            self._spawn('WING',
-                        position=(-wing_x, wing_y, wing_z),
-                        rotation=(-4, -16, 0))
+            wing_left = self._spawn('WING',
+                                    position=(-wing_x, wing_y, wing_z),
+                                    rotation=(-4, -16, 0))
 
-        if use_wings and symmetry:
-            self._spawn('WING',
-                        position=(wing_x, wing_y, wing_z),
-                        rotation=(-4, 16, 0))
+            if symmetry:
+                wing_right = self._spawn('WING',
+                                         position=(wing_x, wing_y, wing_z),
+                                         rotation=(-4, 16, 0))
+            else:
+                right_overrides = {'_side_seed': self.seed + 1}
+                right_style = self.params.get('wing_style_right')
+                if right_style:
+                    right_overrides['wing_style'] = right_style
+                wing_right = self._spawn('WING',
+                                         position=(wing_x, wing_y, wing_z),
+                                         rotation=(-4, 16, 0),
+                                         overrides=right_overrides)
 
-        self._build_energy_fields(arm_x, arm_y, head_y, h_scale, symmetry,
-                                  use_head, use_arms)
-
-    # ── Capa de paneles ────────────────────────────────────────────────────────
-
-    def _apply_panel_layer(self):
-        """Post-proceso: añade paneles decorativos sobre el torso y brazos."""
-        try:
-            from layers.panel_layer import PanelLayer
-            PanelLayer(self.params, self._root_group).apply()
-        except ImportError:
-            print('[RetroMecha] panel_layer no disponible, omitiendo')
+        if use_energy:
+            self._build_energy_fields(h_scale, torso, head_grp,
+                                      wing_left, wing_right)
 
     # ── Helpers ────────────────────────────────────────────────────────────────
 
-    def _build_energy_fields(self, arm_x: float, arm_y: float, head_y: float,
-                             h_scale: float, symmetry: bool,
-                             use_head: bool, use_arms: bool) -> None:
-        """Cyan connector rings for the separated, floating mecha parts."""
+    def _build_energy_fields(self, h_scale: float,
+                             torso_grp: str | None,
+                             head_grp: str | None,
+                             wing_left: str | None = None,
+                             wing_right: str | None = None) -> None:
+        """Cyan connector rings anchored to actual bbox of torso/head/stub/wings."""
         if not MAYA_AVAILABLE or not self._root_group:
             return
 
         grp = mc.group(empty=True, name='rm_energy_fields_#')
-        rings = [
-            self._energy_ring((0, -0.98 * h_scale, 0), 0.30, (0, 0, 0)),
-        ]
-        if use_head:
-            rings.append(self._energy_ring((0, head_y - 0.52, 0), 0.24, (0, 0, 0)))
-        if use_arms:
-            rings.append(self._energy_ring((-arm_x * 0.58, arm_y + 0.22, 0),
-                                           0.22, (0, 90, 0)))
-        if use_arms and symmetry:
-            rings.append(self._energy_ring((arm_x * 0.58, arm_y + 0.22, 0),
-                                           0.22, (0, 90, 0)))
+        rings = []
+
+        def _bbox_bot(node):
+            return mc.exactWorldBoundingBox(node)[1]
+
+        def _bbox_top(node):
+            return mc.exactWorldBoundingBox(node)[4]
+
+        def _ring_at(pos, r, rot=(0, 0, 0)):
+            rings.append(self._energy_ring(pos, r, rot))
+
+        # ── Neck ring: entre cabeza y torso (tamaño fijo)
+        if head_grp and mc.objExists(head_grp) and torso_grp and mc.objExists(torso_grp):
+            try:
+                neck_y = (_bbox_bot(head_grp) + _bbox_top(torso_grp)) * 0.5
+                _ring_at((0, neck_y, 0), 0.20)
+            except Exception:
+                pass
+
+        # ── Hip ring: justo debajo del stub (tamaño fijo)
+        if torso_grp and mc.objExists(torso_grp):
+            try:
+                stub = [n for n in (mc.listRelatives(torso_grp, allDescendents=True,
+                                                     type='transform') or [])
+                        if 'stub' in n]
+                ref = stub[0] if stub else torso_grp
+                bot_y = _bbox_bot(ref) - 0.04
+                _ring_at((0, bot_y, 0), 0.28)
+            except Exception:
+                _ring_at((0, -0.98 * h_scale, 0), 0.28)
+
+        # ── Wing root rings: centrados en el hub de cada ala (tamaño fijo)
+        for wing in (wing_left, wing_right):
+            if not wing or not mc.objExists(wing):
+                continue
+            try:
+                hub = [n for n in (mc.listRelatives(wing, allDescendents=True,
+                                                    type='transform') or [])
+                       if 'hub' in n and 'glow' not in n]
+                if hub:
+                    bb = mc.exactWorldBoundingBox(hub[0])
+                    cx = (bb[0] + bb[3]) * 0.5
+                    cy = (bb[1] + bb[4]) * 0.5
+                    cz = (bb[2] + bb[5]) * 0.5
+                    _ring_at((cx, cy, cz), 0.15, (-4, 0, 0))
+            except Exception:
+                pass
 
         rings = [r for r in rings if r and mc.objExists(r)]
         if rings:
@@ -367,7 +283,8 @@ class MechaBuilder:
     def _spawn(self, module_name: str,
                position=(0, 0, 0),
                scale=1.0,
-               rotation=(0, 0, 0)) -> str | None:
+               rotation=(0, 0, 0),
+               overrides: dict | None = None) -> str | None:
         """Instancia un módulo y lo parenta al grupo raíz.
 
         Los errores dentro de generate() se aíslan aquí para que un módulo
@@ -383,7 +300,10 @@ class MechaBuilder:
         # limpiar cualquier nodo huérfano si el módulo lanza una excepción.
         nodes_before = set(mc.ls(dag=True) or [])
 
-        instance = cls(self.params)
+        mod_params = dict(self.params)
+        if overrides:
+            mod_params.update(overrides)
+        instance = cls(mod_params)
         try:
             node = instance.generate(position=position,
                                      scale=scale,

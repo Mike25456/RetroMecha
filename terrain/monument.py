@@ -42,7 +42,7 @@ class MonumentModule(BaseModule):
 
         grp = mc.group(empty=True, name='rm_monument_#')
 
-        damage = self._get('aggressiveness', 0.5)
+        damage = 0.5
         h_sc = self._get('height_scale', 1.0)
         seed = self._get('_seed', 42)
         rng = random.Random(seed + 5000)

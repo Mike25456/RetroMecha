@@ -2,6 +2,8 @@
 Floating segmented arm module with different variations (standard, heavy, blade, cannon).
 """
 
+from dataclasses import dataclass
+
 try:
     import maya.cmds as mc
 except ImportError:
@@ -10,6 +12,24 @@ except ImportError:
 from core.base_module import BaseModule
 from core.module_registry import register
 from utils.maya_materials import assign_material
+
+
+@dataclass(frozen=True)
+class ArmTune:
+    """Multiplicadores desde la UI (config avanzada de brazos)."""
+    width: float = 1.0
+    length: float = 1.0
+    detail: float = 1.0
+    hand: float = 1.0
+
+    @classmethod
+    def from_params(cls, getter) -> 'ArmTune':
+        return cls(
+            width=float(getter('arm_width_mul', 1.0)),
+            length=float(getter('arm_length_mul', 1.0)),
+            detail=float(getter('arm_detail_mul', 1.0)),
+            hand=float(getter('arm_hand_mul', 1.0)),
+        )
 
 
 def _finish(mesh: str, bevel: float = 0.035, hard: bool = False) -> str:
@@ -47,161 +67,174 @@ class ArmModule(BaseModule):
             return 'rm_arm_DEBUG'
 
         grp = mc.group(empty=True, name='rm_arm_#')
-        decay = self._get('decay', 0.85)
-        aggr = self._get('aggressiveness', 0.5)
+        aggr = 0.5
         arm_style = self._get('arm_style', 'standard')
         side = -1.0 if position[0] < 0 else 1.0
+        tune = ArmTune.from_params(self._get)
+        w = tune.width
+        l = tune.length
+        d_mul = tune.detail
+        hm = tune.hand
+
+        side_seed = self._get('_side_seed')
+        if side_seed is not None:
+            import random as _rnd
+            rng = _rnd.Random(side_seed + (1 if side > 0 else 0))
+            w *= 1.0 + (rng.random() - 0.5) * 0.30
+            l *= 1.0 + (rng.random() - 0.5) * 0.30
+            hm *= 1.0 + (rng.random() - 0.5) * 0.20
+            d_mul *= 1.0 + (rng.random() - 0.5) * 0.20
 
         parts = []
 
         if arm_style == 'heavy':
-            upper = _armor_block('rm_arm_upper_#', 0.58, 1.0, 0.48, 0.08)
+            upper = _armor_block('rm_arm_upper_#', 0.58 * w, 1.0 * l, 0.48 * w, 0.08)
             mc.rotate(0, 0, -5 * side, upper)
 
-            upper_core = mc.polyCylinder(r=0.22, h=0.34, sa=12, name='rm_arm_shoulder_core_#')[0]
+            upper_core = mc.polyCylinder(r=0.22 * w, h=0.34 * l, sa=12, name='rm_arm_shoulder_core_#')[0]
             mc.rotate(90, 0, 0, upper_core)
-            mc.move(0, 0.60, 0, upper_core, relative=True)
+            mc.move(0, 0.60 * l, 0, upper_core, relative=True)
             assign_material(upper_core, "rm_graphite_mat")
             _finish(upper_core, 0.0)
 
-            shoulder_glow = mc.polyTorus(r=0.25, sr=0.015, sa=24, sh=4, name='rm_arm_shoulder_glow_#')[0]
+            shoulder_glow = mc.polyTorus(r=0.25 * w, sr=0.015 * d_mul, sa=24, sh=4, name='rm_arm_shoulder_glow_#')[0]
             mc.rotate(90, 0, 0, shoulder_glow)
-            mc.move(0, 0.60, 0, shoulder_glow, relative=True)
+            mc.move(0, 0.60 * l, 0, shoulder_glow, relative=True)
             assign_material(shoulder_glow, "rm_cyan_glow_mat")
             _finish(shoulder_glow, 0.0)
 
-            elbow = mc.polyCube(w=0.35, h=0.35, d=0.35, name='rm_arm_elbow_#')[0]
-            mc.move(0, -0.55, 0, elbow, relative=True)
+            elbow = mc.polyCube(w=0.35 * w, h=0.35 * l, d=0.35 * w, name='rm_arm_elbow_#')[0]
+            mc.move(0, -0.55 * l, 0, elbow, relative=True)
             assign_material(elbow, "rm_graphite_mat")
             _finish(elbow, 0.03)
 
-            fore_h = 0.95 * decay
-            forearm = _armor_block('rm_arm_forearm_#', 0.52 * decay, fore_h, 0.45 * decay, -1.15)
+            fore_h = 0.95 * l
+            forearm = _armor_block('rm_arm_forearm_#', 0.52 * w, fore_h, 0.45 * w, -1.15 * l)
             mc.rotate(0, 0, 4 * side, forearm)
 
-            tip = mc.polyCube(w=0.45 * decay, h=0.4, d=0.35 * decay, name='rm_arm_tip_#')[0]
-            mc.move(0, -1.75, 0, tip, relative=True)
-            assign_material(tip, "rm_graphite_mat")
-            _finish(tip, 0.04, hard=True)
+            tip_h = 0.4 * hm
+            tip = mc.polyCube(w=0.45 * hm, h=tip_h, d=0.35 * hm, name='rm_arm_tip_#')[0]
+            mc.move(0, -1.15 * l - fore_h * 0.5 - tip_h * 0.5, 0, tip, relative=True)
 
             parts.extend([upper, upper_core, shoulder_glow, elbow, forearm, tip])
 
         elif arm_style == 'blade':
-            upper = _armor_block('rm_arm_upper_#', 0.32, 0.85, 0.30, 0.08)
+            upper = _armor_block('rm_arm_upper_#', 0.32 * w, 0.85 * l, 0.30 * w, 0.08)
             mc.rotate(0, 0, -8 * side, upper)
 
-            upper_core = mc.polyCylinder(r=0.14, h=0.22, sa=12, name='rm_arm_shoulder_core_#')[0]
+            upper_core = mc.polyCylinder(r=0.14 * w, h=0.22 * l, sa=12, name='rm_arm_shoulder_core_#')[0]
             mc.rotate(90, 0, 0, upper_core) 
-            mc.move(0, 0.50, 0, upper_core, relative=True)
+            mc.move(0, 0.50 * l, 0, upper_core, relative=True)
             assign_material(upper_core, "rm_graphite_mat")
             _finish(upper_core, 0.0)
 
-            shoulder_glow = mc.polyTorus(r=0.17, sr=0.01, sa=24, sh=4, name='rm_arm_shoulder_glow_#')[0]
+            shoulder_glow = mc.polyTorus(r=0.17 * w, sr=0.01 * d_mul, sa=24, sh=4, name='rm_arm_shoulder_glow_#')[0]
             mc.rotate(90, 0, 0, shoulder_glow)
-            mc.move(0, 0.50, 0, shoulder_glow, relative=True)
+            mc.move(0, 0.50 * l, 0, shoulder_glow, relative=True)
             assign_material(shoulder_glow, "rm_cyan_glow_mat")
             _finish(shoulder_glow, 0.0)
 
-            elbow = mc.polySphere(r=0.14, sa=8, sh=6, name='rm_arm_elbow_#')[0]
-            mc.move(0, -0.45, 0, elbow, relative=True)
+            elbow = mc.polySphere(r=0.14 * w, sa=8, sh=6, name='rm_arm_elbow_#')[0]
+            mc.move(0, -0.45 * l, 0, elbow, relative=True)
             assign_material(elbow, "rm_graphite_mat")
             _finish(elbow, 0.0)
 
-            fore_h = 1.1 * decay
-            forearm = _armor_block('rm_arm_forearm_#', 0.28 * decay, fore_h, 0.25 * decay, -1.1)
+            fore_h = 1.1 * l
+            forearm = _armor_block('rm_arm_forearm_#', 0.28 * w, fore_h, 0.25 * w, -1.1 * l)
             mc.rotate(0, 0, 10 * side, forearm)
 
-            tip = mc.polyCone(r=0.12 * decay, h=0.8 + aggr * 0.2, sa=3, name='rm_arm_tip_#')[0]
-            mc.move(0, -2.1, 0, tip, relative=True)
+            tip_h = (0.8 + aggr * 0.6) * hm
+            tip = mc.polyCone(r=0.12 * hm, h=tip_h, sa=3, name='rm_arm_tip_#')[0]
+            mc.move(0, -1.1 * l - fore_h * 0.5 - tip_h * 0.5, 0, tip, relative=True)
             mc.rotate(180, 90 if side > 0 else -90, 0, tip)
             assign_material(tip, "rm_white_armor_mat")
             _finish(tip, 0.0, hard=True)
 
-            accent = mc.polyCube(w=0.03, h=0.7, d=0.04, name='rm_arm_cyan_strip_#')[0]
-            mc.move(0, -1.9, 0, accent, relative=True)
-            assign_material(accent, "rm_cyan_glow_mat")
-            _finish(accent, 0.006, hard=True)
+            accent = mc.polyCube(w=0.03 * d_mul, h=0.7 * d_mul, d=0.04 * d_mul, name='rm_arm_cyan_strip_#')[0]
+            mc.move(0, -1.1 * l - fore_h * 0.5 - tip_h - 0.02, 0, accent, relative=True)
 
             parts.extend([upper, upper_core, shoulder_glow, elbow, forearm, tip, accent])
 
         elif arm_style == 'cannon':
-            upper = _armor_block('rm_arm_upper_#', 0.40, 0.88, 0.45, 0.08)
+            upper = _armor_block('rm_arm_upper_#', 0.40 * w, 0.88 * l, 0.45 * w, 0.08)
             mc.rotate(0, 0, -3 * side, upper)
 
-            upper_core = mc.polyCylinder(r=0.18, h=0.30, sa=12, name='rm_arm_shoulder_core_#')[0]
+            upper_core = mc.polyCylinder(r=0.18 * w, h=0.30 * l, sa=12, name='rm_arm_shoulder_core_#')[0]
             mc.rotate(90, 0, 0, upper_core)
-            mc.move(0, 0.60, 0, upper_core, relative=True)
+            mc.move(0, 0.60 * l, 0, upper_core, relative=True)
             assign_material(upper_core, "rm_graphite_mat")
             _finish(upper_core, 0.0)
 
-            elbow = mc.polyCylinder(r=0.16, h=0.32, sa=12, name='rm_arm_elbow_#')[0]
+            elbow = mc.polyCylinder(r=0.16 * w, h=0.32 * l, sa=12, name='rm_arm_elbow_#')[0]
             mc.rotate(90, 0, 0, elbow)
-            mc.move(0, -0.45, 0, elbow, relative=True)
+            mc.move(0, -0.45 * l, 0, elbow, relative=True)
             assign_material(elbow, "rm_graphite_mat")
             _finish(elbow, 0.0)
 
-            fore_h = 0.9 * decay
-            forearm = mc.polyCylinder(r=0.22 * decay, h=fore_h, sa=12, name='rm_arm_forearm_#')[0]
-            mc.move(0, -1.0, 0, forearm, relative=True)
+            fore_h = 0.9 * l
+            forearm = mc.polyCylinder(r=0.22 * w, h=fore_h, sa=12, name='rm_arm_forearm_#')[0]
+            mc.move(0, -1.0 * l, 0, forearm, relative=True)
             assign_material(forearm, "rm_white_armor_mat")
             _finish(forearm, 0.02)
 
-            tip = mc.polyCylinder(r=0.18 * decay, h=0.35, sa=12, name='rm_arm_tip_#')[0]
-            mc.move(0, -1.55, 0, tip, relative=True)
+            tip_h = 0.35 * hm
+            tip = mc.polyCylinder(r=0.18 * hm, h=tip_h, sa=12, name='rm_arm_tip_#')[0]
+            mc.move(0, -1.0 * l - fore_h * 0.5 - tip_h * 0.5, 0, tip, relative=True)
             assign_material(tip, "rm_graphite_mat")
             _finish(tip, 0.02, hard=True)
 
-            cannon_core = mc.polyCylinder(r=0.12 * decay, h=0.36, sa=12, name='rm_arm_cannon_core_#')[0]
-            mc.move(0, -1.56, 0, cannon_core, relative=True)
+            cannon_core = mc.polyCylinder(r=0.12 * w, h=0.36 * d_mul, sa=12, name='rm_arm_cannon_core_#')[0]
+            mc.move(0, -1.0 * l - fore_h * 0.5 - tip_h - 0.01, 0, cannon_core, relative=True)
             assign_material(cannon_core, "rm_cyan_glow_mat")
             _finish(cannon_core, 0.0, hard=True)
 
             parts.extend([upper, upper_core, elbow, forearm, tip, cannon_core])
 
         else: # standard
-            upper = _armor_block('rm_arm_upper_#', 0.42, 0.92, 0.38, 0.08)
+            upper = _armor_block('rm_arm_upper_#', 0.42 * w, 0.92 * l, 0.38 * w, 0.08)
             mc.rotate(0, 0, -5 * side, upper)
 
-            upper_core = mc.polyCylinder(r=0.16, h=0.28, sa=12,
+            upper_core = mc.polyCylinder(r=0.16 * w, h=0.28 * l, sa=12,
                                          name='rm_arm_shoulder_core_#')[0]
             mc.rotate(90, 0, 0, upper_core)
-            mc.move(0, 0.60, 0, upper_core, relative=True)
+            mc.move(0, 0.60 * l, 0, upper_core, relative=True)
             assign_material(upper_core, "rm_graphite_mat")
             _finish(upper_core, 0.0)
 
-            shoulder_glow = mc.polyTorus(r=0.19, sr=0.012, sa=24, sh=4,
+            shoulder_glow = mc.polyTorus(r=0.19 * w, sr=0.012 * d_mul, sa=24, sh=4,
                                          name='rm_arm_shoulder_glow_#')[0]
             mc.rotate(90, 0, 0, shoulder_glow)
-            mc.move(0, 0.60, 0, shoulder_glow, relative=True)
+            mc.move(0, 0.60 * l, 0, shoulder_glow, relative=True)
             assign_material(shoulder_glow, "rm_cyan_glow_mat")
             _finish(shoulder_glow, 0.0)
 
-            elbow = mc.polySphere(r=0.18, sa=8, sh=6, name='rm_arm_elbow_#')[0]
-            mc.move(0, -0.52, 0, elbow, relative=True)
+            elbow = mc.polySphere(r=0.18 * w, sa=8, sh=6, name='rm_arm_elbow_#')[0]
+            mc.move(0, -0.52 * l, 0, elbow, relative=True)
             assign_material(elbow, "rm_graphite_mat")
             _finish(elbow, 0.0)
 
-            elbow_glow = mc.polyTorus(r=0.20, sr=0.012, sa=24, sh=4,
+            elbow_glow = mc.polyTorus(r=0.20 * w, sr=0.012 * d_mul, sa=24, sh=4,
                                       name='rm_arm_elbow_glow_#')[0]
-            mc.move(0, -0.52, 0, elbow_glow, relative=True)
+            mc.move(0, -0.52 * l, 0, elbow_glow, relative=True)
             assign_material(elbow_glow, "rm_cyan_glow_mat")
             _finish(elbow_glow, 0.0)
 
-            fore_h = 0.82 * decay
-            forearm = _armor_block('rm_arm_forearm_#', 0.36 * decay,
-                                   fore_h, 0.34 * decay, -1.05)
+            fore_h = 0.82 * l
+            forearm = _armor_block('rm_arm_forearm_#', 0.36 * w,
+                                   fore_h, 0.34 * w, -1.05 * l)
             mc.rotate(0, 0, 7 * side, forearm)
 
-            tip = mc.polyCone(r=0.16 * decay, h=0.34 + aggr * 0.14, sa=4,
+            tip_h = (0.34 + aggr * 0.42) * hm
+            tip = mc.polyCone(r=0.16 * hm, h=tip_h, sa=4,
                               name='rm_arm_tip_#')[0]
-            mc.move(0, -1.62, 0, tip, relative=True)
+            mc.move(0, -1.05 * l - fore_h * 0.5 - tip_h * 0.5, 0, tip, relative=True)
             mc.rotate(180, 45, 0, tip)
             assign_material(tip, "rm_graphite_mat")
             _finish(tip, 0.0, hard=True)
 
-            accent = mc.polyCube(w=0.045, h=0.46, d=0.035,
+            accent = mc.polyCube(w=0.045 * d_mul, h=0.46 * d_mul, d=0.035 * d_mul,
                                  name='rm_arm_cyan_strip_#')[0]
-            mc.move(0, -1.05, 0.20 * decay, accent, relative=True)
+            mc.move(0, -1.05 * l, 0.20, accent, relative=True)
             assign_material(accent, "rm_cyan_glow_mat")
             _finish(accent, 0.006, hard=True)
 
