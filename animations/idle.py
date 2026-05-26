@@ -73,6 +73,8 @@ class IdleAnimation(BaseAnimation):
         if not MAYA_AVAILABLE:
             return
 
+        self._clean_all()
+
         ROOT = self.mecha_root
         ROOT_S = self._short(ROOT)
         HEAD = self._find('rm_head_1')

@@ -105,6 +105,86 @@ class BaseAnimation(ABC):
         except Exception as e:
             print(f'[RetroMecha][Anim] Error al freeze: {e}')
 
+    def _clean_all(self):
+        """Limpia TODO rastro de animacion del root y la escena."""
+        root = self.mecha_root
+        if not root or not mc.objExists(root):
+            return
+
+        # 1) Mata keyframes
+        try:
+            mc.cutKey(root, clear=True)
+        except Exception:
+            pass
+        mc.refresh()
+
+        # 2) Busca motionPath en toda la escena y lo borra
+        for mp in (mc.ls(type='motionPath') or []):
+            try:
+                mc.delete(mp)
+            except Exception:
+                pass
+
+        # 3) Desconecta TODO: individual + compuesto
+        all_attrs = ['tx', 'ty', 'tz', 'rx', 'ry', 'rz',
+                     'translateX', 'translateY', 'translateZ',
+                     'rotateX', 'rotateY', 'rotateZ',
+                     'translate', 'rotate']
+        for attr in all_attrs:
+            plugs = (mc.listConnections(f'{root}.{attr}',
+                                        source=True, destination=False,
+                                        plugs=True) or [])
+            nodes = (mc.listConnections(f'{root}.{attr}',
+                                        source=True, destination=False) or [])
+            for plug in plugs:
+                try:
+                    mc.disconnectAttr(plug, f'{root}.{attr}')
+                except Exception:
+                    pass
+            for node in nodes:
+                try:
+                    nt = mc.nodeType(node)
+                    if nt in ('motionPath', 'expression'):
+                        mc.delete(node)
+                except Exception:
+                    pass
+        mc.refresh()
+
+        # 4) Fuerza cada atributo a 0/1
+        for a in ('tx', 'ty', 'tz', 'rx', 'ry', 'rz'):
+            try:
+                mc.setAttr(f'{root}.{a}', 0)
+            except Exception:
+                pass
+        for a in ('sx', 'sy', 'sz'):
+            try:
+                mc.setAttr(f'{root}.{a}', 1)
+            except Exception:
+                pass
+        mc.refresh()
+
+        # 5) Objetos auxiliares conocidos
+        for obj in ('rm_flight_path', 'rm_motionPath', 'rm_look_target',
+                    'rm_lookPath', 'rm_bobber'):
+            if mc.objExists(obj):
+                try:
+                    mc.delete(obj)
+                except Exception:
+                    pass
+
+        # 6) Expressiones conocidas
+        for expr in ('rm_idle_root', 'rm_idle_head',
+                     'rm_idle_arm_L', 'rm_idle_arm_R',
+                     'rm_idle_wing_L', 'rm_idle_wing_R', 'rm_idle_reactor',
+                     'rm_spin_root', 'rm_spin_torso', 'rm_spin_head',
+                     'rm_spin_arm_L', 'rm_spin_arm_R',
+                     'rm_spin_wing_L', 'rm_spin_wing_R', 'rm_spin_reactor'):
+            if mc.objExists(expr):
+                try:
+                    mc.delete(expr)
+                except Exception:
+                    pass
+
     def _reset_rotation(self, node, attrs=('rx', 'ry', 'rz')):
         """Resetea solo rotacion a 0, no toca translate/scale."""
         if not node or not mc.objExists(node):

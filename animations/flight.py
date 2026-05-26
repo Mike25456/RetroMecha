@@ -50,6 +50,8 @@ class FlightAnimation(BaseAnimation):
         if not MAYA_AVAILABLE:
             return
 
+        self._clean_all()
+
         ROOT   = self.mecha_root
         HEAD   = self._find('rm_head_1')
         ARM_L  = self._find('rm_arm_1')
@@ -66,22 +68,11 @@ class FlightAnimation(BaseAnimation):
         DURATION = 4
         FRAMES   = DURATION * FPS
 
-        # ── Limpiar ─────────────────────────────────────
-        # Root: borra todo y reseta a origen + escala 1
-        mc.cutKey(ROOT, clear=True)
-        self._reset_root(ROOT)
-
-        # Hijos: SOLO rotacion, NUNCA translate/scale
         if HEAD: self._reset_rotation(HEAD, ('rx', 'ry'))
         if ARM_L: self._reset_rotation(ARM_L, ('rx', 'rz'))
         if ARM_R: self._reset_rotation(ARM_R, ('rx', 'rz'))
         if WING_L: self._reset_rotation(WING_L, ('rz',))
         if WING_R: self._reset_rotation(WING_R, ('rz',))
-
-        self.delete_objects([
-            'rm_flight_path', 'rm_motionPath', 'rm_look_target',
-            'rm_lookPath', 'rm_bobber',
-        ])
         if HEAD:
             for con in (mc.listRelatives(HEAD, type='aimConstraint') or []):
                 try:
