@@ -108,6 +108,9 @@ class BaseAnimation(ABC):
         if not root or not mc.objExists(root):
             return
 
+        # 0) Si el mecha esta dentro de un offset group previo, sacarlo y borrarlo
+        self._remove_anim_offset_group()
+
         removed_path = False
         try:
             mc.currentTime(0)
@@ -364,6 +367,89 @@ class BaseAnimation(ABC):
                 mc.setAttr(f'{node}.{attr}', 0)
             except Exception:
                 pass
+
+    def delete_objects(self, names: list):
+        """Borra objetos por nombre si existen."""
+        if not MAYA_AVAILABLE:
+            return
+        for name in names:
+            if mc.objExists(name):
+                try:
+                    mc.delete(name)
+                except Exception:
+                    pass
+
+    # ──────────────────────────────────────────────────────────────────────────
+    #  ANIM OFFSET GROUP  (evita que el mecha cruce el suelo Y=0)
+    #  El usuario puede editar translateY del grupo para afinar la altura.
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _anim_offset_name(self) -> str:
+        root_short = self.mecha_root.split('|')[-1] if self.mecha_root else ''
+        return f'rm_anim_offset_{root_short}'
+
+    def _ensure_anim_offset_group(self, default_y: float = 0.6) -> str | None:
+        """
+        Inserta un grupo padre encima del mecha que aplica un offset Y global.
+        Las expresiones de animacion siguen actuando sobre el root, pero el
+        grupo padre lo levanta sobre el suelo. Idempotente.
+        """
+        if not MAYA_AVAILABLE or not self.mecha_root:
+            return None
+        if not mc.objExists(self.mecha_root):
+            return None
+
+        offset_name = self._anim_offset_name()
+
+        # Si ya existe el padre correcto, no recrear.
+        parents = mc.listRelatives(self.mecha_root, parent=True, fullPath=True) or []
+        if parents:
+            parent_short = parents[0].rsplit('|', 1)[-1]
+            if parent_short == offset_name:
+                try:
+                    if mc.getAttr(f'{offset_name}.translateY') < default_y:
+                        mc.setAttr(f'{offset_name}.translateY', default_y)
+                except Exception:
+                    pass
+                return offset_name
+
+        # Crear grupo nuevo manteniendo la posicion mundial del mecha.
+        try:
+            world_pos = mc.xform(self.mecha_root, q=True, worldSpace=True,
+                                 translation=True)
+            grp = mc.group(empty=True, name=offset_name, world=True)
+            mc.xform(grp, worldSpace=True,
+                     translation=(world_pos[0],
+                                  world_pos[1] + default_y,
+                                  world_pos[2]))
+            mc.parent(self.mecha_root, grp)
+            return grp
+        except Exception as e:
+            print(f'[RetroMecha][Anim] Error creando offset group: {e}')
+            return None
+
+    def _remove_anim_offset_group(self):
+        """Desempaqueta el mecha del offset group y borra el grupo."""
+        if not MAYA_AVAILABLE or not self.mecha_root:
+            return
+        if not mc.objExists(self.mecha_root):
+            return
+
+        parents = mc.listRelatives(self.mecha_root, parent=True, fullPath=True) or []
+        if not parents:
+            return
+        parent_short = parents[0].rsplit('|', 1)[-1]
+        if not parent_short.startswith('rm_anim_offset_'):
+            return
+
+        try:
+            mc.parent(self.mecha_root, world=True)
+        except Exception:
+            pass
+        try:
+            mc.delete(parent_short)
+        except Exception:
+            pass
 
     @abstractmethod
     def apply(self):

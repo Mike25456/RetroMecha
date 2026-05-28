@@ -1,0 +1,61 @@
+{
+  "_comment": "RetroMecha — Paletas de materiales aiToon. 4 tiers × 4 paletas.",
+  "_version": "v1",
+  "_tiers": {
+    "ARMOR":  "Superficie principal de los módulos. Ramp 3 stops.",
+    "JOINT":  "Articulaciones, ranuras, ear, neck. Ramp 2 stops oscuros.",
+    "DETAIL": "Sub-piezas attachadas (paneles, spikes, anillos).",
+    "GLOW":   "Visores, núcleos, ojos. Emission ON, silhouette OFF, sin tonemap."
+  },
+  "_ramp_format": "Cada ramp es una lista de [position, [r,g,b]] donde position ∈ [0,1]",
+
+  "_palettes": {
+    "industrial": {
+      "_name": "Industrial — limpio, default Gundam",
+      "ARMOR":  [[0.0, [0.92, 0.90, 0.84]], [0.5, [0.72, 0.70, 0.64]], [1.0, [0.38, 0.37, 0.33]]],
+      "JOINT":  [[0.0, [0.22, 0.23, 0.23]], [1.0, [0.08, 0.08, 0.09]]],
+      "DETAIL": [[0.0, [0.55, 0.62, 0.72]], [0.5, [0.35, 0.42, 0.55]], [1.0, [0.16, 0.20, 0.28]]],
+      "GLOW":   [0.04, 0.75, 1.0],
+      "outline_color": [0.0, 0.0, 0.0],
+      "outline_width": 3.0
+    },
+
+    "oxidado": {
+      "_name": "Oxidado — campo de batalla, desgastado",
+      "ARMOR":  [[0.0, [0.72, 0.58, 0.34]], [0.5, [0.52, 0.38, 0.20]], [1.0, [0.24, 0.16, 0.08]]],
+      "JOINT":  [[0.0, [0.20, 0.13, 0.08]], [1.0, [0.06, 0.04, 0.03]]],
+      "DETAIL": [[0.0, [0.85, 0.42, 0.16]], [0.5, [0.62, 0.26, 0.08]], [1.0, [0.28, 0.10, 0.03]]],
+      "GLOW":   [1.0, 0.55, 0.10],
+      "outline_color": [0.06, 0.04, 0.02],
+      "outline_width": 3.2
+    },
+
+    "artico": {
+      "_name": "Ártico — frío, sigiloso",
+      "ARMOR":  [[0.0, [0.94, 0.96, 0.98]], [0.5, [0.72, 0.78, 0.84]], [1.0, [0.36, 0.42, 0.50]]],
+      "JOINT":  [[0.0, [0.22, 0.26, 0.32]], [1.0, [0.06, 0.08, 0.12]]],
+      "DETAIL": [[0.0, [0.55, 0.72, 0.88]], [0.5, [0.28, 0.48, 0.68]], [1.0, [0.10, 0.20, 0.34]]],
+      "GLOW":   [0.40, 0.92, 1.0],
+      "outline_color": [0.04, 0.06, 0.10],
+      "outline_width": 2.8
+    },
+
+    "carmesi": {
+      "_name": "Carmesí — agresivo, militar",
+      "ARMOR":  [[0.0, [0.62, 0.16, 0.14]], [0.5, [0.42, 0.10, 0.08]], [1.0, [0.18, 0.04, 0.03]]],
+      "JOINT":  [[0.0, [0.12, 0.10, 0.10]], [1.0, [0.04, 0.03, 0.03]]],
+      "DETAIL": [[0.0, [0.55, 0.55, 0.58]], [0.5, [0.32, 0.32, 0.34]], [1.0, [0.12, 0.12, 0.14]]],
+      "GLOW":   [1.0, 0.42, 0.08],
+      "outline_color": [0.0, 0.0, 0.0],
+      "outline_width": 3.5
+    }
+  },
+
+  "_classification": {
+    "_nota": "Reglas de clasificación por nombre del nodo Maya. Orden = prioridad.",
+    "GLOW":   ["glow", "visor", "eye", "slit", "core", "halo", "cyan_strip", "orb_core"],
+    "JOINT":  ["elbow", "neck", "joint", "ear_", "stub", "waist", "slot", "channel"],
+    "DETAIL": ["rm_sp_", "spike", "panel", "ring_", "pad_", "antenna", "sensor", "crest", "fin_", "brow", "jaw"],
+    "ARMOR":  ["*"]
+  }
+}

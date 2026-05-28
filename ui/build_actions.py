@@ -90,7 +90,7 @@ def _collect_mecha():
 
 
 def _collect_terrain():
-    return {
+    result = {
         'monument_scale': mc.floatSliderGrp(state.get('t_mon_sl'), q=True, value=True),
         'platform_count': mc.intSliderGrp(state.get('t_plat_sl'), q=True, value=True),
         'fragment_count': mc.intSliderGrp(state.get('t_frag_sl'), q=True, value=True),
@@ -99,6 +99,13 @@ def _collect_terrain():
         'ramp_probability': mc.floatSliderGrp(state.get('t_ramp_sl'), q=True, value=True),
         'ring_max_r': mc.floatSliderGrp(state.get('t_ring_sl'), q=True, value=True),
     }
+    if state.get('t_sky_n_sl'):
+        result['skyline_count'] = mc.intSliderGrp(state.get('t_sky_n_sl'), q=True, value=True)
+    if state.get('t_sky_z_sl'):
+        result['skyline_distance_z'] = mc.floatSliderGrp(state.get('t_sky_z_sl'), q=True, value=True)
+    if state.get('t_sky_sp_sl'):
+        result['skyline_spread_x'] = mc.floatSliderGrp(state.get('t_sky_sp_sl'), q=True, value=True)
+    return result
 
 
 def _collect_terrain_params(seed, support_edges=True):
@@ -244,6 +251,12 @@ def randomize_terrain_controls():
         mc.intSliderGrp(state.get('t_pil_sl'), e=True, value=random.randint(2, 16))
         mc.floatSliderGrp(state.get('t_ramp_sl'), e=True, value=random.uniform(0.0, 1.0))
         mc.floatSliderGrp(state.get('t_ring_sl'), e=True, value=random.uniform(10.0, 35.0))
+        if state.get('t_sky_n_sl'):
+            mc.intSliderGrp(state.get('t_sky_n_sl'), e=True, value=random.randint(1, 6))
+        if state.get('t_sky_z_sl'):
+            mc.floatSliderGrp(state.get('t_sky_z_sl'), e=True, value=random.uniform(-80.0, -30.0))
+        if state.get('t_sky_sp_sl'):
+            mc.floatSliderGrp(state.get('t_sky_sp_sl'), e=True, value=random.uniform(20.0, 70.0))
     finally:
         state._APPLYING_TERRAIN_VALUES[0] = False
 

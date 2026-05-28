@@ -42,7 +42,7 @@ def build_ui(*, recreate: bool = True):
     mc.separator(h=8, style='none')
     mc.text(label='RETROMECHA - GENERADOR PROCEDURAL',
             font='boldLabelFont', align='center', h=28,
-            backgroundColor=[0.08, 0.15, 0.25])
+            backgroundColor=[0.10, 0.30, 0.48])
     mc.separator(h=6, style='in')
 
     # ── seed ────────────────────────────────────────────────
@@ -70,15 +70,15 @@ def build_ui(*, recreate: bool = True):
                  columnAttach3=['both', 'both', 'both'],
                  columnOffset3=[3, 3, 3])
     mc.button(label='Generar', h=38,
-              backgroundColor=[0.18, 0.42, 0.22],
+              backgroundColor=[0.14, 0.56, 0.28],
               command=on_generar,
               annotation='Genera mecha + terreno con configuración actual')
     mc.button(label='Aleatorio', h=38,
-              backgroundColor=[0.40, 0.20, 0.38],
+              backgroundColor=[0.50, 0.20, 0.54],
               command=random_all,
               annotation='Valores aleatorios + genera escena completa')
     mc.button(label='Resetear', h=38,
-              backgroundColor=[0.40, 0.16, 0.16],
+              backgroundColor=[0.58, 0.16, 0.16],
               command=on_reset,
               annotation='Elimina todo de la escena')
     mc.setParent('..')

@@ -42,6 +42,10 @@ class IdleAnimation(BaseAnimation):
                            animationStartTime=0, animationEndTime=F)
         mc.currentTime(0)
 
+        # Lift group: aisla el mecha del suelo sin tocar la expresion.
+        # Editar 'rm_anim_offset_*.translateY' para ajustar altura.
+        self._ensure_anim_offset_group(default_y=0.6)
+
         root_ty = self._attr(ROOT, 'translateY')
         root_rx = self._attr(ROOT, 'rotateX')
         root_rz = self._attr(ROOT, 'rotateZ')

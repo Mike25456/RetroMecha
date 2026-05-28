@@ -1,0 +1,258 @@
+{
+  "_comment": "RetroMecha — Sub-piezas por modulo. type: snap | conform | conform_stack",
+  "_version": "v2",
+  "_nota": "Estos se aplican llamando self._attach_subpieces(grp, main_mesh) en generate()",
+  "HEAD": {
+    "antenna": {
+      "type": "snap",
+      "probability": 0.3,
+      "scale_range": [
+        0.6,
+        1.2
+      ],
+      "position_hint": "top",
+      "geometry": {
+        "shape": "cylinder",
+        "r": 0.05,
+        "h": 0.28,
+        "sa": 6
+      }
+    },
+    "visor_panel": {
+      "type": "conform",
+      "probability": 0.55,
+      "offset": 0.025,
+      "scale_range": [
+        0.7,
+        1.0
+      ],
+      "position_hint": "front",
+      "geometry": {
+        "shape": "cube",
+        "w": 0.5,
+        "h": 0.12,
+        "d": 0.04
+      }
+    },
+    "sensor": {
+      "type": "snap",
+      "probability": 0.35,
+      "scale_range": [
+        0.5,
+        0.9
+      ],
+      "position_hint": "lateral",
+      "geometry": {
+        "shape": "sphere",
+        "r": 0.045,
+        "sa": 6,
+        "sh": 4
+      }
+    },
+    "top_plate": {
+      "type": "conform",
+      "probability": 0.4,
+      "offset": 0.02,
+      "scale_range": [
+        0.6,
+        0.9
+      ],
+      "position_hint": "top",
+      "geometry": {
+        "shape": "cube",
+        "w": 0.4,
+        "h": 0.08,
+        "d": 0.35
+      }
+    }
+  },
+  "TORSO": {
+    "chest_panel": {
+      "type": "conform",
+      "probability": 0.6,
+      "offset": 0.03,
+      "scale_range": [
+        0.7,
+        1.1
+      ],
+      "position_hint": "front",
+      "geometry": {
+        "shape": "cube",
+        "w": 0.7,
+        "h": 0.45,
+        "d": 0.04
+      }
+    },
+    "shoulder_pad": {
+      "type": "conform",
+      "probability": 0.45,
+      "offset": 0.03,
+      "scale_range": [
+        0.5,
+        0.9
+      ],
+      "position_hint": "top",
+      "geometry": {
+        "shape": "cube",
+        "w": 0.45,
+        "h": 0.18,
+        "d": 0.38
+      }
+    },
+    "back_spike": {
+      "type": "snap",
+      "probability": 0.3,
+      "scale_range": [
+        0.5,
+        1.1
+      ],
+      "position_hint": "back",
+      "geometry": {
+        "shape": "cone",
+        "r": 0.07,
+        "h": 0.28,
+        "sa": 4
+      }
+    },
+    "yanase_plates": {
+      "type": "conform_stack",
+      "probability": 0.28,
+      "offsets": [
+        0.03,
+        0.06,
+        0.09
+      ],
+      "scale_range": [
+        0.4,
+        0.75
+      ],
+      "position_hint": "lateral",
+      "geometry": {
+        "shape": "cube",
+        "w": 0.35,
+        "h": 0.3,
+        "d": 0.03
+      },
+      "count": 3
+    },
+    "detail_ring": {
+      "type": "snap",
+      "probability": 0.4,
+      "scale_range": [
+        0.7,
+        1.0
+      ],
+      "position_hint": "front",
+      "geometry": {
+        "shape": "torus",
+        "r": 0.18,
+        "sr": 0.025,
+        "sa": 12,
+        "sh": 4
+      }
+    }
+  },
+  "ARM": {
+    "forearm_panel": {
+      "type": "conform",
+      "probability": 0.5,
+      "offset": 0.025,
+      "scale_range": [
+        0.5,
+        0.9
+      ],
+      "position_hint": "front",
+      "geometry": {
+        "shape": "cube",
+        "w": 0.25,
+        "h": 0.22,
+        "d": 0.03
+      }
+    },
+    "elbow_spike": {
+      "type": "snap",
+      "probability": 0.38,
+      "scale_range": [
+        0.5,
+        1.1
+      ],
+      "position_hint": "lateral",
+      "geometry": {
+        "shape": "cone",
+        "r": 0.055,
+        "h": 0.18,
+        "sa": 4
+      }
+    },
+    "wrist_detail": {
+      "type": "snap",
+      "probability": 0.3,
+      "scale_range": [
+        0.6,
+        0.9
+      ],
+      "position_hint": "bottom",
+      "geometry": {
+        "shape": "torus",
+        "r": 0.1,
+        "sr": 0.018,
+        "sa": 8,
+        "sh": 4
+      }
+    }
+  },
+  "WING": {
+    "wing_panel": {
+      "type": "conform",
+      "probability": 0.55,
+      "offset": 0.025,
+      "scale_range": [
+        0.5,
+        0.9
+      ],
+      "position_hint": "front",
+      "geometry": {
+        "shape": "cube",
+        "w": 0.28,
+        "h": 0.45,
+        "d": 0.03
+      }
+    },
+    "tip_spike": {
+      "type": "snap",
+      "probability": 0.42,
+      "scale_range": [
+        0.5,
+        1.2
+      ],
+      "position_hint": "top",
+      "geometry": {
+        "shape": "cone",
+        "r": 0.05,
+        "h": 0.2,
+        "sa": 3
+      }
+    },
+    "yanase_layers": {
+      "type": "conform_stack",
+      "probability": 0.32,
+      "offsets": [
+        0.025,
+        0.05,
+        0.075
+      ],
+      "scale_range": [
+        0.4,
+        0.7
+      ],
+      "position_hint": "lateral",
+      "geometry": {
+        "shape": "cube",
+        "w": 0.07,
+        "h": 0.35,
+        "d": 0.025
+      },
+      "count": 3
+    }
+  }
+}

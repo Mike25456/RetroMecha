@@ -49,6 +49,10 @@ class FlightAnimation(BaseAnimation):
                 except Exception:
                     pass
 
+        # Lift group: garantiza que el min de la curva (y=-0.5) no toque suelo.
+        # Editar 'rm_anim_offset_*.translateY' para ajustar altura global.
+        self._ensure_anim_offset_group(default_y=1.0)
+
         # ── Curva figura 8 ──────────────────────────────
         points = []
         STEPS  = 64

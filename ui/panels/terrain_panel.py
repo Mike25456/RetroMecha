@@ -15,7 +15,7 @@ def build():
         label='  >  TERRENO',
         collapsable=True, collapse=True,
         borderStyle='etchedIn',
-        backgroundColor=[0.12, 0.18, 0.30],
+        backgroundColor=[0.12, 0.22, 0.48],
         marginHeight=6, marginWidth=6,
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
@@ -51,9 +51,26 @@ def build():
                                 step=0.5, on_cc=rebuild_terrain_only,
                                 annotation='Radio máximo de dispersion del terreno'))
 
+    # ── skyline avanzado ──
+    mc.separator(h=4)
+    mc.frameLayout(label='  Skyline avanzado',
+                   collapsable=True, collapse=True,
+                   borderStyle='etchedIn', marginHeight=3, marginWidth=4)
+    mc.columnLayout(adjustableColumn=True, rowSpacing=2)
+    state.reg('t_sky_n_sl',  isl('N skylines', 1, 6, 3, on_cc=rebuild_terrain_only,
+                                  annotation='Cantidad de franjas skyline al fondo'))
+    state.reg('t_sky_z_sl',  fsl('Distancia Z', -80.0, -30.0, -55.0,
+                                  step=1.0, on_cc=rebuild_terrain_only,
+                                  annotation='Profundidad del skyline (mas negativo = mas lejos)'))
+    state.reg('t_sky_sp_sl', fsl('Expansion X', 10.0, 80.0, 40.0,
+                                  step=1.0, on_cc=rebuild_terrain_only,
+                                  annotation='Ancho lateral del skyline'))
+    mc.setParent('..')
+    mc.setParent('..')
+
     mc.separator(h=6)
     mc.button(label='Aleatorio Terreno', h=28,
-              backgroundColor=[0.18, 0.22, 0.36],
+              backgroundColor=[0.22, 0.36, 0.60],
               command=lambda *_: _random_terrain(),
               annotation='Genera valores aleatorios para el terreno')
 

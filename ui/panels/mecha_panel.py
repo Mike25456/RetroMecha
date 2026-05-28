@@ -116,7 +116,7 @@ def build():
         label='  >  MECHA',
         collapsable=True, collapse=False,
         borderStyle='etchedIn',
-        backgroundColor=[0.10, 0.25, 0.20],
+        backgroundColor=[0.10, 0.36, 0.24],
         marginHeight=6, marginWidth=6,
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
@@ -190,7 +190,7 @@ def build():
     mc.separator(h=6)
     mc.button(
         label='Aleatorio Mecha', h=28,
-        backgroundColor=[0.32, 0.18, 0.32],
+        backgroundColor=[0.20, 0.52, 0.34],
         command=lambda *_: random_mecha(),
         annotation='Genera valores aleatorios para todos los parámetros del mecha',
     )

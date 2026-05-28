@@ -1,4 +1,10 @@
-"""MATERIALES section of the RetroMecha UI."""
+"""MATERIALES section of the RetroMecha UI.
+
+Coexisten dos sistemas de materiales:
+  - Lambert presets (Mike): rm_white_armor_mat, rm_graphite_mat, ...
+  - aiToon palettes (Ricardo): industrial, oxidado, artico, carmesi
+y un bloque de iluminacion procedural con aiSkyDomeLight.
+"""
 
 try:
     import maya.cmds as mc
@@ -21,6 +27,20 @@ _SHADER_LABELS = {
     'Terreno acento': 'rm_terrain_accent_mat',
 }
 
+# Paletas aiToon (Ricardo)
+_PALETTE_LABELS = {
+    'Industrial': 'industrial',
+    'Oxidado':    'oxidado',
+    'Artico':     'artico',
+    'Carmesi':    'carmesi',
+}
+
+_LIGHTING_LABELS = {
+    'Estudio':   'studio',
+    'Dramatico': 'dramatic',
+    'Retro':     'retro',
+}
+
 _current_shader = ['rm_white_armor_mat']
 _APPLYING_SHADER = [False]
 
@@ -30,7 +50,7 @@ def build():
         label='  >  MATERIALES',
         collapsable=True, collapse=True,
         borderStyle='etchedIn',
-        backgroundColor=[0.22, 0.20, 0.10],
+        backgroundColor=[0.40, 0.24, 0.06],
         marginHeight=8, marginWidth=6,
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=4)
@@ -42,20 +62,20 @@ def build():
     presets_list = list_presets()
     _current_shader[0] = 'rm_white_armor_mat'
 
-    # ── preset dropdown ──
+    # ── Lambert preset dropdown ──
     if presets_list:
         _preset_labels = {p: p for p in presets_list}
         mc.rowLayout(nc=2, cw2=[128, 140],
                      columnAttach2=['both', 'both'],
                      columnOffset2=[0, 4])
-        mc.text(label='Paleta', align='right', font='smallPlainLabelFont',
-                annotation='Aplica una paleta de colores predefinida')
+        mc.text(label='Paleta Lambert', align='right', font='smallPlainLabelFont',
+                annotation='Aplica una paleta Lambert predefinida')
         mc.optionMenu(changeCommand=lambda label: _apply_material_preset(label, _preset_labels))
         for p in presets_list:
             mc.menuItem(label=p)
         mc.setParent('..')
     else:
-        mc.text(label='(sin presets)', align='left', font='smallPlainLabelFont')
+        mc.text(label='(sin presets Lambert)', align='left', font='smallPlainLabelFont')
 
     # ── shader selector ──
     mc.separator(h=4)
@@ -88,6 +108,48 @@ def build():
     mc.control(state.get('i_sl'), e=True, visible=False)
 
     _update_shader_sliders()
+
+    # ── aiToon palette (Arnold cel-shading) ──────────────────
+    mc.separator(h=8)
+    mc.text(label='Paleta aiToon (Arnold)', align='left',
+            font='smallPlainLabelFont')
+    mc.rowLayout(nc=2, cw2=[152, 152],
+                 columnAttach2=['both', 'both'],
+                 columnOffset2=[0, 4])
+    aitoon_menu = mc.optionMenu(
+        annotation='Selecciona una paleta aiToon con ramps y silhouette')
+    mc.menuItem(label='(ninguna)')
+    for lbl in _PALETTE_LABELS:
+        mc.menuItem(label=lbl)
+    state.reg('aitoon_menu', aitoon_menu)
+    mc.button(label='Aplicar aiToon', h=24,
+              backgroundColor=[0.58, 0.38, 0.12],
+              command=lambda *_: _apply_aitoon_palette(),
+              annotation='Aplica la paleta aiToon al mecha en escena')
+    mc.setParent('..')
+
+    # ── Iluminacion procedural ───────────────────────────────
+    mc.separator(h=8)
+    mc.text(label='Iluminacion procedural', align='left',
+            font='smallPlainLabelFont')
+    lighting_menu = mc.optionMenu(width=308,
+                                   annotation='Preset de iluminacion (incluye aiSkyDomeLight)')
+    for lbl in _LIGHTING_LABELS:
+        mc.menuItem(label=lbl)
+    state.reg('lighting_menu', lighting_menu)
+
+    mc.rowLayout(nc=2, cw2=[152, 152],
+                 columnAttach2=['both', 'both'],
+                 columnOffset2=[0, 4])
+    mc.button(label='Crear iluminacion', h=24,
+              backgroundColor=[0.60, 0.40, 0.14],
+              command=lambda *_: _apply_lighting(),
+              annotation='Crea luces direccionales + aiSkyDomeLight si hay Arnold')
+    mc.button(label='Eliminar luces', h=24,
+              backgroundColor=[0.46, 0.16, 0.12],
+              command=lambda *_: _remove_lighting(),
+              annotation='Elimina luces y sky dome creados por RetroMecha')
+    mc.setParent('..')
 
     mc.setParent('..')
     mc.setParent('..')
@@ -170,3 +232,51 @@ def _apply_material_preset(label, preset_labels):
     key = preset_labels.get(label, label)
     apply_preset(key)
     _update_shader_sliders()
+
+
+# ── aiToon palette ───────────────────────────────────────────
+
+def _find_mecha_group():
+    from ui import scene_utils as sc
+    return sc.find_mecha_group()
+
+
+def _apply_aitoon_palette(*_):
+    label = mc.optionMenu(state.get('aitoon_menu'), q=True, value=True)
+    palette = _PALETTE_LABELS.get(label)
+    if not palette:
+        print('[RetroMecha][aiToon] Selecciona una paleta antes de aplicar')
+        return
+    grp = _find_mecha_group()
+    if not grp:
+        print('[RetroMecha][aiToon] No hay mecha en escena')
+        return
+    try:
+        from utils.material_assigner import assign_palette_to_group, clear_material_cache
+        clear_material_cache()
+        assign_palette_to_group(grp, palette)
+    except ImportError as e:
+        print(f'[RetroMecha][aiToon] material_assigner no disponible: {e}')
+    except Exception as e:
+        print(f'[RetroMecha][aiToon] Error aplicando paleta: {e}')
+
+
+# ── Iluminacion ──────────────────────────────────────────────
+
+def _apply_lighting(*_):
+    label = mc.optionMenu(state.get('lighting_menu'), q=True, value=True)
+    preset = _LIGHTING_LABELS.get(label, 'studio')
+    try:
+        from utils.lighting import apply_lighting
+        apply_lighting(preset, sky_dome=True)
+    except Exception as e:
+        print(f'[RetroMecha][Lighting] {e}')
+
+
+def _remove_lighting(*_):
+    try:
+        from utils.lighting import remove_lighting
+        remove_lighting()
+        print('[RetroMecha][Lighting] Luces eliminadas')
+    except Exception as e:
+        print(f'[RetroMecha][Lighting] {e}')

@@ -13,6 +13,18 @@ TERRAIN_PATTERNS = [
     'rm_platform_*', 'rm_fragment_*', 'rm_debris_*',
     'rm_ramps_*', 'rm_pillars_*', 'rm_tower_*', 'rm_skyline_*',
 ]
+ANIM_AUX_PATTERNS = [
+    'rm_anim_offset_*', 'rm_flight_path*', 'rm_motionPath*',
+    'rm_look_target*', 'rm_lookPath*', 'rm_bobber*',
+]
+ANIM_EXPR_NAMES = [
+    'rm_idle_root', 'rm_idle_head',
+    'rm_idle_arm_L', 'rm_idle_arm_R',
+    'rm_idle_wing_L', 'rm_idle_wing_R', 'rm_idle_reactor',
+    'rm_spin_root', 'rm_spin_torso', 'rm_spin_head',
+    'rm_spin_arm_L', 'rm_spin_arm_R',
+    'rm_spin_wing_L', 'rm_spin_wing_R', 'rm_spin_reactor',
+]
 
 
 def find_mecha_group():
@@ -62,11 +74,72 @@ def delete_nodes(nodes):
                 pass
 
 
+def clean_animations():
+    """Borra expresiones, motion paths, offset groups y curvas de animacion
+    creadas por RetroMecha. No toca animaciones externas."""
+    for expr_name in ANIM_EXPR_NAMES:
+        if mc.objExists(expr_name):
+            try:
+                mc.delete(expr_name)
+            except Exception:
+                pass
+
+    aux_nodes = []
+    for pat in ANIM_AUX_PATTERNS:
+        aux_nodes.extend(mc.ls(pat) or [])
+    delete_nodes(aux_nodes)
+
+    for mp in (mc.ls(type='motionPath') or []):
+        try:
+            mc.delete(mp)
+        except Exception:
+            pass
+
+
+def clean_lighting():
+    """Borra luces direccionales con tag rmLight y aiSkyDomeLight de RetroMecha."""
+    for shape in (mc.ls(type='directionalLight') or []):
+        parents = mc.listRelatives(shape, parent=True) or []
+        xform = parents[0] if parents else shape
+        try:
+            if mc.attributeQuery('rmLight', node=xform, exists=True):
+                mc.delete(xform)
+        except Exception:
+            pass
+
+    for shape in (mc.ls(type='aiSkyDomeLight') or []):
+        parents = mc.listRelatives(shape, parent=True) or []
+        target = parents[0] if parents else shape
+        try:
+            mc.delete(target)
+        except Exception:
+            pass
+
+    for name in ('aiSkyDomeLight1', 'aiSkyDomeLightShape1'):
+        if mc.objExists(name):
+            try:
+                mc.delete(name)
+            except Exception:
+                pass
+
+
 def clean_scene():
+    """Limpia TODO lo creado por RetroMecha: scene group, mecha, terreno,
+    animaciones (expresiones + motion paths + offset groups) y luces."""
+    clean_animations()
+
     nodes = []
     for pat in SCENE_PATTERNS:
         nodes.extend(mc.ls(pat, type='transform') or [])
+    for pat in MECHA_PATTERNS:
+        for node in (mc.ls(pat, type='transform') or []):
+            if 'Scene' not in node:
+                nodes.append(node)
+    for pat in TERRAIN_PATTERNS:
+        nodes.extend(mc.ls(pat, type='transform') or [])
     delete_nodes(nodes)
+
+    clean_lighting()
 
 
 def clean_mecha():
