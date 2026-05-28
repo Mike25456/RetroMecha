@@ -14,7 +14,6 @@ except ImportError:
 
 from core.base_module import BaseModule
 from core.module_registry import register
-from utils.maya_materials import assign_material
 
 
 @dataclass(frozen=True)
@@ -133,13 +132,11 @@ def _finish(mesh: str) -> str:
 
 def _block(name: str, w: float, h: float, d: float,
            pos: tuple, rot: tuple = (0, 0, 0),
-           mat: str = "rm_white_armor_mat",
            bevel: float = 0.025,
            hard: bool = True) -> str:
     node = mc.polyCube(w=w, h=h, d=d, sx=2, sy=2, sz=1, name=name)[0]
     mc.move(pos[0], pos[1], pos[2], node, absolute=True)
     mc.rotate(rot[0], rot[1], rot[2], node)
-    assign_material(node, mat)
     try:
         if bevel > 0:
             mc.polyBevel(node, offset=bevel, segments=1, chamfer=0, ch=0)
@@ -151,13 +148,11 @@ def _block(name: str, w: float, h: float, d: float,
     return node
 
 
-def _keel(name: str, r: float, h: float, pos: tuple,
-          mat: str = "rm_white_armor_mat") -> str:
+def _keel(name: str, r: float, h: float, pos: tuple) -> str:
     node = mc.polyCone(r=r, h=h, sa=4, name=name)[0]
     mc.move(pos[0], pos[1], pos[2], node, absolute=True)
     mc.rotate(180, 45, 0, node)
     mc.scale(0.70, 1.0, 0.38, node)
-    assign_material(node, mat)
     try:
         mc.polySoftEdge(node, angle=0, ch=0)
     except Exception:
@@ -214,8 +209,6 @@ def _build_main_torso(aggr: float, torso_h: float, style: str) -> str:
     _scale_bottom_faces(body, y_band=0.16, face_scale=bottom_face)
     _bulge_front(body, 0.10 + aggr * 0.15)
     _round_block(body, bevel)
-    assign_material(body, "rm_white_armor_mat")
-
     return _finish(body)
 
 
@@ -282,11 +275,11 @@ def _build_layered_torso(aggr: float, torso_h: float, style: str,
     spine_w, spine_h, spine_d = cfg["spine"]
     parts.append(_block("rm_torso_inner_spine_#", spine_w, spine_h, spine_d,
                         (0, -torso_h * 0.02, 0.02),
-                        mat="rm_graphite_mat", bevel=b_mul * 0.035, hard=True))
+                        bevel=b_mul * 0.035, hard=True))
     parts.append(_block("rm_torso_front_channel_#", spine_w * 0.48,
                         spine_h * 0.74, 0.08,
                         (0, -torso_h * 0.02, cfg["z"] + 0.04),
-                        mat="rm_graphite_mat", bevel=b_mul * 0.014, hard=True))
+                        bevel=b_mul * 0.014, hard=True))
 
     upper_w, upper_h, upper_d = cfg["upper"]
     lower_w, lower_h, lower_d = cfg["lower"]
@@ -294,36 +287,36 @@ def _build_layered_torso(aggr: float, torso_h: float, style: str,
     parts.append(_block("rm_torso_back_spine_#", spine_w * 0.58,
                         spine_h * 0.62, 0.16,
                         (0, -torso_h * 0.04, rear_z),
-                        mat="rm_graphite_mat", bevel=b_mul * 0.018, hard=True))
+                        bevel=b_mul * 0.018, hard=True))
     parts.append(_block("rm_torso_back_armor_#", spine_w * 0.88,
                         spine_h * 0.30, 0.18,
                         (0, cfg["upper_y"] + upper_h * 0.04, rear_z - 0.06),
-                        mat="rm_white_armor_mat", bevel=b_mul * 0.030, hard=True))
+                        bevel=b_mul * 0.030, hard=True))
     parts.append(_block("rm_torso_back_lower_#", spine_w * 0.62,
                         spine_h * 0.24, 0.15,
                         (0, cfg["lower_y"] - lower_h * 0.05, rear_z - 0.04),
-                        mat="rm_white_armor_mat", bevel=b_mul * 0.026, hard=True))
+                        bevel=b_mul * 0.026, hard=True))
 
     for side in (-1.0, 1.0):
         parts.append(_block("rm_torso_chest_plate_#", upper_w, upper_h, upper_d,
                             (side * cfg["x"], cfg["upper_y"], cfg["z"]),
                             rot=(0, 0, -cfg["rot"] * side),
-                            mat="rm_white_armor_mat", bevel=b_mul * 0.035, hard=True))
+                            bevel=b_mul * 0.035, hard=True))
         parts.append(_block("rm_torso_abdomen_plate_#", lower_w, lower_h, lower_d,
                             (side * cfg["x"] * 0.62,
                              cfg["lower_y"], cfg["z"] + 0.01),
                             rot=(0, 0, cfg["rot"] * 0.55 * side),
-                            mat="rm_white_armor_mat", bevel=b_mul * 0.030, hard=True))
+                            bevel=b_mul * 0.030, hard=True))
         parts.append(_block("rm_torso_side_armor_#", 0.18, spine_h * 0.44, 0.42,
                             (side * (cfg["x"] + upper_w * 0.48),
                              cfg["upper_y"] - upper_h * 0.12, 0.08),
                             rot=(0, 8 * side, -cfg["rot"] * 0.45 * side),
-                            mat="rm_white_armor_mat", bevel=b_mul * 0.026, hard=True))
+                            bevel=b_mul * 0.026, hard=True))
         parts.append(_block("rm_torso_side_dark_joint_#", 0.10, spine_h * 0.54, 0.28,
                             (side * (cfg["x"] + upper_w * 0.34),
                              cfg["upper_y"] - upper_h * 0.20, -0.10),
                             rot=(0, 6 * side, 0),
-                            mat="rm_graphite_mat", bevel=b_mul * 0.014, hard=True))
+                            bevel=b_mul * 0.014, hard=True))
 
     keel_r, keel_h, keel_y = cfg["keel"]
     parts.append(_keel("rm_torso_lower_keel_#", keel_r, keel_h,
@@ -335,15 +328,15 @@ def _build_layered_torso(aggr: float, torso_h: float, style: str,
                                 (side * (cfg["x"] + upper_w * 0.58),
                                  cfg["upper_y"] - 0.05, cfg["z"] - 0.02),
                                 rot=(0, 0, -4 * side),
-                                mat="rm_graphite_mat", bevel=b_mul * 0.018, hard=True))
+                                bevel=b_mul * 0.018, hard=True))
     elif style == "slim":
         parts.append(_block("rm_torso_slim_center_#", 0.12, spine_h * 0.80, 0.06,
                             (0, -torso_h * 0.02, cfg["z"] + 0.09),
-                            mat="rm_cyan_glow_mat", bevel=b_mul * 0.006, hard=True))
+                            bevel=b_mul * 0.006, hard=True))
     elif style == "compact":
         parts.append(_block("rm_torso_compact_brow_#", spine_w * 1.25, 0.14, 0.16,
                             (0, cfg["upper_y"] + upper_h * 0.48, cfg["z"] + 0.02),
-                            mat="rm_graphite_mat", bevel=b_mul * 0.018, hard=True))
+                            bevel=b_mul * 0.018, hard=True))
 
     mc.parent(parts, grp)
     return grp
@@ -354,7 +347,6 @@ def _build_waist(aggr: float, y_pos: float) -> str:
     h = 0.24
     waist = mc.polyCylinder(r=r, h=h, sa=4, name="rm_torso_waist_#")[0]
     mc.move(0, y_pos, 0, waist, relative=True)
-    assign_material(waist, "rm_graphite_mat")
     return _finish(waist)
 
 
@@ -381,10 +373,6 @@ def _build_reactor(aggr: float, body: str, style: str,
                               name="rm_reactor_column_cap_bot_#")[0]
         mc.move(0, 0.35 * s, 0.02 * s, cap_top, relative=True)
         mc.move(0, -0.35 * s, 0.02 * s, cap_bot, relative=True)
-        assign_material(frame, "rm_graphite_mat")
-        assign_material(cap_top, "rm_graphite_mat")
-        assign_material(cap_bot, "rm_graphite_mat")
-        assign_material(glow, "rm_cyan_glow_mat")
         for part in (frame, glow, cap_top, cap_bot):
             try:
                 mc.polyBevel(part, offset=0.010 * s, segments=1, chamfer=0, ch=0)
@@ -407,9 +395,6 @@ def _build_reactor(aggr: float, body: str, style: str,
         halo = mc.polyTorus(r=0.24 * s * g_mul, sr=0.016 * s * g_mul, sa=24, sh=4,
                             name="rm_reactor_orb_halo_#")[0]
         mc.rotate(90, 35, 0, halo)
-        assign_material(shell, "rm_graphite_mat")
-        assign_material(core, "rm_cyan_glow_mat")
-        assign_material(halo, "rm_cyan_glow_mat")
         mc.parent(shell, core, halo, grp)
         mc.move(cx, cy, cz, grp, absolute=True)
         return grp
@@ -443,11 +428,6 @@ def _build_reactor(aggr: float, body: str, style: str,
         spikes.append(sp)
 
     mc.parent(outer, inner, core, *spikes, grp)
-    assign_material(outer, "rm_graphite_mat")
-    assign_material(inner, "rm_cyan_glow_mat")
-    assign_material(core, "rm_cyan_glow_mat")
-    for sp in spikes:
-        assign_material(sp, "rm_graphite_mat")
     mc.move(cx, cy, cz, grp, absolute=True)
     return grp
 
@@ -460,7 +440,6 @@ def _build_chest_strip(aggr: float, body: str) -> str:
     strip = mc.polyCube(w=0.09 + aggr * 0.09, h=0.58, d=0.035,
                         name="rm_torso_cyan_strip_#")[0]
     mc.move(cx, cy, cz, strip, absolute=True)
-    assign_material(strip, "rm_cyan_glow_mat")
     try:
         mc.polyBevel(strip, offset=0.012, segments=1, chamfer=0, ch=0)
         mc.polySoftEdge(strip, angle=0, ch=0)
@@ -487,7 +466,6 @@ def _build_style_details(style: str, aggr: float, body: str) -> list:
                                name="rm_torso_heavy_slab_#")[0]
             mc.move(cx + side * half_w * 0.66, cy - 0.05, cz,
                     slab, absolute=True)
-            assign_material(slab, "rm_graphite_mat")
             _finish(slab)
             parts.append(slab)
 
@@ -499,7 +477,6 @@ def _build_style_details(style: str, aggr: float, body: str) -> list:
                     fin, absolute=True)
             mc.rotate(0, 0, -14 * side, fin)
             mc.scale(0.65, 1.0, 0.22, fin)
-            assign_material(fin, "rm_white_armor_mat")
             _finish(fin)
             parts.append(fin)
 
@@ -507,7 +484,6 @@ def _build_style_details(style: str, aggr: float, body: str) -> list:
         collar = mc.polyCube(w=(bb[3] - bb[0]) * 0.72, h=0.16, d=0.18,
                              name="rm_torso_compact_collar_#")[0]
         mc.move(cx, bb[4] - 0.08, cz, collar, absolute=True)
-        assign_material(collar, "rm_graphite_mat")
         _finish(collar)
         parts.append(collar)
 
@@ -534,7 +510,6 @@ def _build_shoulder_pads(aggr: float, torso_h: float,
                                  name=f"rm_torso_shoulder_socket_{label}_#")[0]
         mc.rotate(90, 0, 0, socket)
         mc.move(side * (spread - 0.08), y - 0.02, 0.02, socket, relative=True)
-        assign_material(socket, "rm_graphite_mat")
         _finish(socket)
 
         armor = mc.polyCube(w=pad_w, h=pad_h, d=pad_d,
@@ -543,7 +518,6 @@ def _build_shoulder_pads(aggr: float, torso_h: float,
         mc.move(side * spread, y + 0.08, -0.06, armor, relative=True)
         mc.rotate(0, 0, -8 * side, armor)
         mc.scale(1.0, 0.86, 1.08, armor)
-        assign_material(armor, "rm_white_armor_mat")
         _round_block(armor, 0.035)
         _finish(armor)
 
@@ -552,7 +526,6 @@ def _build_shoulder_pads(aggr: float, torso_h: float,
         mc.move(side * (spread + pad_w * 0.44), y + 0.03, -0.02,
                 trim, relative=True)
         mc.rotate(0, 0, -8 * side, trim)
-        assign_material(trim, "rm_graphite_mat")
         _finish(trim)
 
         mc.parent(socket, armor, trim, grp)
@@ -603,8 +576,6 @@ class TorsoModule(BaseModule):
         stub = mc.polyCylinder(r=0.12 + aggr * 0.09, h=stub_h, sa=4,
                                name="rm_torso_stub_#")[0]
         mc.move(0, spine_bot - waist_h - stub_h * 0.5, 0, stub, relative=True)
-        assign_material(stub, "rm_graphite_mat")
-
         mc.parent(body, waist, reactor, chest_strip, *style_parts,
                   pad_l, pad_r, stub, grp)
         return self._finalize_group(grp, position, rotation, scale)

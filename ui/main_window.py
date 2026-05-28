@@ -509,22 +509,145 @@ def build_ui(*, recreate: bool = True):
 
     mc.separator(h=6, style='none')
 
-    # MATERIALS PLACEHOLDER
+    # MATERIALES
     mc.separator(h=4, style='none')
     mc.frameLayout(
-        label='  >  MATERIALES - proxima fase',
+        label='  >  MATERIALES',
         collapsable=True, collapse=True,
         borderStyle='etchedIn',
         backgroundColor=[0.22, 0.18, 0.12],
         marginHeight=8, marginWidth=6,
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=4)
-    mc.text(label='Shaders retro-futuristas (Lambert / Blinn / PBR)',
-            align='left', font='smallPlainLabelFont')
-    mc.text(label='Paleta por preset: oxidado / pulido / mate',
-            align='left', font='smallPlainLabelFont')
-    mc.text(label='Asignacion automatica por modulo',
-            align='left', font='smallPlainLabelFont')
+
+    from materials.presets import SHADER_NAMES, list_presets, apply_preset
+    from utils.maya_materials import ensure_material
+
+    for shader_name in SHADER_NAMES:
+        ensure_material(shader_name)
+
+    _presets_list = list_presets()
+    _current_shader = ['rm_white_armor_mat']
+
+    _SHADER_LABELS = {
+        'Armadura': 'rm_white_armor_mat',
+        'Estructura': 'rm_graphite_mat',
+        'Brillo': 'rm_cyan_glow_mat',
+        'Terreno base': 'rm_terrain_base_mat',
+        'Terreno oscuro': 'rm_terrain_dark_mat',
+        'Terreno acento': 'rm_terrain_accent_mat',
+    }
+
+    _APPLYING_SHADER = [False]
+
+    # ── callbacks ────────────────────────────────────────────
+    def _set_shader_color(*_) -> None:
+        if _APPLYING_SHADER[0]:
+            return
+        sh = _current_shader[0]
+        if not sh:
+            return
+        ensure_material(sh)
+        if not mc.objExists(sh):
+            return
+        try:
+            rgb = mc.colorSliderGrp(color_sl, q=True, rgb=True)
+            mc.setAttr(f'{sh}.color',
+                       float(rgb[0]), float(rgb[1]), float(rgb[2]),
+                       type='double3')
+        except Exception:
+            pass
+
+    def _set_shader_diffuse(val: float) -> None:
+        sh = _current_shader[0]
+        if sh:
+            ensure_material(sh)
+        if sh and mc.objExists(sh):
+            try:
+                mc.setAttr(f'{sh}.diffuse', val)
+            except Exception:
+                pass
+
+    def _set_shader_incandescence(val: float) -> None:
+        sh = _current_shader[0]
+        if sh:
+            ensure_material(sh)
+        if sh and mc.objExists(sh) and sh == 'rm_cyan_glow_mat':
+            try:
+                mc.setAttr(f'{sh}.incandescence', val, val, val, type='double3')
+            except Exception:
+                pass
+
+    def _update_shader_sliders() -> None:
+        sh = _current_shader[0]
+        if not sh:
+            return
+        ensure_material(sh)
+        if not mc.objExists(sh):
+            return
+        _APPLYING_SHADER[0] = True
+        try:
+            col = mc.getAttr(f'{sh}.color')[0]
+            mc.colorSliderGrp(color_sl, e=True, rgb=col)
+            d = mc.getAttr(f'{sh}.diffuse')
+            mc.floatSliderGrp(d_sl, e=True, value=d)
+            is_glow = (sh == 'rm_cyan_glow_mat')
+            mc.control(i_sl, e=True, visible=is_glow)
+            if is_glow:
+                inc = mc.getAttr(f'{sh}.incandescence')[0]
+                mc.floatSliderGrp(i_sl, e=True, value=inc[0])
+        except Exception:
+            pass
+        finally:
+            _APPLYING_SHADER[0] = False
+
+    def _on_shader_sel(label: str) -> None:
+        sh = _SHADER_LABELS.get(label)
+        if sh:
+            _current_shader[0] = sh
+            _update_shader_sliders()
+
+    def _apply_material_preset(label: str) -> None:
+        key = _preset_labels.get(label, label)
+        apply_preset(key)
+        _update_shader_sliders()
+
+    # ── preset dropdown ──────────────────────────────────────
+    if _presets_list:
+        _preset_labels = {p: p for p in _presets_list}
+        mc.rowLayout(nc=2, cw2=[128, 140],
+                     columnAttach2=['both', 'both'],
+                     columnOffset2=[0, 4])
+        mc.text(label='Paleta', align='right', font='smallPlainLabelFont')
+        preset_menu = mc.optionMenu(changeCommand=_apply_material_preset)
+        for p in _presets_list:
+            mc.menuItem(label=p)
+        mc.setParent('..')
+    else:
+        mc.text(label='(sin presets)', align='left', font='smallPlainLabelFont')
+
+    # ── color sliders ────────────────────────────────────────
+    mc.separator(h=4)
+
+    mc.rowLayout(nc=2, cw2=[128, 140],
+                 columnAttach2=['both', 'both'],
+                 columnOffset2=[0, 4])
+    mc.text(label='Shader', align='right', font='smallPlainLabelFont')
+    shader_menu = mc.optionMenu(changeCommand=_on_shader_sel)
+    for label in _SHADER_LABELS:
+        mc.menuItem(label=label)
+    mc.setParent('..')
+
+    color_sl = mc.colorSliderGrp(
+        label='Color', rgb=(0.86, 0.84, 0.78),
+        columnWidth3=[60, 180, 52],
+        changeCommand=_set_shader_color,
+    )
+    d_sl = fsl('Difuso', 0.0, 1.0, 0.82, on_cc=_set_shader_diffuse)
+    i_sl = fsl('Brillo', 0.0, 1.0, 0.0, on_cc=_set_shader_incandescence)
+    mc.control(i_sl, e=True, visible=False)
+    _update_shader_sliders()
+
     mc.setParent('..')
     mc.setParent('..')
 
