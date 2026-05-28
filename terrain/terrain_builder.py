@@ -32,6 +32,7 @@ except ImportError:
 from core.module_registry import get as get_module
 from utils.hard_surface import apply_support_edges
 from utils.maya_scene import force_preview_one
+from materials.materializer import materialize_terrain
 
 GROUND_Y = 0.0
 
@@ -112,6 +113,7 @@ class TerrainBuilder:
                                              fraction=0.045, segments=2,
                                              max_faces=500)
                 print(f'[RetroMecha][Terrain] Support edges aplicados: {count}')
+            materialize_terrain(self._root)
             force_preview_one(self._root)
             n = len(mc.listRelatives(self._root,
                     allDescendents=True, type='transform') or [])

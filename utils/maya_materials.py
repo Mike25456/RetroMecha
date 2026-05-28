@@ -42,6 +42,21 @@ MATERIALS = {
         'incandescence': (0.0, 0.55, 0.85),
         'diffuse': 0.45,
     },
+    "rm_terrain_base_mat": {
+        "color": (0.30, 0.31, 0.29),
+        "ambientColor": (0.05, 0.05, 0.045),
+        "diffuse": 0.68,
+    },
+    "rm_terrain_dark_mat": {
+        "color": (0.13, 0.14, 0.13),
+        "ambientColor": (0.025, 0.025, 0.022),
+        "diffuse": 0.58,
+    },
+    "rm_terrain_accent_mat": {
+        "color": (0.42, 0.36, 0.28),
+        "ambientColor": (0.07, 0.055, 0.04),
+        "diffuse": 0.64,
+    },
 }
 
 

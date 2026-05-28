@@ -39,6 +39,9 @@ def _import_modules() -> None:
     import animations.idle        # noqa: F401  → registra 'idle'
     import animations.spin        # noqa: F401  → registra 'spin'
 
+    import materials.presets      # noqa: F401  → expone list_presets / apply_preset
+    import materials.materializer  # noqa: F401 → expone materialize_mecha / materialize_terrain
+
 
 def start(*, reload_modules: bool = False) -> None:
     """Inicializa el plugin y abre la UI una sola vez por sesión."""

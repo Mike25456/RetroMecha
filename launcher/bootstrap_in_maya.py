@@ -18,7 +18,6 @@ def _reload_project_modules() -> None:
         "terrain.",
         "core.",
         "ui.",
-        "layers.",
         "utils.",
         "launcher.",
     )

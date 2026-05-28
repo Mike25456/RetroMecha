@@ -14,50 +14,19 @@ from animations.registry import register_animation
 class FlightAnimation(BaseAnimation):
     name = 'flight'
 
-    def _reset_root(self, node):
-        """Lleva root a origen: translate/rotate = 0, scale = 1."""
-        for attr in ('tx', 'ty', 'tz', 'rx', 'ry', 'rz'):
-            try:
-                mc.setAttr(f'{node}.{attr}', 0)
-            except Exception:
-                pass
-        for attr in ('sx', 'sy', 'sz'):
-            try:
-                mc.setAttr(f'{node}.{attr}', 1)
-            except Exception:
-                pass
-
-    def _reset_rotation(self, node, attrs=('rx', 'ry', 'rz')):
-        """Resetea solo rotacion a 0, no toca translate/scale."""
-        if not node or not mc.objExists(node):
-            return
-        for attr in attrs:
-            try:
-                mc.cutKey(node, at=attr, clear=True)
-            except Exception:
-                pass
-            try:
-                mc.setAttr(f'{node}.{attr}', 0)
-            except Exception:
-                pass
-
-    def _find(self, name: str):
-        """Busca un nodo por nombre exacto, retorna su DAG path o None."""
-        found = mc.ls(name, type='transform', long=True)
-        return found[0] if found else None
-
     def apply(self):
         if not MAYA_AVAILABLE:
             return
 
-        self._clean_all()
+        self._clean_all(reset_root=True)
 
-        ROOT   = self.mecha_root
-        HEAD   = self._find('rm_head_1')
-        ARM_L  = self._find('rm_arm_1')
-        ARM_R  = self._find('rm_arm_2')
-        WING_L = self._find('rm_wing_1')
-        WING_R = self._find('rm_wing_2')
+        rig = self.resolve()
+        ROOT = rig.get('ROOT') or self.mecha_root
+        HEAD = rig.get('HEAD')
+        ARM_L = rig.get('ARM_L')
+        ARM_R = rig.get('ARM_R')
+        WING_L = rig.get('WING_L')
+        WING_R = rig.get('WING_R')
 
         parts = {'HEAD': HEAD, 'ARM_L': ARM_L, 'ARM_R': ARM_R,
                  'WING_L': WING_L, 'WING_R': WING_R}
@@ -65,7 +34,7 @@ class FlightAnimation(BaseAnimation):
         print(f'[RetroMecha][Flight] Partes encontradas: {found}')
 
         FPS      = 24
-        DURATION = 4
+        DURATION = 8
         FRAMES   = DURATION * FPS
 
         if HEAD: self._reset_rotation(HEAD, ('rx', 'ry'))
@@ -230,14 +199,15 @@ class FlightAnimation(BaseAnimation):
     def remove(self):
         if not MAYA_AVAILABLE:
             return
-        self._clean_all()
+        self._clean_all(reset_root=True)
         mc.currentTime(0)
 
-        HEAD   = self._find('rm_head_1')
-        ARM_L  = self._find('rm_arm_1')
-        ARM_R  = self._find('rm_arm_2')
-        WING_L = self._find('rm_wing_1')
-        WING_R = self._find('rm_wing_2')
+        rig = self.resolve()
+        HEAD = rig.get('HEAD')
+        ARM_L = rig.get('ARM_L')
+        ARM_R = rig.get('ARM_R')
+        WING_L = rig.get('WING_L')
+        WING_R = rig.get('WING_R')
 
         if HEAD: self._reset_rotation(HEAD, ('rx', 'ry'))
         if ARM_L: self._reset_rotation(ARM_L, ('rx', 'rz'))
