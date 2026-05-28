@@ -154,18 +154,18 @@ class BaseModule(ABC):
     def _assign_materials(self, grp: str):
         """
         Asigna materiales aiToon a cada pieza del grupo según su tier.
-        Lee el parámetro 'palette' del módulo (default: 'industrial').
-        Si la UI no envía 'palette', usa el default.
+        Si palette es None (modo Lambert), no hace nada.
         """
         if not MAYA_AVAILABLE:
             return
+        palette = self._get('palette', None)
+        if not palette:
+            return
         try:
             from utils.material_assigner import assign_palette_to_group
-            palette = self._get('palette', 'industrial')
             assign_palette_to_group(grp, palette)
         except ImportError:
-            pass  # material_assigner no disponible — los módulos siguen
-                  # usando assign_material() de maya_materials.py directamente
+            pass
         except Exception as e:
             print(f'[RetroMecha][BaseModule] _assign_materials: {e}')
 

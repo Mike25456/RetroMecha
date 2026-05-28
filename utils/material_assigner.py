@@ -39,7 +39,7 @@ def assign_palette_to_group(group: str, palette_name: str = 'industrial'):
         group:        nombre del grupo de Maya (ej: 'rm_head_1')
         palette_name: 'industrial' | 'oxidado' | 'artico' | 'carmesi'
     """
-    if not MAYA_AVAILABLE:
+    if not MAYA_AVAILABLE or not palette_name:
         return
 
     palette = _load_palette(palette_name)
@@ -138,7 +138,10 @@ def _create_aitoon_material(tier: str, palette: dict, palette_name: str) -> str:
 
     if use_arnold:
         shader = mc.shadingNode('aiToon', asShader=True, name=shader_name)
-        _configure_aitoon(shader, tier, palette)
+        try:
+            _configure_aitoon(shader, tier, palette)
+        except Exception as e:
+            print(f'[RetroMecha][materials] aiToon config ({tier}): {e}')
     else:
         shader = mc.shadingNode('lambert', asShader=True, name=shader_name)
         _configure_lambert_fallback(shader, tier, palette)
