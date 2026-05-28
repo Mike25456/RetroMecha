@@ -87,4 +87,5 @@ class TowerModule(BaseModule):
 
         mc.parent(shaft, cap, base, grp)
 
+        self._assign_materials(grp)
         return self._finalize_group(grp, position, rotation, scale)

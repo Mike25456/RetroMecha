@@ -607,4 +607,5 @@ class TorsoModule(BaseModule):
 
         mc.parent(body, waist, reactor, chest_strip, *style_parts,
                   pad_l, pad_r, stub, grp)
+        self._assign_materials(grp)
         return self._finalize_group(grp, position, rotation, scale)

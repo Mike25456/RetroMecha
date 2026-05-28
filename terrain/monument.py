@@ -109,4 +109,5 @@ class MonumentModule(BaseModule):
 
         mc.parent(central, wing_l, wing_r, wedge, base, slot, grp)
 
+        self._assign_materials(grp)
         return self._finalize_group(grp, position, rotation, scale)

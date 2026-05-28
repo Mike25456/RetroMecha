@@ -234,4 +234,5 @@ class HeadModule(BaseModule):
         else:
             _build_helmet_head(grp, aggr, tune)
 
+        self._assign_materials(grp)
         return self._finalize_group(grp, position, rotation, scale)

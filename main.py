@@ -24,8 +24,8 @@ def _import_modules() -> None:
     """Importa módulos para activar el @register() en el Registry."""
     import modules.head       # noqa: F401  → registra 'HEAD'
     import modules.torso      # noqa: F401  → registra 'TORSO'
-    import modules.arm        # noqa: F401  → registra 'ARM'
-    import modules.wing       # noqa: F401  → registra 'WING'
+    import modules.arm        # noqa: F401  → registra 'ARM'  (paquete)
+    import modules.wing       # noqa: F401  → registra 'WING' (paquete)
 
     import terrain.monument    # noqa: F401  → registra 'MONUMENT'
     import terrain.platform    # noqa: F401  → registra 'PLATFORM'

@@ -95,4 +95,5 @@ class PlatformModule(BaseModule):
                 pass
 
         mc.parent(*parts, grp)
+        self._assign_materials(grp)
         return self._finalize_group(grp, position, rotation, scale)

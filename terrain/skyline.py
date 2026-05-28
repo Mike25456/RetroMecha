@@ -45,4 +45,5 @@ class SkylineModule(BaseModule):
 
         if blocks:
             mc.parent(*blocks, grp)
+        self._assign_materials(grp)
         return self._finalize_group(grp, position, rotation, scale)
