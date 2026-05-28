@@ -856,7 +856,7 @@ def build_ui(recreate: bool = True):
     def _apply_lighting(*_):
         from utils.lighting import apply_lighting
         lbl = mc.optionMenu(lighting_menu, q=True, value=True)
-        apply_lighting(LIGHTING_LABELS.get(lbl, 'studio'))
+        apply_lighting(LIGHTING_LABELS.get(lbl, 'studio'), sky_dome=True)
 
     def _remove_lighting(*_):
         from utils.lighting import remove_lighting
