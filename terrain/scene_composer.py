@@ -68,10 +68,6 @@ class SceneComposer:
             mc.parent(terrain_group, scene_group)
 
         mc.select(scene_group)
-        try:
-            mc.viewFit(allObjects=False)
-        except Exception:
-            mc.viewFit()
 
         print(f'[RetroMecha][Scene] Completo: {scene_group}')
         return scene_group

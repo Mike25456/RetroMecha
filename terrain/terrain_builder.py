@@ -30,6 +30,8 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from core.module_registry import get as get_module
+from utils.hard_surface import apply_support_edges
+from utils.maya_scene import force_preview_one
 
 GROUND_Y = 0.0
 
@@ -105,6 +107,12 @@ class TerrainBuilder:
             self._pillars()
             self._fragments()
             self._debris()
+            if self.params.get('use_support_edges', True):
+                count = apply_support_edges(self._root, offset=0.018,
+                                             fraction=0.045, segments=2,
+                                             max_faces=500)
+                print(f'[RetroMecha][Terrain] Support edges aplicados: {count}')
+            force_preview_one(self._root)
             n = len(mc.listRelatives(self._root,
                     allDescendents=True, type='transform') or [])
             print(f'[RetroMecha][Terrain] OK: {self._root} ({n} objs)')
@@ -228,7 +236,7 @@ class TerrainBuilder:
         aggr   = self.params.get('aggressiveness', 0.5)
         y_lvls = p.get('platform_y_levels', [0.6, 1.4, 2.5, 4.0])
         sc_rng = p.get('platform_scale_range', [1.0, 1.8])
-        n      = max(4, int(p.get('platform_count', 8) * (1.4 - aggr * 0.4)))
+        n      = max(4, int(p.get('platform_count', 8) * (1.4 - 0.5 * 1.2)))
 
         positions = self._composition_pos(n)
 

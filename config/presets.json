@@ -1,47 +1,89 @@
 {
-  "_comment": "RetroMecha — Presets de parámetros. Cargar desde UI (próxima fase).",
+  "_comment": "RetroMecha — Presets. Parámetros obsoletos eliminados (aggressiveness, decay, connector_angle, use_panels).",
 
   "balanced": {
     "_name": "Balanceado",
-    "separation":      0.35,
-    "connector_angle": 15.0,
-    "aggressiveness":  0.50,
-    "decay":           0.85,
     "height_scale":    1.00,
     "symmetry":        true,
-    "use_panels":      true
+    "use_head":        true,
+    "use_arms":        true,
+    "use_wings":       true,
+    "head_style":      "helmet",
+    "arm_style":       "standard",
+    "wing_style":      "needle",
+    "torso_style":     "core",
+    "nucleus_style":   "ring"
   },
 
   "aggressive": {
     "_name": "Agresivo",
-    "separation":      0.45,
-    "connector_angle": 25.0,
-    "aggressiveness":  0.90,
-    "decay":           0.80,
     "height_scale":    1.15,
     "symmetry":        true,
-    "use_panels":      true
+    "use_head":        true,
+    "use_arms":        true,
+    "use_wings":       true,
+    "head_style":      "sentinel",
+    "arm_style":       "blade",
+    "wing_style":      "fan",
+    "torso_style":     "heavy",
+    "nucleus_style":   "orb"
   },
 
   "compact": {
     "_name": "Compacto",
-    "separation":      0.20,
-    "connector_angle": 8.0,
-    "aggressiveness":  0.30,
-    "decay":           0.90,
     "height_scale":    0.80,
     "symmetry":        true,
-    "use_panels":      false
+    "use_head":        true,
+    "use_arms":        true,
+    "use_wings":       false,
+    "head_style":      "drone",
+    "arm_style":       "cannon",
+    "wing_style":      "compact",
+    "torso_style":     "compact",
+    "nucleus_style":   "column"
   },
 
   "asymmetric": {
     "_name": "Asimétrico",
-    "separation":      0.40,
-    "connector_angle": 20.0,
-    "aggressiveness":  0.65,
-    "decay":           0.82,
     "height_scale":    1.10,
     "symmetry":        false,
-    "use_panels":      true
+    "use_head":        true,
+    "use_arms":        true,
+    "use_wings":       true,
+    "head_style":      "helmet",
+    "arm_style":       "standard",
+    "arm_style_right": "cannon",
+    "wing_style":      "fan",
+    "wing_style_right":"needle",
+    "torso_style":     "core",
+    "nucleus_style":   "orb"
+  },
+
+  "aerial": {
+    "_name": "Aereo",
+    "height_scale":    1.18,
+    "symmetry":        true,
+    "use_head":        true,
+    "use_arms":        false,
+    "use_wings":       true,
+    "head_style":      "drone",
+    "arm_style":       "blade",
+    "wing_style":      "needle",
+    "torso_style":     "slim",
+    "nucleus_style":   "column"
+  },
+
+  "sentinel": {
+    "_name": "Centinela",
+    "height_scale":    1.35,
+    "symmetry":        true,
+    "use_head":        true,
+    "use_arms":        false,
+    "use_wings":       false,
+    "head_style":      "sentinel",
+    "arm_style":       "heavy",
+    "wing_style":      "compact",
+    "torso_style":     "heavy",
+    "nucleus_style":   "ring"
   }
 }

@@ -1,0 +1,185 @@
+{
+  "_comment": "Sliders de configuracion avanzada por modulo (multiplicadores).",
+
+  "arm": {
+    "frame_label": "Brazos — avanzado",
+    "sliders": [
+      {
+        "key": "arm_width_mul",
+        "label": "Ancho",
+        "min": 0.70,
+        "max": 1.35,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "arm_length_mul",
+        "label": "Largo",
+        "min": 0.70,
+        "max": 1.35,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "arm_detail_mul",
+        "label": "Detalle (brillos, tiras)",
+        "min": 0.50,
+        "max": 1.50,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "arm_hand_mul",
+        "label": "Mano / punta",
+        "min": 0.50,
+        "max": 1.80,
+        "default": 1.0,
+        "step": 0.02
+      }
+    ]
+  },
+
+  "wing": {
+    "frame_label": "Alas — avanzado",
+    "sliders": [
+      {
+        "key": "wing_width_mul",
+        "label": "Ancho",
+        "min": 0.70,
+        "max": 1.35,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "wing_length_mul",
+        "label": "Largo",
+        "min": 0.70,
+        "max": 1.35,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "wing_detail_mul",
+        "label": "Detalle (bordes, púas, brillos)",
+        "min": 0.50,
+        "max": 1.50,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "wing_spread_mul",
+        "label": "Apertura (ángulo de aspas)",
+        "min": 0.40,
+        "max": 1.60,
+        "default": 1.0,
+        "step": 0.02
+      }
+    ]
+  },
+
+  "torso": {
+    "frame_label": "Torso — avanzado",
+    "sliders": [
+      {
+        "key": "torso_width_mul",
+        "label": "Ancho",
+        "min": 0.70,
+        "max": 1.35,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "torso_depth_mul",
+        "label": "Profundidad",
+        "min": 0.70,
+        "max": 1.35,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "torso_detail_mul",
+        "label": "Detalle (biselados, bordes)",
+        "min": 0.50,
+        "max": 1.50,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "torso_shoulder_mul",
+        "label": "Hombreras",
+        "min": 0.60,
+        "max": 1.60,
+        "default": 1.0,
+        "step": 0.02
+      }
+    ]
+  },
+
+  "nucleus": {
+    "frame_label": "Núcleo — avanzado",
+    "sliders": [
+      {
+        "key": "nucleus_size_mul",
+        "label": "Tamaño del reactor",
+        "min": 0.60,
+        "max": 1.50,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "nucleus_glow_mul",
+        "label": "Brillo / resplandor",
+        "min": 0.50,
+        "max": 1.50,
+        "default": 1.0,
+        "step": 0.02
+      }
+    ]
+  },
+
+  "head": {
+    "frame_label": "Cabeza — avanzado",
+    "sliders": [
+      {
+        "key": "head_width_mul",
+        "label": "Ancho",
+        "min": 0.70,
+        "max": 1.35,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "head_height_mul",
+        "label": "Alto",
+        "min": 0.70,
+        "max": 1.35,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "head_depth_mul",
+        "label": "Profundidad",
+        "min": 0.70,
+        "max": 1.35,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "head_detail_mul",
+        "label": "Antenas / aletas",
+        "min": 0.50,
+        "max": 1.50,
+        "default": 1.0,
+        "step": 0.02
+      },
+      {
+        "key": "head_eye_mul",
+        "label": "Ojos / visor",
+        "min": 0.50,
+        "max": 1.50,
+        "default": 1.0,
+        "step": 0.02
+      }
+    ]
+  }
+}

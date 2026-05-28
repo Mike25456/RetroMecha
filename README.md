@@ -7,14 +7,27 @@ Electiva Technical Art · Ricardo Mancera & Mike Castañeda
 
 ## Arranque rápido
 
-```python
-# Desde el bridge de VS Code → Maya, ejecutar:
-exec(open('ruta/absoluta/a/RetroMecha/main.py').read())
+### Desde el proyecto (recomendado)
+
+Doble clic en **`Run RetroMecha.bat`** o en terminal:
+
+```bash
+python run_retromecha.py
 ```
 
-O si el bridge ya apunta a la carpeta del proyecto:
+| Situación | Qué hace el lanzador |
+|-----------|----------------------|
+| Maya **cerrado** | Abre Maya y carga el plugin automáticamente |
+| Maya **abierto** | Envía el plugin a la sesión actual (Windows) |
+
+Si no encuentra `maya.exe`, copia `retromecha.local.json.example` → `retromecha.local.json` y define la ruta de tu instalación.
+
+**Si Maya ya estaba abierto la primera vez** y no aparece la ventana: cierra Maya y vuelve a ejecutar el lanzador, *o* pega en Script Editor (Python) el comando que imprime la consola (archivo `launcher/install_in_running_maya.py`).
+
+### Alternativa: bridge de VS Code
+
 ```python
-import main
+exec(open('ruta/absoluta/a/RetroMecha/main.py').read())
 ```
 
 ---
@@ -23,7 +36,10 @@ import main
 
 ```
 RetroMecha/
-├── main.py                    ← Punto de entrada (ejecutar este)
+├── run_retromecha.py          ← Lanzador externo (ejecutar desde Windows)
+├── Run RetroMecha.bat         ← Doble clic para abrir el plugin
+├── main.py                    ← Entrada del plugin (dentro de Maya)
+├── launcher/                  ← Detección de Maya + envío del script
 ├── core/
 │   ├── base_module.py         ← Clase base — NO modificar la interfaz
 │   ├── l_system.py            ← Motor L-System
