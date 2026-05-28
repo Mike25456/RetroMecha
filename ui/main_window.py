@@ -132,7 +132,7 @@ def build_ui(recreate: bool = True):
     mc.separator(h=8, style='none')
     mc.text(label='RETROMECHA  —  GENERADOR PROCEDURAL',
             font='boldLabelFont', align='center', h=28,
-            backgroundColor=[0.12, 0.22, 0.30])
+            backgroundColor=[0.10, 0.30, 0.48])
     mc.separator(h=6, style='in')
 
     mc.rowLayout(nc=2, cw2=[62, 264],
@@ -199,7 +199,7 @@ def build_ui(recreate: bool = True):
         label='  >  MECHA',
         collapsable=True, collapse=False,
         borderStyle='etchedIn',
-        backgroundColor=[0.12, 0.22, 0.18],
+        backgroundColor=[0.10, 0.36, 0.24],
         marginHeight=6, marginWidth=6,
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
@@ -354,7 +354,7 @@ def build_ui(recreate: bool = True):
 
     mc.separator(h=6)
     mc.button(label='Aleatorio Mecha', h=28,
-              backgroundColor=[0.32, 0.18, 0.32],
+              backgroundColor=[0.20, 0.52, 0.34],
               command=lambda *_: _random_mecha())
 
     mc.separator(h=4, style='none')
@@ -369,7 +369,7 @@ def build_ui(recreate: bool = True):
         label='  >  ANIMACIONES',
         collapsable=True, collapse=True,
         borderStyle='etchedIn',
-        backgroundColor=[0.28, 0.18, 0.14],
+        backgroundColor=[0.44, 0.18, 0.10],
         marginHeight=6, marginWidth=6,
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
@@ -410,10 +410,10 @@ def build_ui(recreate: bool = True):
                          columnAttach2=['both', 'both'],
                          columnOffset2=[3, 3])
             mc.button(label='Aplicar', h=28,
-                      backgroundColor=[0.28, 0.38, 0.18],
+                      backgroundColor=[0.62, 0.30, 0.14],
                       command=_apply_anim)
             mc.button(label='Remover', h=28,
-                      backgroundColor=[0.38, 0.18, 0.18],
+                      backgroundColor=[0.42, 0.14, 0.10],
                       command=_remove_anim)
             mc.setParent('..')
         else:
@@ -435,7 +435,7 @@ def build_ui(recreate: bool = True):
         label='  >  TERRENO',
         collapsable=True, collapse=True,
         borderStyle='etchedIn',
-        backgroundColor=[0.14, 0.18, 0.28],
+        backgroundColor=[0.12, 0.22, 0.48],
         marginHeight=6, marginWidth=6,
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
@@ -472,7 +472,7 @@ def build_ui(recreate: bool = True):
 
     mc.separator(h=6)
     mc.button(label='Aleatorio Terreno', h=28,
-              backgroundColor=[0.18, 0.22, 0.36],
+              backgroundColor=[0.22, 0.36, 0.60],
               command=lambda *_: _random_terrain())
     mc.separator(h=4, style='none')
     mc.setParent('..')
@@ -485,11 +485,11 @@ def build_ui(recreate: bool = True):
     mc.rowLayout(nc=3, cw3=[107, 107, 107],
                  columnAttach3=['both', 'both', 'both'],
                  columnOffset3=[3, 3, 3])
-    mc.button(label='Generar',   h=38, backgroundColor=[0.18, 0.42, 0.22],
+    mc.button(label='Generar',   h=38, backgroundColor=[0.14, 0.56, 0.28],
               command=lambda *_: _on_generar())
-    mc.button(label='Aleatorio', h=38, backgroundColor=[0.40, 0.20, 0.38],
+    mc.button(label='Aleatorio', h=38, backgroundColor=[0.50, 0.20, 0.54],
               command=lambda *_: _random_all())
-    mc.button(label='Resetear',  h=38, backgroundColor=[0.40, 0.16, 0.16],
+    mc.button(label='Resetear',  h=38, backgroundColor=[0.58, 0.16, 0.16],
               command=lambda *_: _on_reset())
     mc.setParent('..')
     mc.separator(h=6, style='none')
@@ -502,7 +502,7 @@ def build_ui(recreate: bool = True):
         label='  >  MATERIALES',
         collapsable=True, collapse=True,
         borderStyle='etchedIn',
-        backgroundColor=[0.22, 0.18, 0.12],
+        backgroundColor=[0.40, 0.24, 0.06],
         marginHeight=8, marginWidth=6,
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=6)
@@ -519,10 +519,10 @@ def build_ui(recreate: bool = True):
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.button(label='Aplicar materiales', h=28,
-              backgroundColor=[0.22, 0.32, 0.22],
+              backgroundColor=[0.58, 0.38, 0.12],
               command=lambda *_: _apply_materials())
     mc.button(label='Verificar', h=28,
-              backgroundColor=[0.22, 0.22, 0.32],
+              backgroundColor=[0.44, 0.32, 0.18],
               command=lambda *_: _verify_materials())
     mc.setParent('..')
 
@@ -537,10 +537,10 @@ def build_ui(recreate: bool = True):
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.button(label='Crear iluminacion', h=28,
-              backgroundColor=[0.32, 0.28, 0.18],
+              backgroundColor=[0.60, 0.40, 0.14],
               command=lambda *_: _apply_lighting())
     mc.button(label='Eliminar luces', h=28,
-              backgroundColor=[0.32, 0.18, 0.18],
+              backgroundColor=[0.46, 0.16, 0.12],
               command=lambda *_: _remove_lighting())
     mc.setParent('..')
 

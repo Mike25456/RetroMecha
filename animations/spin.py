@@ -108,6 +108,10 @@ float $lookDown = $spin * -35.0;'''
 
         V = self._VARS
 
+        # Lift group: aisla el mecha del suelo sin tocar la expresion.
+        # Editar 'rm_anim_offset_*.translateY' para ajustar altura.
+        self._ensure_anim_offset_group(default_y=0.6)
+
         # ── Root ──
         mc.expression(name='rm_spin_root', string=f'''{V}
 {ROOT_S}.translateY = sin(time*1.1)*0.28 + sin(time*2.7)*0.05 + sin(time*0.4)*0.09;
