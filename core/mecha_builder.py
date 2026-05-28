@@ -18,8 +18,8 @@ except ImportError:
 from core.l_system import LSystem
 from core.module_registry import get as get_module, is_registered
 from utils.hard_surface import apply_support_edges
-from utils.maya_materials import assign_material
 from utils.maya_scene import force_preview_one
+from materials.materializer import materialize_mecha
 
 # Altura del anclaje del hombro dentro del módulo ARM (espacio local, pre-escala).
 _ARM_SHOULDER_JOINT_Y = 0.60
@@ -109,6 +109,7 @@ class MechaBuilder:
                     self._root_group, max_faces=500,
                 )
                 print(f'[RetroMecha] Support edges aplicados: {count}')
+            materialize_mecha(self._root_group)
             force_preview_one(self._root_group)
             mc.select(self._root_group)
             print(f'[RetroMecha] Build completo: {self._root_group}')
@@ -273,7 +274,6 @@ class MechaBuilder:
                                 name='rm_energy_ring_#')[0]
             mc.move(position[0], position[1], position[2], ring)
             mc.rotate(rotation[0], rotation[1], rotation[2], ring)
-            assign_material(ring, "rm_cyan_glow_mat")
             if mc.objExists(ring):
                 mc.delete(ring, ch=True)
             return ring
