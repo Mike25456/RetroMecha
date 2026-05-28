@@ -1,8 +1,8 @@
 """
-RetroMecha — ui/main_window.py  v4
-Una sola pestaña con secciones colapsables: MECHA y TERRENO.
-Botones globales: Generar · Aleatorio · Resetear
-Auto-rebuild al soltar slider (changeCommand).
+RetroMecha — ui/main_window.py  v4 + materials
+Fixes aplicados:
+  - _collect_mecha(): incluye 'palette' y 'use_arnold'
+  - _rebuild_mecha(): NO toca el terreno (desacoplado)
 """
 
 import random
@@ -28,11 +28,13 @@ TERRAIN_PATTERNS = [
     'rm_platform_*', 'rm_fragment_*', 'rm_debris_*',
     'rm_ramps_*', 'rm_pillars_*', 'rm_tower_*', 'rm_skyline_*',
 ]
+PALETTE_LABELS = {
+    'Industrial': 'industrial',
+    'Oxidado':    'oxidado',
+    'Artico':     'artico',
+    'Carmesi':    'carmesi',
+}
 
-
-# =============================================================================
-#  PUNTO DE ENTRADA
-# =============================================================================
 
 def build_ui():
     if not MAYA_AVAILABLE:
@@ -50,9 +52,7 @@ def build_ui():
     mc.scrollLayout(childResizable=True)
     mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 
-    # =========================================================================
-    #  HEADER + SEMILLA
-    # =========================================================================
+    # ─── Header + Semilla ─────────────────────────────────────────────────────
     mc.separator(h=8, style='none')
     mc.text(label='RETROMECHA — GENERADOR PROCEDURAL',
             font='boldLabelFont', align='center', h=28,
@@ -68,11 +68,8 @@ def build_ui():
     mc.setParent('..')
     mc.separator(h=8, style='none')
 
-    # =========================================================================
-    #  HELPERS
-    # =========================================================================
+    # ─── Helpers ──────────────────────────────────────────────────────────────
     def fsl(label, mn, mx, val, step=0.01, prec=2, on_cc=None):
-        """Float slider con label y changeCommand."""
         ctrl = mc.floatSliderGrp(
             label=label, field=True,
             min=mn, max=mx, value=val, step=step, precision=prec,
@@ -84,7 +81,6 @@ def build_ui():
         return ctrl
 
     def isl(label, mn, mx, val, on_cc=None):
-        """Int slider con label y changeCommand."""
         ctrl = mc.intSliderGrp(
             label=label, field=True,
             min=mn, max=mx, value=val,
@@ -105,10 +101,8 @@ def build_ui():
         _SEED[0] = s
         return s
 
-    # =========================================================================
-    #  SECCIÓN MECHA (colapsable)
-    # =========================================================================
-    mecha_frame = mc.frameLayout(
+    # ─── Sección MECHA ────────────────────────────────────────────────────────
+    mc.frameLayout(
         label='  ▶  MECHA',
         collapsable=True, collapse=False,
         borderStyle='etchedIn',
@@ -117,52 +111,45 @@ def build_ui():
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
 
-    # — Callbacks mecha (definidos antes de los sliders) ——————————————————————
     def _on_mecha_cc(*_):
         _rebuild_mecha()
 
-    # — Sliders mecha —————————————————————————————————————————————————————————
-    sep_sl    = fsl('Separación',          0.10, 0.80,  0.35, on_cc=_on_mecha_cc)
-    angle_sl  = fsl('Ángulos conectores',  0.0,  45.0,  15.0,
-                    step=0.5, prec=1,      on_cc=_on_mecha_cc)
-    aggr_sl   = fsl('Agresividad',         0.0,   1.0,   0.5, on_cc=_on_mecha_cc)
-    decay_sl  = fsl('Decrecimiento',       0.50,  1.0,   0.85, on_cc=_on_mecha_cc)
-    height_sl = fsl('Altura',              0.50,  2.0,   1.0,
-                    step=0.05,             on_cc=_on_mecha_cc)
+    sep_sl    = fsl('Separación',         0.10, 0.80, 0.35, on_cc=_on_mecha_cc)
+    angle_sl  = fsl('Ángulos conectores', 0.0,  45.0, 15.0,
+                    step=0.5, prec=1,     on_cc=_on_mecha_cc)
+    aggr_sl   = fsl('Agresividad',        0.0,   1.0,  0.5, on_cc=_on_mecha_cc)
+    decay_sl  = fsl('Decrecimiento',      0.50,  1.0,  0.85, on_cc=_on_mecha_cc)
+    height_sl = fsl('Altura',             0.50,  2.0,  1.0,
+                    step=0.05,            on_cc=_on_mecha_cc)
 
     mc.separator(h=4)
-    sym_cb    = mc.checkBox(label='Simetría',
-                            value=True,  changeCommand=_on_mecha_cc)
-    panels_cb = mc.checkBox(label='Emplear Paneles',
-                            value=True,  changeCommand=_on_mecha_cc)
+    sym_cb    = mc.checkBox(label='Simetría',       value=True,
+                            changeCommand=_on_mecha_cc)
+    panels_cb = mc.checkBox(label='Emplear Paneles', value=True,
+                            changeCommand=_on_mecha_cc)
 
     mc.separator(h=6)
     mc.button(label='Aleatorio Mecha', h=28,
               backgroundColor=[0.32, 0.18, 0.32],
               command=lambda *_: _random_mecha())
-
     mc.separator(h=4, style='none')
-    mc.setParent('..')  # columnLayout
-    mc.setParent('..')  # frameLayout mecha
+    mc.setParent('..')
+    mc.setParent('..')
 
-    # =========================================================================
-    #  SECCIÓN TERRENO (colapsable)
-    # =========================================================================
+    # ─── Sección TERRENO ──────────────────────────────────────────────────────
     mc.separator(h=4, style='none')
-    terrain_frame = mc.frameLayout(
+    mc.frameLayout(
         label='  ▶  TERRENO',
-        collapsable=True, collapse=True,   # empieza colapsado
+        collapsable=True, collapse=True,
         borderStyle='etchedIn',
         backgroundColor=[0.14, 0.18, 0.28],
         marginHeight=6, marginWidth=6,
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
 
-    # — Callbacks terreno ——————————————————————————————————————————————————————
     def _on_terrain_cc(*_):
         _rebuild_terrain_only()
 
-    # — Preset dropdown ———————————————————————————————————————————————————————
     mc.rowLayout(nc=2, cw2=[130, 178],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
@@ -176,85 +163,91 @@ def build_ui():
     mc.setParent('..')
 
     mc.separator(h=4)
-
-    # — Sliders terreno ————————————————————————————————————————————————————————
-    t_mon_sl   = fsl('Escala monumento',   3.0,  9.0, 5.5,
-                     step=0.1, on_cc=_on_terrain_cc)
-    t_plat_sl  = isl('N° plataformas',     3,   16,   8, on_cc=_on_terrain_cc)
-    t_frag_sl  = isl('N° fragmentos',      2,   24,  12, on_cc=_on_terrain_cc)
-    t_deb_sl   = isl('Debris (piezas)',   20,  150,  80, on_cc=_on_terrain_cc)
-    t_pil_sl   = isl('Pilares',            2,   16,   8, on_cc=_on_terrain_cc)
-    t_ramp_sl  = fsl('Prob. rampas',       0.0,  1.0, 0.55, on_cc=_on_terrain_cc)
-    t_ring_sl  = fsl('Radio máx. terreno', 8.0, 35.0, 22.0,
-                     step=0.5, on_cc=_on_terrain_cc)
+    t_mon_sl  = fsl('Escala monumento',   3.0,  9.0, 5.5,
+                    step=0.1, on_cc=_on_terrain_cc)
+    t_plat_sl = isl('N° plataformas',     3,   16,   8,  on_cc=_on_terrain_cc)
+    t_frag_sl = isl('N° fragmentos',      2,   24,  12,  on_cc=_on_terrain_cc)
+    t_deb_sl  = isl('Debris (piezas)',   20,  150,  80,  on_cc=_on_terrain_cc)
+    t_pil_sl  = isl('Pilares',            2,   16,   8,  on_cc=_on_terrain_cc)
+    t_ramp_sl = fsl('Prob. rampas',       0.0,  1.0, 0.55, on_cc=_on_terrain_cc)
+    t_ring_sl = fsl('Radio máx. terreno', 8.0, 35.0, 22.0,
+                    step=0.5, on_cc=_on_terrain_cc)
 
     mc.separator(h=6)
     mc.button(label='Aleatorio Terreno', h=28,
               backgroundColor=[0.18, 0.22, 0.36],
               command=lambda *_: _random_terrain())
-
     mc.separator(h=4, style='none')
-    mc.setParent('..')  # columnLayout
-    mc.setParent('..')  # frameLayout terreno
+    mc.setParent('..')
+    mc.setParent('..')
 
-    # =========================================================================
-    #  BOTONES GLOBALES + TOGGLE TERRENO
-    # =========================================================================
+    # ─── Botones globales ─────────────────────────────────────────────────────
     mc.separator(h=8, style='in')
-
     mc.rowLayout(nc=3, cw3=[107, 107, 107],
                  columnAttach3=['both', 'both', 'both'],
                  columnOffset3=[3, 3, 3])
-
-    mc.button(label='Generar',   h=38,
-              backgroundColor=[0.18, 0.42, 0.22],
+    mc.button(label='Generar',   h=38, backgroundColor=[0.18, 0.42, 0.22],
               command=lambda *_: _on_generar())
-    mc.button(label='Aleatorio', h=38,
-              backgroundColor=[0.40, 0.20, 0.38],
+    mc.button(label='Aleatorio', h=38, backgroundColor=[0.40, 0.20, 0.38],
               command=lambda *_: _random_all())
-    mc.button(label='Resetear',  h=38,
-              backgroundColor=[0.40, 0.16, 0.16],
+    mc.button(label='Resetear',  h=38, backgroundColor=[0.40, 0.16, 0.16],
               command=lambda *_: _on_reset())
     mc.setParent('..')
-
     mc.separator(h=6, style='none')
 
-    # =========================================================================
-    #  MATERIALES (placeholder)
-    # =========================================================================
+    # ─── Sección MATERIALES ───────────────────────────────────────────────────
     mc.separator(h=4, style='none')
     mc.frameLayout(
-        label='  ▶  MATERIALES  —  próxima fase',
+        label='  ▶  MATERIALES',
         collapsable=True, collapse=True,
         borderStyle='etchedIn',
         backgroundColor=[0.22, 0.18, 0.12],
         marginHeight=8, marginWidth=6,
     )
-    mc.columnLayout(adjustableColumn=True, rowSpacing=4)
-    mc.text(label='Shaders retro-futuristas (Lambert / Blinn / PBR)',
-            align='left', font='smallPlainLabelFont')
-    mc.text(label='Paleta por preset: oxidado · pulido · mate',
-            align='left', font='smallPlainLabelFont')
-    mc.text(label='Asignación automática por módulo',
-            align='left', font='smallPlainLabelFont')
-    mc.setParent('..')
-    mc.setParent('..')
+    mc.columnLayout(adjustableColumn=True, rowSpacing=6)
 
-    mc.separator(h=8, style='none')
+    mc.text(label='Paleta de colores (aiToon)',
+            align='left', font='smallPlainLabelFont')
+    palette_menu = mc.optionMenu(width=310,
+                                 changeCommand=lambda *_: _on_mecha_cc())
+    for lbl in PALETTE_LABELS:
+        mc.menuItem(label=lbl)
+
+    mc.separator(h=6)
+    mc.text(label='Renderizar con Arnold (aiToon)',
+            align='left', font='smallPlainLabelFont')
+    arnold_cb = mc.checkBox(label='Usar aiToon (off = Lambert preview)',
+                            value=True,
+                            changeCommand=lambda *_: _on_mecha_cc())
+
+    mc.separator(h=4, style='none')
+    mc.text(label='Las paletas se aplican al regenerar.',
+            align='left', font='smallPlainLabelFont')
+    mc.text(label='Cada paleta define 4 tiers: ARMOR / JOINT / DETAIL / GLOW.',
+            align='left', font='smallPlainLabelFont')
+    mc.setParent('..')
+    mc.setParent('..')
 
     # =========================================================================
     #  FUNCIONES INTERNAS
     # =========================================================================
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # FIX 1: palette y use_arnold añadidos ✅
+    # ──────────────────────────────────────────────────────────────────────────
     def _collect_mecha() -> dict:
         return {
-            'separation':      mc.floatSliderGrp(sep_sl,   q=True, value=True),
-            'connector_angle': mc.floatSliderGrp(angle_sl, q=True, value=True),
-            'aggressiveness':  mc.floatSliderGrp(aggr_sl,  q=True, value=True),
-            'decay':           mc.floatSliderGrp(decay_sl, q=True, value=True),
-            'height_scale':    mc.floatSliderGrp(height_sl,q=True, value=True),
+            'separation':      mc.floatSliderGrp(sep_sl,    q=True, value=True),
+            'connector_angle': mc.floatSliderGrp(angle_sl,  q=True, value=True),
+            'aggressiveness':  mc.floatSliderGrp(aggr_sl,   q=True, value=True),
+            'decay':           mc.floatSliderGrp(decay_sl,  q=True, value=True),
+            'height_scale':    mc.floatSliderGrp(height_sl, q=True, value=True),
             'symmetry':        mc.checkBox(sym_cb,   q=True, value=True),
             'use_panels':      mc.checkBox(panels_cb,q=True, value=True),
+            # ── Materiales ──────────────────────────────────────────────────
+            'palette':         PALETTE_LABELS.get(
+                mc.optionMenu(palette_menu, q=True, value=True), 'industrial'),
+            'use_arnold':      mc.checkBox(arnold_cb, q=True, value=True),
         }
 
     def _collect_terrain() -> dict:
@@ -269,7 +262,6 @@ def build_ui():
         }
 
     def _terrain_active() -> bool:
-        """Siempre True — terreno incluido por defecto."""
         return True
 
     def _clean_mecha():
@@ -283,9 +275,12 @@ def build_ui():
                 try: mc.delete(n)
                 except: pass
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # FIX 2: _rebuild_mecha NO toca el terreno ✅
+    # ──────────────────────────────────────────────────────────────────────────
     def _rebuild_mecha(*_):
-        """Reconstruye solo el mecha. Si terreno visible, lo regenera también."""
-        seed   = _SEED[0] if isinstance(_SEED[0], int) else resolve_seed()
+        """Reconstruye solo el mecha. NO toca el terreno."""
+        seed = _SEED[0] if isinstance(_SEED[0], int) else resolve_seed()
         _SEED[0] = seed
         params = _collect_mecha()
         params['_seed'] = seed
@@ -302,11 +297,7 @@ def build_ui():
             except Exception:
                 pass
             mc.select(grp)
-            # Si terreno visible, actualizarlo también
-            if _terrain_active():
-                _rebuild_terrain_only()
-            else:
-                mc.viewFit()
+            mc.viewFit()
 
     def _rebuild_terrain_only(*_):
         """Regenera el terreno usando el mecha que ya existe."""
@@ -318,7 +309,6 @@ def build_ui():
         preset_name  = PRESET_MAP.get(preset_label, 'avanzada')
         overrides    = _collect_terrain()
 
-        # Bbox del mecha existente
         mecha_grp  = next((n for n in (mc.ls('RetroMecha_*', type='transform') or [])
                            if 'Scene' not in n), None)
         mecha_bbox = (-2.0, 0.5, -1.5, 2.0, 5.0, 1.5)
@@ -340,13 +330,11 @@ def build_ui():
             mc.viewFit()
 
     def _on_generar(*_):
-        """Botón GENERAR: usa semilla actual y decide qué construir."""
-        seed = resolve_seed()
+        seed   = resolve_seed()
         params = _collect_mecha()
         params['_seed'] = seed
 
         if _terrain_active():
-            # Escena completa
             preset_label = mc.optionMenu(preset_menu, q=True, value=True)
             preset_name  = PRESET_MAP.get(preset_label, 'avanzada')
             overrides    = _collect_terrain()
@@ -372,7 +360,6 @@ def build_ui():
                 mc.select(grp)
                 mc.viewFit()
         else:
-            # Solo mecha
             _clean_mecha()
             from core.mecha_builder import MechaBuilder
             grp = MechaBuilder(params, seed=seed).build()
@@ -388,19 +375,17 @@ def build_ui():
                 mc.viewFit()
 
     def _random_mecha(*_):
-        """Aleatoriza sliders del mecha y reconstruye."""
-        mc.floatSliderGrp(sep_sl,   e=True, value=random.uniform(0.10, 0.80))
-        mc.floatSliderGrp(angle_sl, e=True, value=random.uniform(0.0,  45.0))
-        mc.floatSliderGrp(aggr_sl,  e=True, value=random.uniform(0.0,   1.0))
-        mc.floatSliderGrp(decay_sl, e=True, value=random.uniform(0.50,  1.0))
-        mc.floatSliderGrp(height_sl,e=True, value=random.uniform(0.50,  2.0))
+        mc.floatSliderGrp(sep_sl,    e=True, value=random.uniform(0.10, 0.80))
+        mc.floatSliderGrp(angle_sl,  e=True, value=random.uniform(0.0,  45.0))
+        mc.floatSliderGrp(aggr_sl,   e=True, value=random.uniform(0.0,   1.0))
+        mc.floatSliderGrp(decay_sl,  e=True, value=random.uniform(0.50,  1.0))
+        mc.floatSliderGrp(height_sl, e=True, value=random.uniform(0.50,  2.0))
         mc.checkBox(sym_cb, e=True, value=random.choice([True, False]))
         _SEED[0] = random.randint(0, 99999)
         mc.textField(seed_field, e=True, text=str(_SEED[0]))
         _rebuild_mecha()
 
     def _random_terrain(*_):
-        """Aleatoriza sliders del terreno y reconstruye solo el terreno."""
         mc.floatSliderGrp(t_mon_sl, e=True, value=random.uniform(3.0,  9.0))
         mc.intSliderGrp(t_plat_sl,  e=True, value=random.randint(3,   16))
         mc.intSliderGrp(t_frag_sl,  e=True, value=random.randint(2,   24))
@@ -411,7 +396,6 @@ def build_ui():
         _rebuild_terrain_only()
 
     def _random_all(*_):
-        """Aleatoriza TODO y genera escena completa."""
         _random_mecha()
         if _terrain_active():
             _random_terrain()
