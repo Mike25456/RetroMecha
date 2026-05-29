@@ -10,34 +10,12 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from ui import state
+from ui.constants import (
+    ARM_STYLE_LABELS, WING_STYLE_LABELS, STYLE_MAPS,
+)
 from ui.widgets import fsl
 from ui.module_advanced import get_module_spec, get_slider_specs
 from ui.build_actions import rebuild_mecha, random_mecha, apply_mecha_preset, _toggle_symmetry_ui
-
-HEAD_STYLE_LABELS = {
-    'Casco': 'helmet', 'Drone': 'drone', 'Centinela': 'sentinel',
-}
-ARM_STYLE_LABELS = {
-    'Estandar': 'standard', 'Pesado': 'heavy',
-    'Cuchilla': 'blade', 'Cañon': 'cannon',
-}
-WING_STYLE_LABELS = {
-    'Agujas': 'needle', 'Compactas': 'compact', 'Abanico': 'fan',
-}
-TORSO_STYLE_LABELS = {
-    'Base': 'core', 'Pesado': 'heavy', 'Delgado': 'slim', 'Compacto': 'compact',
-}
-NUCLEUS_STYLE_LABELS = {
-    'Anillo': 'ring', 'Columna': 'column', 'Orbe': 'orb',
-}
-
-STYLE_MAPS = {
-    'head': HEAD_STYLE_LABELS,
-    'arm': ARM_STYLE_LABELS,
-    'wing': WING_STYLE_LABELS,
-    'torso': TORSO_STYLE_LABELS,
-    'nucleus': NUCLEUS_STYLE_LABELS,
-}
 
 
 # ── helpers ──────────────────────────────────────────────────

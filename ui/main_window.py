@@ -16,6 +16,21 @@ from ui.panels import mecha_panel, terrain_panel, animation_panel, material_pane
 WIN_ID = 'RetroMechaWindow'
 
 
+def _clear_state():
+    """Limpia el estado incluso si Maya conserva un ui.state viejo en cache."""
+    if hasattr(state, 'clear'):
+        state.clear()
+        return
+    try:
+        state.CTRLS.clear()
+        state._SEED[0] = None
+        state._APPLYING_MECHA_PRESET[0] = False
+        state._APPLYING_TERRAIN_VALUES[0] = False
+        state._UI_BUILDING[0] = False
+    except Exception:
+        pass
+
+
 def build_ui(*, recreate: bool = True):
     if not MAYA_AVAILABLE:
         print('[RetroMecha] Ejecutar dentro de Maya')
@@ -28,12 +43,13 @@ def build_ui(*, recreate: bool = True):
             return
         mc.deleteUI(WIN_ID, window=True)
 
+    _clear_state()
     state._UI_BUILDING[0] = True
 
     win = mc.window(WIN_ID, title='RetroMecha v5',
-                    sizeable=True, resizeToFitChildren=True,
+                    sizeable=True, resizeToFitChildren=False,
                     minimizeButton=True, maximizeButton=False,
-                    width=360)
+                    width=360, height=720)
 
     mc.scrollLayout(childResizable=True)
     mc.columnLayout(adjustableColumn=True, rowSpacing=0)
@@ -92,6 +108,8 @@ def build_ui(*, recreate: bool = True):
     mc.separator(h=6, style='none')
 
     state._UI_BUILDING[0] = False
+    # Se ejecuta una vez despues del build inicial para ocultar/mostrar filas
+    # dependientes de simetria sin disparar rebuilds durante la construccion.
     _toggle_symmetry_ui()
     mc.showWindow(win)
     print('[RetroMecha] UI v5 abierta')

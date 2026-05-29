@@ -108,7 +108,7 @@ class BaseAnimation(ABC):
         if not root or not mc.objExists(root):
             return
 
-        # 0) Si el mecha esta dentro de un offset group previo, sacarlo y borrarlo
+        # 0) Limpia un offset group residual creado por versiones intermedias.
         self._remove_anim_offset_group()
 
         removed_path = False
@@ -131,6 +131,7 @@ class BaseAnimation(ABC):
                 or short.startswith('rm_spin_')
                 or short.startswith('rm_motionPath')
                 or short.startswith('rm_flight_path')
+                or short.startswith('rm_flight_driver')
                 or node_type == 'motionPath'
                 or node_type == 'unitConversion'
                 or node_type == 'pairBlend'
@@ -155,7 +156,8 @@ class BaseAnimation(ABC):
                 pass
 
         # 1) Borra solo auxiliares creados por RetroMecha.
-        for pattern in ('rm_flight_path*', 'rm_motionPath*', 'rm_look_target*',
+        for pattern in ('rm_flight_path*', 'rm_flight_driver*',
+                        'rm_motionPath*', 'rm_look_target*',
                         'rm_lookPath*', 'rm_bobber*'):
             for obj in (mc.ls(pattern) or []):
                 _delete_node(obj)
@@ -207,6 +209,7 @@ class BaseAnimation(ABC):
             'translateX', 'translateY', 'translateZ',
             'rotateX', 'rotateY', 'rotateZ',
             'translate', 'rotate',
+            'offsetParentMatrix',
         )
         for attr in root_attrs:
             for node in _disconnect_destination(f'{root}.{attr}'):
@@ -249,18 +252,8 @@ class BaseAnimation(ABC):
             except Exception:
                 pass
 
-        # 5) El root siempre vuelve a pose base; la escala se conserva.
-        try:
-            mc.xform(root, translation=(0, 0, 0), rotation=(0, 0, 0))
-        except Exception as e:
-            print(f'[RetroMecha] _clean_all xform error: {e}')
-        for a in ('tx', 'ty', 'tz', 'rx', 'ry', 'rz'):
-            try:
-                mc.setAttr(f'{root}.{a}', 0)
-            except Exception as e:
-                print(f'[RetroMecha] _clean_all setAttr {root}.{a} error: {e}')
-
-        # 6) Expresiones conocidas.
+        # 5) Expresiones conocidas. Se borran antes del reset final para
+        # evitar que vuelvan a escribir valores al cambiar de tiempo.
         for expr in ('rm_idle_root', 'rm_idle_head',
                      'rm_idle_arm_L', 'rm_idle_arm_R',
                      'rm_idle_wing_L', 'rm_idle_wing_R', 'rm_idle_reactor',
@@ -268,6 +261,9 @@ class BaseAnimation(ABC):
                      'rm_spin_arm_L', 'rm_spin_arm_R',
                      'rm_spin_wing_L', 'rm_spin_wing_R', 'rm_spin_reactor'):
             _delete_node(expr)
+
+        # 6) El root siempre vuelve a pose base.
+        self._reset_root_channels(root)
 
     # ── Helpers compartidos ──────────────────────────────
 
@@ -368,6 +364,57 @@ class BaseAnimation(ABC):
             except Exception:
                 pass
 
+    def _reset_root_channels(self, root: str | None = None):
+        """Deja el root en canales limpios: T/R = 0, S = 1 y OPM identidad."""
+        if not MAYA_AVAILABLE:
+            return
+        root = root or self.mecha_root
+        if not root or not mc.objExists(root):
+            return
+
+        try:
+            if mc.attributeQuery('offsetParentMatrix', node=root, exists=True):
+                dest = f'{root}.offsetParentMatrix'
+                try:
+                    src = mc.connectionInfo(dest, sourceFromDestination=True)
+                    if src:
+                        mc.disconnectAttr(src, dest)
+                except Exception:
+                    pass
+                try:
+                    identity = (
+                        1.0, 0.0, 0.0, 0.0,
+                        0.0, 1.0, 0.0, 0.0,
+                        0.0, 0.0, 1.0, 0.0,
+                        0.0, 0.0, 0.0, 1.0,
+                    )
+                    mc.setAttr(dest, *identity, type='matrix')
+                except Exception as e:
+                    print(f'[RetroMecha] _clean_all offsetParentMatrix error: {e}')
+        except Exception:
+            pass
+
+        for a in ('tx', 'ty', 'tz', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz'):
+            try:
+                mc.setAttr(f'{root}.{a}', lock=False)
+            except Exception:
+                pass
+
+        try:
+            mc.xform(root, translation=(0, 0, 0), rotation=(0, 0, 0))
+        except Exception as e:
+            print(f'[RetroMecha] _clean_all xform error: {e}')
+        for a in ('tx', 'ty', 'tz', 'rx', 'ry', 'rz'):
+            try:
+                mc.setAttr(f'{root}.{a}', 0)
+            except Exception as e:
+                print(f'[RetroMecha] _clean_all setAttr {root}.{a} error: {e}')
+        for a in ('sx', 'sy', 'sz'):
+            try:
+                mc.setAttr(f'{root}.{a}', 1)
+            except Exception as e:
+                print(f'[RetroMecha] _clean_all setAttr {root}.{a} error: {e}')
+
     def delete_objects(self, names: list):
         """Borra objetos por nombre si existen."""
         if not MAYA_AVAILABLE:
@@ -380,56 +427,11 @@ class BaseAnimation(ABC):
                     pass
 
     # ──────────────────────────────────────────────────────────────────────────
-    #  ANIM OFFSET GROUP  (evita que el mecha cruce el suelo Y=0)
-    #  El usuario puede editar translateY del grupo para afinar la altura.
+    # Limpieza de offset groups residuales: esta clase ya no los crea.
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _anim_offset_name(self) -> str:
-        root_short = self.mecha_root.split('|')[-1] if self.mecha_root else ''
-        return f'rm_anim_offset_{root_short}'
-
-    def _ensure_anim_offset_group(self, default_y: float = 0.6) -> str | None:
-        """
-        Inserta un grupo padre encima del mecha que aplica un offset Y global.
-        Las expresiones de animacion siguen actuando sobre el root, pero el
-        grupo padre lo levanta sobre el suelo. Idempotente.
-        """
-        if not MAYA_AVAILABLE or not self.mecha_root:
-            return None
-        if not mc.objExists(self.mecha_root):
-            return None
-
-        offset_name = self._anim_offset_name()
-
-        # Si ya existe el padre correcto, no recrear.
-        parents = mc.listRelatives(self.mecha_root, parent=True, fullPath=True) or []
-        if parents:
-            parent_short = parents[0].rsplit('|', 1)[-1]
-            if parent_short == offset_name:
-                try:
-                    if mc.getAttr(f'{offset_name}.translateY') < default_y:
-                        mc.setAttr(f'{offset_name}.translateY', default_y)
-                except Exception:
-                    pass
-                return offset_name
-
-        # Crear grupo nuevo manteniendo la posicion mundial del mecha.
-        try:
-            world_pos = mc.xform(self.mecha_root, q=True, worldSpace=True,
-                                 translation=True)
-            grp = mc.group(empty=True, name=offset_name, world=True)
-            mc.xform(grp, worldSpace=True,
-                     translation=(world_pos[0],
-                                  world_pos[1] + default_y,
-                                  world_pos[2]))
-            mc.parent(self.mecha_root, grp)
-            return grp
-        except Exception as e:
-            print(f'[RetroMecha][Anim] Error creando offset group: {e}')
-            return None
-
     def _remove_anim_offset_group(self):
-        """Desempaqueta el mecha del offset group y borra el grupo."""
+        """Limpia un offset group viejo si quedo en la escena."""
         if not MAYA_AVAILABLE or not self.mecha_root:
             return
         if not mc.objExists(self.mecha_root):

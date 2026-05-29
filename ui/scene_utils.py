@@ -15,7 +15,7 @@ TERRAIN_PATTERNS = [
 ]
 ANIM_AUX_PATTERNS = [
     'rm_anim_offset_*', 'rm_flight_path*', 'rm_motionPath*',
-    'rm_look_target*', 'rm_lookPath*', 'rm_bobber*',
+    'rm_flight_driver*', 'rm_look_target*', 'rm_lookPath*', 'rm_bobber*',
 ]
 ANIM_EXPR_NAMES = [
     'rm_idle_root', 'rm_idle_head',
@@ -92,6 +92,35 @@ def clean_animations():
     for mp in (mc.ls(type='motionPath') or []):
         try:
             mc.delete(mp)
+        except Exception:
+            pass
+
+    root = find_mecha_group()
+    if not root:
+        return
+    try:
+        if mc.attributeQuery('offsetParentMatrix', node=root, exists=True):
+            dest = f'{root}.offsetParentMatrix'
+            src = mc.connectionInfo(dest, sourceFromDestination=True)
+            if src:
+                mc.disconnectAttr(src, dest)
+            identity = (
+                1.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0,
+            )
+            mc.setAttr(dest, *identity, type='matrix')
+    except Exception:
+        pass
+    for attr in ('tx', 'ty', 'tz', 'rx', 'ry', 'rz'):
+        try:
+            mc.setAttr(f'{root}.{attr}', 0)
+        except Exception:
+            pass
+    for attr in ('sx', 'sy', 'sz'):
+        try:
+            mc.setAttr(f'{root}.{attr}', 1)
         except Exception:
             pass
 

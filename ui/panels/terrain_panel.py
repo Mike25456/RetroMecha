@@ -8,6 +8,7 @@ except ImportError:
 
 from ui import state
 from ui.widgets import fsl, isl
+from ui.build_actions import rebuild_terrain_only, random_terrain
 
 
 def build():
@@ -25,7 +26,6 @@ def build():
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.text(label='Preset escena', align='right', font='smallPlainLabelFont')
-    from ui.build_actions import rebuild_terrain_only
     menu = mc.optionMenu(changeCommand=lambda *_: rebuild_terrain_only())
     for label in ('Avanzada', 'Hangar', 'Campo de batalla', 'Centinela'):
         mc.menuItem(label=label)
@@ -80,5 +80,4 @@ def build():
 
 
 def _random_terrain(*_):
-    from ui.build_actions import random_terrain
     random_terrain()
