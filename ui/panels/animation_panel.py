@@ -24,7 +24,6 @@ def build():
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
 
     anims = list_animations()
-    global _current_anim
     _current_anim[0] = anims[0] if anims else None
 
     if anims:

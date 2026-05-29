@@ -11,28 +11,11 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from ui import state, scene_utils as sc
+from ui.constants import (
+    HEAD_STYLE_LABELS, ARM_STYLE_LABELS, WING_STYLE_LABELS,
+    TORSO_STYLE_LABELS, NUCLEUS_STYLE_LABELS, TERRAIN_PRESET_MAP,
+)
 from ui.module_advanced import get_slider_specs
-
-HEAD_STYLE_LABELS = {
-    'Casco': 'helmet', 'Drone': 'drone', 'Centinela': 'sentinel',
-}
-ARM_STYLE_LABELS = {
-    'Estandar': 'standard', 'Pesado': 'heavy',
-    'Cuchilla': 'blade', 'Cañon': 'cannon',
-}
-WING_STYLE_LABELS = {
-    'Agujas': 'needle', 'Compactas': 'compact', 'Abanico': 'fan',
-}
-TORSO_STYLE_LABELS = {
-    'Base': 'core', 'Pesado': 'heavy', 'Delgado': 'slim', 'Compacto': 'compact',
-}
-NUCLEUS_STYLE_LABELS = {
-    'Anillo': 'ring', 'Columna': 'column', 'Orbe': 'orb',
-}
-TERRAIN_PRESET_MAP = {
-    'Avanzada': 'avanzada', 'Hangar': 'hangar',
-    'Campo de batalla': 'campo_de_batalla', 'Centinela': 'centinela',
-}
 
 
 # ── helpers ──────────────────────────────────────────────────
