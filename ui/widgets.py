@@ -44,3 +44,44 @@ def btn(label, w=140, h=28, bg=None, cmd=None, annotation=''):
 
 def row_label(label, width=128):
     mc.text(label=label, align='right', font='smallPlainLabelFont', width=width)
+
+
+def section_header(label, dot_color, open=False):
+    """Collapsable frameLayout with a colored dot prefix."""
+    dot = f'  ●  {label}' if dot_color else f'  {label}'
+    return mc.frameLayout(
+        label=dot,
+        collapsable=True, collapse=not open,
+        borderStyle='etchedIn',
+        backgroundColor=dot_color,
+        marginHeight=6, marginWidth=6,
+    )
+
+
+def mode_toggle(change_command):
+    """Pair of Rápido/Pro buttons that call change_command(mode)."""
+    mc.rowLayout(nc=2, cw2=[52, 40],
+                 columnAttach2=['both', 'both'],
+                 columnOffset2=[2, 2])
+
+    q_bg = [0.14, 0.40, 0.22]
+    p_bg = [0.30, 0.18, 0.06]
+
+    def _set_quick():
+        mc.button(quick_btn, e=True, backgroundColor=q_bg)
+        mc.button(pro_btn, e=True, backgroundColor=[0.12, 0.12, 0.14])
+        change_command('quick')
+
+    def _set_pro():
+        mc.button(pro_btn, e=True, backgroundColor=p_bg)
+        mc.button(quick_btn, e=True, backgroundColor=[0.12, 0.12, 0.14])
+        change_command('pro')
+
+    quick_btn = mc.button(label='Rápido', h=20, width=52,
+                          backgroundColor=q_bg,
+                          command=lambda *_: _set_quick())
+    pro_btn = mc.button(label='Pro', h=20, width=40,
+                        backgroundColor=[0.12, 0.12, 0.14],
+                        command=lambda *_: _set_pro())
+    mc.setParent('..')
+    return quick_btn, pro_btn
