@@ -27,7 +27,6 @@ _SHADER_LABELS = {
     'Terreno acento': 'rm_terrain_accent_mat',
 }
 
-# Paletas aiToon (Ricardo)
 _PALETTE_LABELS = {
     'Industrial': 'industrial',
     'Oxidado':    'oxidado',
@@ -55,14 +54,12 @@ def build():
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=4)
 
-    # ensure all shaders exist
     for shader_name in SHADER_NAMES:
         ensure_material(shader_name)
 
     presets_list = list_presets()
     _current_shader[0] = 'rm_white_armor_mat'
 
-    # ── Lambert preset dropdown ──
     if presets_list:
         _preset_labels = {p: p for p in presets_list}
         mc.rowLayout(nc=2, cw2=[128, 140],
@@ -77,7 +74,6 @@ def build():
     else:
         mc.text(label='(sin presets Lambert)', align='left', font='smallPlainLabelFont')
 
-    # ── shader selector ──
     mc.separator(h=4)
     mc.rowLayout(nc=2, cw2=[128, 140],
                  columnAttach2=['both', 'both'],
@@ -90,7 +86,6 @@ def build():
         mc.menuItem(label=label)
     mc.setParent('..')
 
-    # ── color slider ──
     state.reg('color_sl', mc.colorSliderGrp(
         label='Color', rgb=(0.86, 0.84, 0.78),
         columnWidth3=[60, 180, 52],
@@ -98,18 +93,15 @@ def build():
         annotation='Color principal del shader (click para abrir selector)',
     ))
 
-    # ── diffuse slider ──
     state.reg('d_sl', fsl('Difuso', 0.0, 1.0, 0.82, on_cc=_set_shader_diffuse,
                            annotation='Intensidad de luz difusa del material'))
 
-    # ── glow slider ──
     state.reg('i_sl', fsl('Brillo', 0.0, 1.0, 0.0, on_cc=_set_shader_incandescence,
                            annotation='Brillo auto-emitido (solo para shader Brillo)'))
     mc.control(state.get('i_sl'), e=True, visible=False)
 
     _update_shader_sliders()
 
-    # ── aiToon palette (Arnold cel-shading) ──────────────────
     mc.separator(h=8)
     mc.text(label='Paleta aiToon (Arnold)', align='left',
             font='smallPlainLabelFont')
@@ -128,7 +120,6 @@ def build():
               annotation='Aplica la paleta aiToon al mecha en escena')
     mc.setParent('..')
 
-    # ── Iluminacion procedural ───────────────────────────────
     mc.separator(h=8)
     mc.text(label='Iluminacion procedural', align='left',
             font='smallPlainLabelFont')
@@ -154,8 +145,6 @@ def build():
     mc.setParent('..')
     mc.setParent('..')
 
-
-# ── callbacks ────────────────────────────────────────────────
 
 def _set_shader_color(*_):
     if _APPLYING_SHADER[0]:
@@ -234,8 +223,6 @@ def _apply_material_preset(label, preset_labels):
     _update_shader_sliders()
 
 
-# ── aiToon palette ───────────────────────────────────────────
-
 def _find_mecha_group():
     from ui import scene_utils as sc
     return sc.find_mecha_group()
@@ -261,7 +248,22 @@ def _apply_aitoon_palette(*_):
         print(f'[RetroMecha][aiToon] Error aplicando paleta: {e}')
 
 
-# ── Iluminacion ──────────────────────────────────────────────
+def apply_palette_quick(palette_key):
+    """Aplica una paleta aiToon directamente por key (modo Rápido)."""
+    grp = _find_mecha_group()
+    if not grp:
+        print('[RetroMecha][aiToon] No hay mecha en escena')
+        return
+    try:
+        from utils.material_assigner import assign_palette_to_group, clear_material_cache
+        clear_material_cache()
+        assign_palette_to_group(grp, palette_key)
+        print(f'[RetroMecha][aiToon] Paleta {palette_key} aplicada')
+    except ImportError as e:
+        print(f'[RetroMecha][aiToon] material_assigner no disponible: {e}')
+    except Exception as e:
+        print(f'[RetroMecha][aiToon] Error aplicando paleta: {e}')
+
 
 def _apply_lighting(*_):
     label = mc.optionMenu(state.get('lighting_menu'), q=True, value=True)
