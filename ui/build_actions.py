@@ -193,6 +193,21 @@ def on_generar(*_):
         terrain_grp = _build_terrain(seed, support_edges=False)
         if terrain_grp and mc.objExists(terrain_grp):
             mc.parent(terrain_grp, scene_grp)
+
+        # Lift default +6 en Y al mecha (replica el ajuste manual del setup)
+        try:
+            from utils.camera import lift_mecha_default
+            lift_mecha_default()
+        except Exception as e:
+            print(f'[RetroMecha][Generar] Lift: {e}')
+
+        # Camara default compo (se reposiciona contra el bbox actualizado)
+        try:
+            from utils.camera import create_default_camera
+            create_default_camera(frame_mecha=True, look_through=True)
+        except Exception as e:
+            print(f'[RetroMecha][Generar] Camara: {e}')
+
         mc.select(scene_grp)
     return sc.scene_update(_work)
 

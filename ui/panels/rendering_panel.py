@@ -147,6 +147,48 @@ def build():
               annotation='Elimina luces y sky dome creados por RetroMecha')
     mc.setParent('..')
 
+    # ── CAMARA ─────────────────────────────────────────────────
+    mc.separator(h=8, style='none')
+    mc.text(
+        label='  CAMARA',
+        align='left', font='boldLabelFont', h=22,
+        backgroundColor=[0.12, 0.24, 0.20],
+    )
+    mc.separator(h=4, style='none')
+
+    mc.text(
+        label='  Setup compo: focal 24.92  |  fStop 11.9  |  focus 30  |  DOF on',
+        align='left', font='smallPlainLabelFont',
+    )
+
+    mc.rowLayout(nc=2, cw2=[160, 160],
+                 columnAttach2=['both', 'both'],
+                 columnOffset2=[0, 4])
+    mc.button(label='Crear / Recrear camara', h=26,
+              backgroundColor=[0.18, 0.46, 0.36],
+              command=lambda *_: _apply_default_camera(),
+              annotation='Crea rm_camera_compo con la config del setup MEL '
+                         'y la apunta al mecha actual')
+    mc.button(label='Eliminar camara', h=26,
+              backgroundColor=[0.46, 0.16, 0.12],
+              command=lambda *_: _remove_default_camera(),
+              annotation='Elimina rm_camera_compo de la escena')
+    mc.setParent('..')
+
+    mc.rowLayout(nc=2, cw2=[160, 160],
+                 columnAttach2=['both', 'both'],
+                 columnOffset2=[0, 4])
+    mc.button(label='Look through', h=26,
+              backgroundColor=[0.20, 0.34, 0.44],
+              command=lambda *_: _look_through_camera(),
+              annotation='Mira a traves de rm_camera_compo en el panel activo')
+    mc.button(label='Lift mecha +6', h=26,
+              backgroundColor=[0.38, 0.30, 0.46],
+              command=lambda *_: _lift_mecha_default(),
+              annotation='Desplaza el grupo del mecha +6 en Y '
+                         '(replica el ajuste manual del setup compo)')
+    mc.setParent('..')
+
     mc.separator(h=6, style='none')
     mc.setParent('..')
 
@@ -330,3 +372,41 @@ def _on_temperature(val):
         lighting.set_skydome_temperature(float(val))
     except Exception as e:
         print(f'[RetroMecha][Render] Temperature: {e}')
+
+
+# ══════════════════════════════════════════════════════════════
+#  CALLBACKS - Camara
+# ══════════════════════════════════════════════════════════════
+
+def _apply_default_camera(*_):
+    try:
+        from utils.camera import create_default_camera
+        create_default_camera(frame_mecha=True, look_through=True)
+    except Exception as e:
+        print(f'[RetroMecha][Render] Camara: {e}')
+
+
+def _remove_default_camera(*_):
+    try:
+        from utils.camera import remove_camera
+        remove_camera()
+        print('[RetroMecha][Render] Camara eliminada')
+    except Exception as e:
+        print(f'[RetroMecha][Render] Camara: {e}')
+
+
+def _look_through_camera(*_):
+    try:
+        from utils.camera import look_through_camera
+        look_through_camera()
+    except Exception as e:
+        print(f'[RetroMecha][Render] Look through: {e}')
+
+
+def _lift_mecha_default(*_):
+    try:
+        from utils.camera import lift_mecha_default
+        if not lift_mecha_default():
+            print('[RetroMecha][Render] No hay mecha en escena para desplazar')
+    except Exception as e:
+        print(f'[RetroMecha][Render] Lift: {e}')
