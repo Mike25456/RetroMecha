@@ -60,8 +60,6 @@ def build():
     mc.setParent('..')
 
 
-# ── callbacks ────────────────────────────────────────────────
-
 def _apply_animation(*_):
     mecha_root = sc.find_mecha_group()
     if not mecha_root:
@@ -85,3 +83,23 @@ def _remove_animation(*_):
         return
     anim = anim_cls(mecha_root)
     anim.remove()
+
+
+def apply_animation_quick(name):
+    """Aplica animación por nombre directamente (modo Rápido)."""
+    mecha_root = sc.find_mecha_group()
+    if not mecha_root:
+        print('[RetroMecha][Anim] No hay mecha en escena')
+        return
+    anim_cls = get_animation(name)
+    if not anim_cls:
+        print(f'[RetroMecha][Anim] Animacion "{name}" no encontrada')
+        return
+    anim = anim_cls(mecha_root)
+    anim.apply()
+
+
+def remove_animation_quick():
+    """Remueve animación sin depender de optionMenu (modo Rápido)."""
+    sc.clean_animations()
+    print('[RetroMecha][Anim] Animaciones removidas')
