@@ -1,14 +1,15 @@
 """
 RetroMecha — utils/material_assigner.py
-Asigna materiales aiToon (Arnold) o Lambert (Viewport 2.0) a las piezas del mecha.
+Asigna materiales aiToon (Arnold) a las piezas del mecha.
 
 Tiers:
   ARMOR  → superficie principal (main, body, surface)
   JOINT  → articulaciones, ranuras, cuellos
   DETAIL → sub-piezas attachadas (paneles, spikes, anillos)
-  GLOW   → visores, núcleos, ojos (emission)
+  GLOW   → visores, nucleos, ojos (emission)
 
-Usa config/materials.json para definir paletas y reglas de clasificación.
+Usa config/materials.json para definir paletas y reglas de clasificacion.
+Requiere Arnold (mtoa) cargado — no hay fallback.
 """
 
 import os
@@ -35,7 +36,7 @@ _ARNOLD_CHECKED: list = [False, False]   # [ya_comprobado, resultado]
 def assign_palette_to_group(group: str, palette_name: str = 'industrial'):
     """
     Recorre todos los meshes hijos del grupo y les asigna el material
-    aiToon (Arnold) o Lambert (VP2.0) correspondiente a su tier.
+    aiToon (Arnold) correspondiente a su tier.
 
     Args:
         group:        nombre del grupo de Maya (ej: 'rm_head_1')
@@ -55,9 +56,11 @@ def assign_palette_to_group(group: str, palette_name: str = 'industrial'):
         print(f'[RetroMecha][materials] Paleta "{palette_name}" no encontrada')
         return
 
-    arnold_available = _has_arnold()
-    renderer_label = 'Arnold/aiToon' if arnold_available else 'Lambert/VP2.0'
-    print(f'[RetroMecha][materials] Aplicando paleta "{palette_name}" [{renderer_label}]')
+    if not _has_arnold():
+        print('[RetroMecha][materials] Arnold/aiToon no disponible — '
+              'paleta no aplicada')
+        return
+    print(f'[RetroMecha][materials] Aplicando paleta "{palette_name}" [Arnold/aiToon]')
 
     classification = _load_classification()
 
@@ -134,42 +137,32 @@ def _assign_palette_material(node: str, tier: str, palette: dict, palette_name: 
 
 def _create_palette_material(tier: str, palette: dict, palette_name: str) -> str | None:
     """
-    Crea un shader aiToon (si Arnold está disponible) o Lambert (VP2.0).
+    Crea un shader aiToon (requiere Arnold).
     Devuelve el nombre del shading group, o None si falla.
     """
     shader_name = f'rm_toon_{palette_name}_{tier.lower()}_mat'
     sg_name     = f'{shader_name}SG'
 
-    # Reutilizar si ya existe
     if mc.objExists(shader_name) and mc.objExists(sg_name):
         return sg_name
 
-    use_arnold = _has_arnold()
+    if not _has_arnold():
+        print(f'[RetroMecha][materials] aiToon no disponible para {tier}')
+        return None
+
     shader = None
-
-    if use_arnold:
-        try:
-            shader = mc.shadingNode('aiToon', asShader=True, name=shader_name)
-            _configure_aitoon(shader, tier, palette)
-        except Exception as e:
-            print(f'[RetroMecha][materials] aiToon falló ({tier}), usando Lambert VP2.0: {e}')
-            # Limpiar nodo fallido si quedó a medias
-            for leftover in (shader_name, sg_name):
-                if leftover and mc.objExists(leftover):
-                    try:
-                        mc.delete(leftover)
-                    except Exception:
-                        pass
-            shader = None
-            use_arnold = False
-
-    if not use_arnold:
-        try:
-            shader = mc.shadingNode('lambert', asShader=True, name=shader_name)
-            _configure_lambert_fallback(shader, tier, palette)
-        except Exception as e:
-            print(f'[RetroMecha][materials] Error creando Lambert ({tier}): {e}')
-            return None
+    try:
+        shader = mc.shadingNode('aiToon', asShader=True, name=shader_name)
+        _configure_aitoon(shader, tier, palette)
+    except Exception as e:
+        print(f'[RetroMecha][materials] Error creando aiToon ({tier}): {e}')
+        for leftover in (shader_name, sg_name):
+            if leftover and mc.objExists(leftover):
+                try:
+                    mc.delete(leftover)
+                except Exception:
+                    pass
+        return None
 
     if not shader or not mc.objExists(shader):
         return None
@@ -248,31 +241,6 @@ def _populate_ramp(ramp_node: str, stops: list):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  CONFIGURACIÓN Lambert (Viewport 2.0 fallback)
-# ══════════════════════════════════════════════════════════════════════════════
-
-def _configure_lambert_fallback(shader: str, tier: str, palette: dict):
-    """Configura un Lambert con el color base del tier (VP2.0 / sin Arnold)."""
-    ramp_data = palette.get(tier)
-    if ramp_data is None:
-        return
-
-    if tier == 'GLOW':
-        rgb = ramp_data
-        mc.setAttr(f'{shader}.color', rgb[0], rgb[1], rgb[2], type='double3')
-        try:
-            mc.setAttr(f'{shader}.incandescence',
-                       rgb[0] * 0.6, rgb[1] * 0.6, rgb[2] * 0.6,
-                       type='double3')
-        except Exception:
-            pass
-    else:
-        # Primer stop = color más claro/base de la paleta
-        base = ramp_data[0][1]
-        mc.setAttr(f'{shader}.color', base[0], base[1], base[2], type='double3')
-
-
-# ══════════════════════════════════════════════════════════════════════════════
 #  HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -300,7 +268,7 @@ def _has_arnold() -> bool:
     if result:
         print('[RetroMecha][materials] Arnold/aiToon detectado')
     else:
-        print('[RetroMecha][materials] Arnold no disponible — usando Lambert VP2.0')
+        print('[RetroMecha][materials] Arnold no disponible')
 
     return result
 

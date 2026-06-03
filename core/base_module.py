@@ -154,7 +154,8 @@ class BaseModule(ABC):
     def _assign_materials(self, grp: str):
         """
         Asigna materiales aiToon a cada pieza del grupo según su tier.
-        Si palette es None (modo Lambert), no hace nada.
+        Si palette es None, no hace nada (los shaders aiStandardSurface
+        se aplican mas tarde via materialize_mecha).
         """
         if not MAYA_AVAILABLE:
             return

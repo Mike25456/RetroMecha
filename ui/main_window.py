@@ -1,5 +1,6 @@
 """RetroMecha - main_window.py v6
-Pestañas Escena (mecha + terreno + materiales VP2.0) y Rendering (Arnold + luces).
+Pestañas Escena (mecha + terreno + materiales aiStandardSurface)
+y Rendering (iluminacion + camara).
 """
 
 try:

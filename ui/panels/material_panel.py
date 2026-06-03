@@ -1,6 +1,11 @@
-"""Panel MATERIALES (pestaña Escena) — solo Viewport 2.0 / Lambert.
+"""Panel MATERIALES (pestaña Escena).
 
-Los materiales Arnold y la iluminación se gestionan desde la pestaña Rendering.
+Gestiona los shaders aiStandardSurface del mecha y terreno (requiere Arnold).
+
+Estructura:
+  - Paleta (preset de colores)
+  - Selector de shader individual (Armadura, Estructura, ...) + sliders
+  - Boton 'Aplicar materiales al mecha' al final (full width, estilo terreno)
 """
 
 try:
@@ -13,7 +18,9 @@ from ui import state
 from ui.widgets import fsl
 
 from materials.presets import SHADER_NAMES, list_presets, apply_preset
-from utils.maya_materials import ensure_material
+from utils.maya_materials import (
+    ensure_material, set_semantic_attr, get_semantic_attr,
+)
 
 _SHADER_LABELS = {
     'Armadura':      'rm_white_armor_mat',
@@ -30,7 +37,7 @@ _APPLYING_SHADER = [False]
 
 def build():
     mc.frameLayout(
-        label='  >  MATERIALES  (Viewport 2.0)',
+        label='  >  MATERIALES',
         collapsable=True, collapse=True,
         backgroundColor=[0.40, 0.24, 0.06],
         marginHeight=8, marginWidth=6,
@@ -43,37 +50,32 @@ def build():
     presets_list = list_presets()
     _current_shader[0] = 'rm_white_armor_mat'
 
-    # ── Preset Lambert + botón aplicar ──────────────────────────
-    mc.rowLayout(nc=3, cw3=[100, 130, 72],
-                 columnAttach3=['both', 'both', 'both'],
-                 columnOffset3=[0, 4, 4])
+    # ── Paleta (preset de colores) ────────────────────────────────
+    mc.rowLayout(nc=2, cw2=[128, 180],
+                 columnAttach2=['both', 'both'],
+                 columnOffset2=[0, 4])
     mc.text(label='Paleta', align='right', font='smallPlainLabelFont')
     if presets_list:
-        lambert_menu = mc.optionMenu(
-            annotation='Preset Lambert: colores base de los 6 shaders')
+        preset_menu = mc.optionMenu(
+            changeCommand=lambda *_: _on_preset_changed(),
+            annotation='Preset de colores aplicado a los 6 shaders del mecha y terreno')
         for p in presets_list:
             mc.menuItem(label=p)
-        state.reg('lambert_preset_menu', lambert_menu)
+        state.reg('materials_preset_menu', preset_menu)
     else:
         mc.text(label='(sin presets)', align='left', font='smallPlainLabelFont')
-        state.reg('lambert_preset_menu', None)
-    mc.button(
-        label='Aplicar VP2.0', h=22,
-        backgroundColor=[0.30, 0.44, 0.22],
-        command=lambda *_: _apply_vp2(),
-        annotation='Aplica el preset Lambert y reasigna shaders VP2.0 al mecha',
-    )
+        state.reg('materials_preset_menu', None)
     mc.setParent('..')
 
-    # ── Editor individual de shader ─────────────────────────────
-    mc.separator(h=4)
-    mc.rowLayout(nc=2, cw2=[128, 140],
+    # ── Editor individual de shader ───────────────────────────────
+    mc.separator(h=6)
+    mc.rowLayout(nc=2, cw2=[128, 180],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.text(label='Editar shader', align='right', font='smallPlainLabelFont',
             annotation='Selecciona un material para editar sus propiedades')
     mc.optionMenu(changeCommand=_on_shader_sel,
-                  annotation='Cada shader se aplica a múltiples piezas del mecha')
+                  annotation='Cada shader se aplica a multiples piezas del mecha o terreno')
     for label in _SHADER_LABELS:
         mc.menuItem(label=label)
     mc.setParent('..')
@@ -82,16 +84,26 @@ def build():
         label='Color', rgb=(0.86, 0.84, 0.78),
         columnWidth3=[60, 180, 52],
         changeCommand=_set_shader_color,
-        annotation='Color principal del shader',
+        annotation='Color principal del shader (baseColor de aiStandardSurface)',
     ))
     state.reg('d_sl', fsl('Difuso', 0.0, 1.0, 0.82, on_cc=_set_shader_diffuse,
-                          annotation='Intensidad difusa'))
+                          annotation='Peso difuso (base de aiStandardSurface)'))
     state.reg('i_sl', fsl('Brillo', 0.0, 1.0, 0.0, on_cc=_set_shader_incandescence,
-                          annotation='Brillo auto-emitido (solo shader Brillo)'))
+                          annotation='Emision auto (emissionColor, solo shader Brillo)'))
     mc.control(state.get('i_sl'), e=True, visible=False)
 
     _update_shader_sliders()
 
+    # ── Aplicar materiales (estilo terreno, full width al final) ──
+    mc.separator(h=8)
+    mc.button(
+        label='Aplicar materiales al mecha', h=28,
+        backgroundColor=[0.62, 0.36, 0.10],
+        command=lambda *_: _apply_materials(),
+        annotation='Aplica la paleta actual y reasigna los shaders al mecha y terreno',
+    )
+
+    mc.separator(h=4, style='none')
     mc.setParent('..')
     mc.setParent('..')
 
@@ -103,26 +115,50 @@ def _find_mecha_group():
     return sc.find_mecha_group()
 
 
-# ── VP2.0 callbacks ───────────────────────────────────────────
+def _find_scene_group():
+    from ui import scene_utils as sc
+    return sc.find_scene_group()
 
-def _apply_vp2(*_):
-    """Aplica el preset Lambert seleccionado y reasigna shaders VP2.0 al mecha."""
-    preset_menu = state.get('lambert_preset_menu')
+
+# ── callbacks ─────────────────────────────────────────────────
+
+def _on_preset_changed(*_):
+    """Al cambiar la paleta, actualizar los shaders en memoria + sliders."""
+    preset_menu = state.get('materials_preset_menu')
+    if not preset_menu or not mc.optionMenu(preset_menu, exists=True):
+        return
+    label = mc.optionMenu(preset_menu, q=True, value=True)
+    apply_preset(label)
+    _update_shader_sliders()
+
+
+def _apply_materials(*_):
+    """Aplica la paleta + reasigna shaders al mecha (y terreno si existe)."""
+    preset_menu = state.get('materials_preset_menu')
     if preset_menu and mc.optionMenu(preset_menu, exists=True):
         label = mc.optionMenu(preset_menu, q=True, value=True)
         apply_preset(label)
         _update_shader_sliders()
 
     mecha_grp = _find_mecha_group()
-    if not mecha_grp:
-        print('[RetroMecha][VP2.0] No hay mecha en escena')
+    scene_grp = _find_scene_group()
+    target = scene_grp or mecha_grp
+    if not target:
+        print('[RetroMecha][Mat] No hay mecha en escena')
         return
+
     try:
-        from materials.materializer import materialize_mecha
-        materialize_mecha(mecha_grp)
-        print('[RetroMecha][VP2.0] Materiales Lambert aplicados al mecha')
+        from materials.materializer import materialize_mecha, materialize_terrain
+        if mecha_grp:
+            materialize_mecha(mecha_grp)
+        # Reasignar terreno si existe
+        if scene_grp:
+            for child in (mc.listRelatives(scene_grp, children=True, type='transform') or []):
+                if child.startswith('rm_terrain_'):
+                    materialize_terrain(child)
+        print('[RetroMecha][Mat] Materiales aplicados')
     except Exception as e:
-        print(f'[RetroMecha][VP2.0] Error: {e}')
+        print(f'[RetroMecha][Mat] Error: {e}')
 
 
 def _set_shader_color(*_):
@@ -134,13 +170,8 @@ def _set_shader_color(*_):
     ensure_material(sh)
     if not mc.objExists(sh):
         return
-    try:
-        rgb = mc.colorSliderGrp(state.get('color_sl'), q=True, rgb=True)
-        mc.setAttr(f'{sh}.color',
-                   float(rgb[0]), float(rgb[1]), float(rgb[2]),
-                   type='double3')
-    except Exception:
-        pass
+    rgb = mc.colorSliderGrp(state.get('color_sl'), q=True, rgb=True)
+    set_semantic_attr(sh, 'color', tuple(float(c) for c in rgb))
 
 
 def _set_shader_diffuse(val):
@@ -148,10 +179,7 @@ def _set_shader_diffuse(val):
     if sh:
         ensure_material(sh)
     if sh and mc.objExists(sh):
-        try:
-            mc.setAttr(f'{sh}.diffuse', val)
-        except Exception:
-            pass
+        set_semantic_attr(sh, 'diffuse', float(val))
 
 
 def _set_shader_incandescence(val):
@@ -159,10 +187,8 @@ def _set_shader_incandescence(val):
     if sh:
         ensure_material(sh)
     if sh and mc.objExists(sh) and sh == 'rm_cyan_glow_mat':
-        try:
-            mc.setAttr(f'{sh}.incandescence', val, val, val, type='double3')
-        except Exception:
-            pass
+        v = float(val)
+        set_semantic_attr(sh, 'incandescence', (v, v, v))
 
 
 def _update_shader_sliders():
@@ -174,15 +200,18 @@ def _update_shader_sliders():
         return
     _APPLYING_SHADER[0] = True
     try:
-        col = mc.getAttr(f'{sh}.color')[0]
-        mc.colorSliderGrp(state.get('color_sl'), e=True, rgb=col)
-        d = mc.getAttr(f'{sh}.diffuse')
-        mc.floatSliderGrp(state.get('d_sl'), e=True, value=d)
+        col = get_semantic_attr(sh, 'color')
+        if col is not None:
+            mc.colorSliderGrp(state.get('color_sl'), e=True, rgb=tuple(col))
+        d = get_semantic_attr(sh, 'diffuse')
+        if d is not None:
+            mc.floatSliderGrp(state.get('d_sl'), e=True, value=float(d))
         is_glow = (sh == 'rm_cyan_glow_mat')
         mc.control(state.get('i_sl'), e=True, visible=is_glow)
         if is_glow:
-            inc = mc.getAttr(f'{sh}.incandescence')[0]
-            mc.floatSliderGrp(state.get('i_sl'), e=True, value=inc[0])
+            inc = get_semantic_attr(sh, 'incandescence')
+            if inc is not None:
+                mc.floatSliderGrp(state.get('i_sl'), e=True, value=float(inc[0]))
     except Exception:
         pass
     finally:
