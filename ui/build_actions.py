@@ -22,60 +22,105 @@ from ui.module_advanced import get_slider_specs
 
 def _safe_val(name, default=1.0):
     ctrl = state.get(name)
-    if ctrl and mc.control(ctrl, exists=True):
-        return mc.floatSliderGrp(ctrl, q=True, value=True)
+    if not ctrl:
+        return default
+    try:
+        if mc.control(ctrl, exists=True):
+            return mc.floatSliderGrp(ctrl, q=True, value=True)
+    except Exception:
+        pass
     return default
 
 
 def _safe_int(name, default=8):
     ctrl = state.get(name)
-    if ctrl and mc.control(ctrl, exists=True):
-        return mc.intSliderGrp(ctrl, q=True, value=True)
+    if not ctrl:
+        return default
+    try:
+        if mc.control(ctrl, exists=True):
+            return mc.intSliderGrp(ctrl, q=True, value=True)
+    except Exception:
+        pass
     return default
 
 
 def _safe_opt(name, default_label=None):
     ctrl = state.get(name)
-    if ctrl and mc.control(ctrl, exists=True):
-        return mc.optionMenu(ctrl, q=True, value=True)
+    if not ctrl:
+        return default_label
+    try:
+        if mc.control(ctrl, exists=True):
+            return mc.optionMenu(ctrl, q=True, value=True)
+    except Exception:
+        pass
     return default_label
 
 
 def _safe_cb(name, default=True):
     ctrl = state.get(name)
-    if ctrl and mc.control(ctrl, exists=True):
-        return mc.checkBox(ctrl, q=True, value=True)
+    if not ctrl:
+        return default
+    try:
+        if mc.control(ctrl, exists=True):
+            return mc.checkBox(ctrl, q=True, value=True)
+    except Exception:
+        pass
     return default
 
 
 def _safe_set_opt(name, value):
     ctrl = state.get(name)
-    if ctrl and mc.control(ctrl, exists=True):
-        mc.optionMenu(ctrl, e=True, value=value)
+    if not ctrl:
+        return
+    try:
+        if mc.control(ctrl, exists=True):
+            mc.optionMenu(ctrl, e=True, value=value)
+    except Exception:
+        pass
 
 
 def _safe_set_val(name, value):
     ctrl = state.get(name)
-    if ctrl and mc.control(ctrl, exists=True):
-        mc.floatSliderGrp(ctrl, e=True, value=value)
+    if not ctrl:
+        return
+    try:
+        if mc.control(ctrl, exists=True):
+            mc.floatSliderGrp(ctrl, e=True, value=value)
+    except Exception:
+        pass
 
 
 def _safe_set_int(name, value):
     ctrl = state.get(name)
-    if ctrl and mc.control(ctrl, exists=True):
-        mc.intSliderGrp(ctrl, e=True, value=value)
+    if not ctrl:
+        return
+    try:
+        if mc.control(ctrl, exists=True):
+            mc.intSliderGrp(ctrl, e=True, value=value)
+    except Exception:
+        pass
 
 
 def _safe_set_cb(name, value):
     ctrl = state.get(name)
-    if ctrl and mc.control(ctrl, exists=True):
-        mc.checkBox(ctrl, e=True, value=value)
+    if not ctrl:
+        return
+    try:
+        if mc.control(ctrl, exists=True):
+            mc.checkBox(ctrl, e=True, value=value)
+    except Exception:
+        pass
 
 
 def _safe_set_txt(name, value):
     ctrl = state.get(name)
-    if ctrl and mc.control(ctrl, exists=True):
-        mc.textField(ctrl, e=True, text=str(value))
+    if not ctrl:
+        return
+    try:
+        if mc.control(ctrl, exists=True):
+            mc.textField(ctrl, e=True, text=str(value))
+    except Exception:
+        pass
 
 
 # ── helpers ──────────────────────────────────────────────────
@@ -103,14 +148,14 @@ def _collect_mecha():
         for spec in get_slider_specs(module):
             key = f'{module}.{spec["key"]}'
             ctrl = state.get(key)
-            if ctrl:
+            if ctrl and mc.control(ctrl, exists=True):
                 adv[spec['key']] = mc.floatSliderGrp(ctrl, q=True, value=True)
 
     def _resolve_style(labels, ctrl_name, default):
         label = _safe_opt(ctrl_name)
         return labels.get(label, default) if label else default
 
-    return {
+    params = {
         'height_scale': _safe_val('height_sl', 1.0),
         'symmetry': _safe_cb('sym_cb', True),
         'use_head': True,
@@ -126,6 +171,9 @@ def _collect_mecha():
         'nucleus_style': _resolve_style(NUCLEUS_STYLE_LABELS, 'nucleus_style_menu', 'ring'),
         **adv,
     }
+    if state._MODE[0] == 'quick':
+        params.update(state._QUICK_MECHA_OVERRIDES)
+    return params
 
 
 def _collect_terrain():
@@ -144,6 +192,8 @@ def _collect_terrain():
         result['skyline_distance_z'] = _safe_val('t_sky_z_sl', -55.0)
     if state.get('t_sky_sp_sl'):
         result['skyline_spread_x'] = _safe_val('t_sky_sp_sl', 40.0)
+    if state._MODE[0] == 'quick':
+        result.update(state._QUICK_TERRAIN_OVERRIDES)
     return result
 
 
@@ -226,6 +276,12 @@ def on_generar(*_):
         terrain_grp = _build_terrain(seed, support_edges=False)
         if terrain_grp and mc.objExists(terrain_grp):
             mc.parent(terrain_grp, scene_grp)
+        if state._QUICK_PALETTE[0]:
+            try:
+                from ui.panels.material_panel import apply_palette_quick
+                apply_palette_quick(state._QUICK_PALETTE[0])
+            except Exception as e:
+                print(f'[RetroMecha][Quick] No se pudo aplicar paleta: {e}')
         mc.select(scene_grp)
     return sc.scene_update(_work)
 
@@ -234,21 +290,44 @@ def on_generar(*_):
 
 def _random_module_adv(module):
     for spec in get_slider_specs(module):
-        ctrl = state.get(f'{module}.{spec["key"]}')
-        if ctrl:
-            mc.floatSliderGrp(
-                ctrl, e=True,
-                value=random.uniform(float(spec['min']), float(spec['max'])),
-            )
+        key = f'{module}.{spec["key"]}'
+        ctrl = state.get(key)
+        if not ctrl:
+            continue
+        try:
+            if mc.control(ctrl, exists=True):
+                mc.floatSliderGrp(
+                    ctrl, e=True,
+                    value=random.uniform(float(spec['min']), float(spec['max'])),
+                )
+        except Exception:
+            pass
 
 
 def _set_random_mecha_controls():
+    quick_values = {
+        'height_scale': random.uniform(0.50, 2.0),
+        'symmetry': random.choice([True, False]),
+        'use_arms': random.random() > 0.18,
+        'use_wings': random.random() > 0.28,
+        'use_energy_fields': random.random() > 0.25,
+        'head_style': random.choice(list(HEAD_STYLE_LABELS.values())),
+        'arm_style': random.choice(list(ARM_STYLE_LABELS.values())),
+        'arm_style_right': random.choice(list(ARM_STYLE_LABELS.values())),
+        'wing_style': random.choice(list(WING_STYLE_LABELS.values())),
+        'wing_style_right': random.choice(list(WING_STYLE_LABELS.values())),
+        'torso_style': random.choice(list(TORSO_STYLE_LABELS.values())),
+        'nucleus_style': random.choice(list(NUCLEUS_STYLE_LABELS.values())),
+    }
+    if state._MODE[0] == 'quick':
+        state._QUICK_MECHA_OVERRIDES.update(quick_values)
+
     _safe_set_opt('mecha_preset_menu', 'Custom')
-    _safe_set_val('height_sl', random.uniform(0.50, 2.0))
-    _safe_set_cb('sym_cb', random.choice([True, False]))
-    _safe_set_cb('arms_cb', random.random() > 0.18)
-    _safe_set_cb('wings_cb', random.random() > 0.28)
-    _safe_set_cb('energy_cb', random.random() > 0.25)
+    _safe_set_val('height_sl', quick_values['height_scale'])
+    _safe_set_cb('sym_cb', quick_values['symmetry'])
+    _safe_set_cb('arms_cb', quick_values['use_arms'])
+    _safe_set_cb('wings_cb', quick_values['use_wings'])
+    _safe_set_cb('energy_cb', quick_values['use_energy_fields'])
     _safe_set_opt('head_style_menu', random.choice(list(HEAD_STYLE_LABELS.keys())))
     _safe_set_opt('arm_style_menu', random.choice(list(ARM_STYLE_LABELS.keys())))
     _safe_set_opt('arm_style_right_menu', random.choice(list(ARM_STYLE_LABELS.keys())))
@@ -273,21 +352,36 @@ def random_mecha(*_):
 
 
 def randomize_terrain_controls():
+    quick_values = {
+        'monument_scale': random.uniform(3.0, 9.0),
+        'platform_count': random.randint(3, 16),
+        'fragment_count': random.randint(2, 24),
+        'debris_count': random.randint(20, 150),
+        'pillar_count': random.randint(2, 16),
+        'ramp_probability': random.uniform(0.0, 1.0),
+        'ring_max_r': random.uniform(10.0, 35.0),
+        'skyline_count': random.randint(1, 6),
+        'skyline_distance_z': random.uniform(-80.0, -30.0),
+        'skyline_spread_x': random.uniform(20.0, 70.0),
+    }
+    if state._MODE[0] == 'quick':
+        state._QUICK_TERRAIN_OVERRIDES.update(quick_values)
+
     state._APPLYING_TERRAIN_VALUES[0] = True
     try:
-        _safe_set_val('t_mon_sl', random.uniform(3.0, 9.0))
-        _safe_set_int('t_plat_sl', random.randint(3, 16))
-        _safe_set_int('t_frag_sl', random.randint(2, 24))
-        _safe_set_int('t_deb_sl', random.randint(20, 150))
-        _safe_set_int('t_pil_sl', random.randint(2, 16))
-        _safe_set_val('t_ramp_sl', random.uniform(0.0, 1.0))
-        _safe_set_val('t_ring_sl', random.uniform(10.0, 35.0))
+        _safe_set_val('t_mon_sl', quick_values['monument_scale'])
+        _safe_set_int('t_plat_sl', quick_values['platform_count'])
+        _safe_set_int('t_frag_sl', quick_values['fragment_count'])
+        _safe_set_int('t_deb_sl', quick_values['debris_count'])
+        _safe_set_int('t_pil_sl', quick_values['pillar_count'])
+        _safe_set_val('t_ramp_sl', quick_values['ramp_probability'])
+        _safe_set_val('t_ring_sl', quick_values['ring_max_r'])
         if state.get('t_sky_n_sl'):
-            _safe_set_int('t_sky_n_sl', random.randint(1, 6))
+            _safe_set_int('t_sky_n_sl', quick_values['skyline_count'])
         if state.get('t_sky_z_sl'):
-            _safe_set_val('t_sky_z_sl', random.uniform(-80.0, -30.0))
+            _safe_set_val('t_sky_z_sl', quick_values['skyline_distance_z'])
         if state.get('t_sky_sp_sl'):
-            _safe_set_val('t_sky_sp_sl', random.uniform(20.0, 70.0))
+            _safe_set_val('t_sky_sp_sl', quick_values['skyline_spread_x'])
     finally:
         state._APPLYING_TERRAIN_VALUES[0] = False
 
@@ -339,6 +433,11 @@ def apply_mecha_preset(key):
         return
     state._APPLYING_MECHA_PRESET[0] = True
     try:
+        if state._MODE[0] == 'quick':
+            state._QUICK_MECHA_OVERRIDES.update({
+                k: v for k, v in preset.items()
+                if not k.startswith('_')
+            })
         _safe_set_val('height_sl', preset.get('height_scale', 1.0))
         _safe_set_cb('sym_cb', preset.get('symmetry', True))
         _safe_set_cb('arms_cb', preset.get('use_arms', True))
@@ -368,7 +467,7 @@ def apply_mecha_preset(key):
         for module in ('head', 'arm', 'wing', 'torso', 'nucleus'):
             for spec in get_slider_specs(module):
                 ctrl = state.get(f'{module}.{spec["key"]}')
-                if ctrl and spec['key'] in preset:
+                if ctrl and mc.control(ctrl, exists=True) and spec['key'] in preset:
                     mc.floatSliderGrp(ctrl, e=True, value=preset[spec['key']])
     finally:
         state._APPLYING_MECHA_PRESET[0] = False

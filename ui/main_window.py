@@ -1,9 +1,7 @@
-"""RetroMecha - main_window.py v6
-Three-zone layout: permanent header, dynamic content, permanent footer.
-Supports Rápido/Pro modes.
+"""RetroMecha — main_window.py v8.1
+Header minimalista, switch prominente, footer limpio.
+CRITICAL: try/finally en _switch_mode para nunca atorar _UI_BUILDING.
 """
-
-import random as _random
 
 try:
     import maya.cmds as mc
@@ -13,12 +11,11 @@ except ImportError:
 
 from ui import state
 from ui.scene_utils import on_delimitar
-from ui.widgets import mode_toggle
+from ui.widgets import mode_switch, BG_DARK
 from ui.panels import quick_panel, pro_panel
 
 WIN_ID = 'RetroMechaWindow'
 
-_seed_row = [None]
 _mode_hint = [None]
 
 
@@ -30,7 +27,6 @@ def build_ui(*, recreate: bool = True):
     if mc.window(WIN_ID, exists=True):
         if not recreate:
             mc.showWindow(WIN_ID)
-            print('[RetroMecha] UI ya abierta')
             return
         mc.deleteUI(WIN_ID, window=True)
 
@@ -38,140 +34,101 @@ def build_ui(*, recreate: bool = True):
     state._UI_BUILDING[0] = True
     state._MODE[0] = 'quick'
 
-    win = mc.window(WIN_ID, title='RetroMecha v6',
+    win = mc.window(WIN_ID, title='RetroMecha',
                     sizeable=True, resizeToFitChildren=False,
-                    minimizeButton=True, maximizeButton=False,
-                    width=360, height=640)
+                    width=360, height=560)
 
-    # ── HEADER: fondo oscuro fijo ──────────────────────────
     mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 
-    bg = [0.07, 0.07, 0.12]
-    mc.separator(h=6, style='none', backgroundColor=bg)
-    header_row = mc.rowLayout(nc=3, cw3=[120, 140, 100],
-                               columnAttach3=['both', 'both', 'both'],
-                               columnOffset3=[4, 2, 2],
-                               backgroundColor=bg,
-                               height=30)
-    mc.text(label='RETROMECHA', font='boldLabelFont', align='center',
-            backgroundColor=bg)
-
-    # - seed row (visible only in pro mode)
-    seed_r = mc.rowLayout(nc=3, cw3=[48, 70, 26],
-                           columnAttach3=['both', 'both', 'right'],
-                           columnOffset3=[2, 2, 2],
-                           backgroundColor=bg, visible=False)
-    mc.text(label='Semilla', align='right', font='smallPlainLabelFont',
-            backgroundColor=bg)
+    # ═══════════════════════════════════════════════════════
+    # HEADER
+    # ═══════════════════════════════════════════════════════
+    mc.rowLayout(nc=2, cw2=[140, 220],
+                 columnAttach2=['both', 'both'],
+                 columnOffset2=[6, 4],
+                 backgroundColor=BG_DARK, height=36)
+    mc.text(label='◈  RETROMECHA', font='boldLabelFont', align='left',
+            backgroundColor=BG_DARK)
+    
+    mc.rowLayout(nc=2, cw2=[50, 100])
+    mc.text(label='Semilla', align='right', font='smallPlainLabelFont')
     state.reg('seed_field', mc.textField(
-        width=62, height=18,
-        placeholderText='vacío=random',
-        editable=True,
+        width=90, height=18, placeholderText='auto',
         annotation='Semilla para reproducir generaciones',
     ))
-    mc.button(label='↺', h=18, width=24,
-              backgroundColor=[0.15, 0.15, 0.18],
-              command=lambda *_: (
-                  mc.textField(state.get('seed_field'), e=True,
-                               text=str(_random.randint(0, 99999)))
-              ),
-              annotation='Semilla aleatoria')
     mc.setParent('..')
-    _seed_row[0] = seed_r
-
-    # - mode toggle
-    mode_toggle(_switch_mode)
-
     mc.setParent('..')
-    mc.separator(h=5, style='none', backgroundColor=bg)
-    mc.separator(h=4, style='in')
 
-    # ── DYNAMIC CONTENT ──────────────────────────────────
+    # ── SWITCH RÁPIDO / PRO ────────────────────────────────
+    mc.separator(h=6, style='none', backgroundColor=BG_DARK)
+    mode_switch(_switch_mode, active_mode='quick')
+    mc.separator(h=6, style='none')
+
+    # ═══════════════════════════════════════════════════════
+    # CONTENT
+    # ═══════════════════════════════════════════════════════
     mc.scrollLayout(childResizable=True)
     main_content = mc.columnLayout(adjustableColumn=True, rowSpacing=0)
     state.reg('main_content', main_content)
-
-    # build default (quick)
     quick_panel.build()
-    state._MODE[0] = 'quick'
-
     mc.setParent('..')
 
-    # ── FOOTER: Delimitar + mode hint ─────────────────────
+    # ═══════════════════════════════════════════════════════
+    # FOOTER
+    # ═══════════════════════════════════════════════════════
     mc.separator(h=4, style='in')
-    mc.rowLayout(nc=2, cw2=[160, 190],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[3, 3])
-    mc.button(label='◈ Delimitar escena', h=28,
-              backgroundColor=[0.18, 0.34, 0.42],
-              command=on_delimitar,
-              annotation='Aplica aristas de soporte + smooth preview')
-    hint = mc.text(label='Modo Rápido · 5 decisiones',
-                   align='right', font='smallPlainLabelFont')
-    _mode_hint[0] = hint
+    mc.rowLayout(nc=2, cw2=[180, 180],
+                 columnAttach2=['both', 'both'])
+    mc.button(label='◈ Delimitar Escena', h=26,
+              backgroundColor=[0.16, 0.30, 0.38],
+              command=on_delimitar)
+    _mode_hint[0] = mc.text(label='Modo Rápido · 3 decisiones',
+                            align='right', font='smallPlainLabelFont')
     mc.setParent('..')
-
     mc.separator(h=4, style='none')
 
     state._UI_BUILDING[0] = False
-
     mc.showWindow(win)
-    print('[RetroMecha] UI v6 abierta')
+    print('[RetroMecha] UI v8.1 abierta')
 
-
-# ── mode switching ───────────────────────────────────────────
 
 def _switch_mode(mode):
-    if state._UI_BUILDING[0]:
-        return
-    if mode == state._MODE[0]:
+    if state._UI_BUILDING[0] or mode == state._MODE[0]:
         return
 
-    # Preserve permanent header controls across mode switch
-    saved_seed = state.get('seed_field')
-    saved_main = state.get('main_content')
-
-    state.clear()
     state._UI_BUILDING[0] = True
-    state._MODE[0] = mode
 
-    # Restore permanent controls
-    if saved_seed:
-        state.reg('seed_field', saved_seed)
-    if saved_main:
-        state.reg('main_content', saved_main)
+    try:
+        # 🔥 LIMPIAR controles del modo anterior para no tener referencias stale
+        state.clear_dynamic()
 
-    # show/hide seed row in header
-    seed_row = _seed_row[0]
-    if seed_row and mc.control(seed_row, exists=True):
-        mc.control(seed_row, e=True, visible=(mode == 'pro'))
+        # Actualizar hint
+        if _mode_hint[0] and mc.control(_mode_hint[0], exists=True):
+            label = 'Modo Rápido · aleatorio inmediato' if mode == 'quick' else 'Modo Pro · control total'
+            mc.text(_mode_hint[0], e=True, label=label)
 
-    # rebuild dynamic content
-    main = saved_main
-    if main and mc.control(main, exists=True):
-        children = mc.columnLayout(main, q=True, childArray=True) or []
-        if children:
-            try:
-                mc.deleteUI(children)
-            except Exception:
-                for c in children:
+        main = state.get('main_content')
+        if main and mc.control(main, exists=True):
+            # Borrar todo lo que esté dentro de main
+            children = mc.columnLayout(main, q=True, childArray=True) or []
+            for c in children:
+                if c and mc.control(c, exists=True):
                     try:
                         mc.deleteUI(c)
                     except Exception:
                         pass
+            
+            # Reconstruir desde main
+            mc.setParent(main)
+            if mode == 'quick':
+                quick_panel.build()
+            else:
+                pro_panel.build()
+            mc.setParent('..')
 
-    if mode == 'quick':
-        quick_panel.build()
-    else:
-        pro_panel.build()
-        from ui.build_actions import _toggle_symmetry_ui
-        _toggle_symmetry_ui()
+        state._MODE[0] = mode
 
-    hint_ctrl = _mode_hint[0]
-    if hint_ctrl and mc.control(hint_ctrl, exists=True):
-        if mode == 'quick':
-            mc.text(hint_ctrl, e=True, label='Modo Rápido · 5 decisiones')
-        else:
-            mc.text(hint_ctrl, e=True, label='Modo Pro · control total')
-
-    state._UI_BUILDING[0] = False
+    except Exception as e:
+        print(f'[RetroMecha] Error cambiando a {mode}: {e}')
+    finally:
+        state._UI_BUILDING[0] = False
