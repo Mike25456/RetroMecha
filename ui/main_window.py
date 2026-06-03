@@ -158,5 +158,12 @@ def build_ui(*, recreate: bool = True):
 
     state._UI_BUILDING[0] = False
     _toggle_symmetry_ui()
+
+    try:
+        from utils.camera import create_default_camera
+        create_default_camera(frame_mecha=True, look_through=True)
+    except Exception as e:
+        print(f'[RetroMecha] Camera: {e}')
+
     mc.showWindow(win)
     print('[RetroMecha] UI v6 abierta (Escena | Rendering)')

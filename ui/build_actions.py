@@ -17,14 +17,6 @@ from ui.constants import (
 )
 from ui.module_advanced import get_slider_specs
 
-# Paleta aiToon (no esta en ui.constants — uso local)
-_AITOON_PALETTE_LABELS = {
-    'Industrial': 'industrial',
-    'Oxidado':    'oxidado',
-    'Artico':     'artico',
-    'Carmesi':    'carmesi',
-}
-
 
 # ── helpers ──────────────────────────────────────────────────
 
@@ -303,16 +295,6 @@ def random_all(*_):
             materialize_mecha(mecha_grp)
         except Exception as e:
             print(f'[RetroMecha][Random] Lambert: {e}')
-
-    # Apply random aiToon palette via rendering panel menu (si Arnold cargado)
-    rand_palette_label = random.choice(list(_AITOON_PALETTE_LABELS.keys()))
-    if mecha_grp:
-        try:
-            from utils.material_assigner import assign_palette_to_group, clear_material_cache
-            clear_material_cache()
-            assign_palette_to_group(mecha_grp, _AITOON_PALETTE_LABELS[rand_palette_label])
-        except Exception as e:
-            print(f'[RetroMecha][Random] aiToon: {e}')
 
     # Idle animation + playback
     if mecha_grp:
