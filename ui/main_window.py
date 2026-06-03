@@ -52,24 +52,27 @@ def build_ui(*, recreate: bool = True):
     _clear_state()
     state._UI_BUILDING[0] = True
 
-    # resizeToFitChildren=False + height explicito: el scrollLayout interno
-    # tiene tamaño natural pequeño, asi que con resizeToFitChildren=True la
-    # ventana se encogia y solo mostraba el primer panel.
+    # ── Ventana sin resizeToFitChildren — formLayout controla el layout ──────
+    # columnLayout como raiz NO estira la altura del tabLayout.
+    # formLayout SI permite anclar el tabLayout al borde inferior de la ventana.
     win = mc.window(WIN_ID, title='RetroMecha v6',
                     sizeable=True, resizeToFitChildren=False,
                     minimizeButton=True, maximizeButton=False,
                     width=380, height=720)
 
-    root = mc.columnLayout(adjustableColumn=True, rowSpacing=0)
+    # formLayout raiz — es el unico layout que permite attachForm 'bottom'
+    root_form = mc.formLayout()
 
-    # ── header ──────────────────────────────────────────────
+    # ── Header (columnLayout dentro del form) ────────────────────────────────
+    # Se mide por su contenido; el form lo ancla arriba.
+    header = mc.columnLayout(adjustableColumn=True, rowSpacing=0)
+
     mc.separator(h=8, style='none')
     mc.text(label='RETROMECHA - GENERADOR PROCEDURAL',
             font='boldLabelFont', align='center', h=28,
             backgroundColor=[0.10, 0.30, 0.48])
     mc.separator(h=6, style='in')
 
-    # ── seed (compartida entre pestañas) ────────────────────
     mc.rowLayout(nc=2, cw2=[60, 300],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[4, 4])
@@ -82,11 +85,13 @@ def build_ui(*, recreate: bool = True):
     mc.setParent('..')
     mc.separator(h=6, style='none')
 
-    # ── tabs ────────────────────────────────────────────────
+    mc.setParent('..')  # cierra header (columnLayout) → vuelve a root_form
+
+    # ── tabLayout — ocupa todo el espacio bajo el header ─────────────────────
     tabs = mc.tabLayout(innerMarginWidth=4, innerMarginHeight=4)
 
-    # ── Tab 1: ESCENA ────────────────────────────────────────
-    escena_scroll = mc.scrollLayout(childResizable=True, parent=tabs)
+    # Tab 1: ESCENA
+    escena_scroll = mc.scrollLayout(childResizable=True)
     mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 
     mecha_panel.build()
@@ -94,7 +99,7 @@ def build_ui(*, recreate: bool = True):
     animation_panel.build()
     material_panel.build()
 
-    # global buttons
+    # botones globales
     mc.separator(h=8, style='in')
     mc.rowLayout(nc=3, cw3=[118, 118, 118],
                  columnAttach3=['both', 'both', 'both'],
@@ -120,22 +125,38 @@ def build_ui(*, recreate: bool = True):
               annotation='Aplica aristas de soporte + smooth preview')
 
     mc.separator(h=6, style='none')
-    mc.setParent('..')   # cierra columnLayout interno
-    mc.setParent('..')   # cierra scrollLayout escena
+    mc.setParent('..')  # cierra columnLayout interno
+    mc.setParent('..')  # cierra escena_scroll → vuelve a tabs
 
-    # ── Tab 2: RENDERING ────────────────────────────────────
-    rendering_scroll = mc.scrollLayout(childResizable=True, parent=tabs)
+    # Tab 2: RENDERING
+    rendering_scroll = mc.scrollLayout(childResizable=True)
     rendering_panel.build()
-    mc.setParent('..')   # cierra scrollLayout rendering
+    mc.setParent('..')  # cierra rendering_scroll → vuelve a tabs
 
-    # ── etiquetas pestañas ──────────────────────────────────
+    # etiquetas de pestañas
     mc.tabLayout(tabs, edit=True,
                  tabLabel=((escena_scroll, 'Escena'),
                            (rendering_scroll, 'Rendering')))
 
+    mc.setParent('..')  # cierra tabs → vuelve a root_form
+
+    # ── Anclar con formLayout ─────────────────────────────────────────────────
+    # header: pegado arriba, izquierda y derecha.
+    # tabs:   pegado a izquierda, derecha y ABAJO; su borde superior toca header.
+    # Resultado: tabs ocupa TODO el espacio restante — scrollLayout funciona.
+    mc.formLayout(root_form, edit=True,
+        attachForm=[
+            (header, 'top',    0),
+            (header, 'left',   0),
+            (header, 'right',  0),
+            (tabs,   'left',   0),
+            (tabs,   'right',  0),
+            (tabs,   'bottom', 0),
+        ],
+        attachControl=[(tabs, 'top', 0, header)],
+    )
+
     state._UI_BUILDING[0] = False
-    # Se ejecuta una vez despues del build inicial para ocultar/mostrar filas
-    # dependientes de simetria sin disparar rebuilds durante la construccion.
     _toggle_symmetry_ui()
     mc.showWindow(win)
     print('[RetroMecha] UI v6 abierta (Escena | Rendering)')
