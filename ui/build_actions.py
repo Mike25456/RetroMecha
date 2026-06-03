@@ -243,6 +243,25 @@ def _build_terrain(seed, support_edges=True):
     return tb.build()
 
 
+# ── idle animation helper ────────────────────────────────────
+
+def _apply_idle_to_mecha():
+    """Aplica animacion idle + auto-play al mecha en escena."""
+    mecha_root = sc.find_mecha_group()
+    if not mecha_root:
+        return
+    try:
+        from animations.registry import get_animation
+        anim_cls = get_animation('idle')
+        if anim_cls:
+            anim = anim_cls(mecha_root)
+            anim.apply()
+            mc.currentTime(0)
+            mc.play(forward=True)
+    except Exception as e:
+        print(f'[RetroMecha][Anim] No se pudo aplicar idle: {e}')
+
+
 # ── rebuild ──────────────────────────────────────────────────
 
 def rebuild_mecha(*_):
@@ -255,6 +274,7 @@ def rebuild_mecha(*_):
             sc.parent_to_scene(grp)
             sc.mark_undelimited(sc.find_scene_group() or grp)
             mc.select(grp)
+        _apply_idle_to_mecha()
     return sc.scene_update(_work)
 
 
@@ -304,6 +324,9 @@ def on_generar(*_):
             create_default_camera(frame_mecha=True, look_through=True)
         except Exception as e:
             print(f'[RetroMecha][Generar] Camara: {e}')
+
+        # Animacion idle + auto-play
+        _apply_idle_to_mecha()
         mc.select(scene_grp)
     return sc.scene_update(_work)
 
