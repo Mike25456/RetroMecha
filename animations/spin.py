@@ -52,10 +52,6 @@ float $lookDown = $spin * -35.0;'''
 
         V = self._VARS
 
-        # Lift group: aisla el mecha del suelo sin tocar la expresion.
-        # Editar 'rm_anim_offset_*.translateY' para ajustar altura.
-        self._ensure_anim_offset_group(default_y=0.6)
-
         root_ty = self._attr(ROOT, 'translateY')
         root_rx = self._attr(ROOT, 'rotateX')
         root_ry = self._attr(ROOT, 'rotateY')
@@ -137,5 +133,6 @@ float $lookDown = $spin * -35.0;'''
         mc.playbackOptions(min=0, max=self.FRAMES,
                            animationStartTime=0, animationEndTime=self.FRAMES)
         mc.currentTime(0)
+        self._reset_root_channels()
 
         print('[RetroMecha][Spin] Animacion eliminada')

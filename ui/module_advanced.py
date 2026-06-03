@@ -9,6 +9,12 @@ _CONFIG_PATH = Path(__file__).resolve().parent.parent / 'config' / 'module_advan
 _CACHE: dict | None = None
 
 
+def invalidate_cache():
+    """Forzar recarga de module_advanced.json durante la sesion actual."""
+    global _CACHE
+    _CACHE = None
+
+
 def _load_all() -> dict:
     global _CACHE
     if _CACHE is not None:

@@ -49,10 +49,6 @@ class FlightAnimation(BaseAnimation):
                 except Exception:
                     pass
 
-        # Lift group: garantiza que el min de la curva (y=-0.5) no toque suelo.
-        # Editar 'rm_anim_offset_*.translateY' para ajustar altura global.
-        self._ensure_anim_offset_group(default_y=1.0)
-
         # ── Curva figura 8 ──────────────────────────────
         points = []
         STEPS  = 64
@@ -214,5 +210,6 @@ class FlightAnimation(BaseAnimation):
         if ARM_R: self._reset_rotation(ARM_R, ('rx', 'rz'))
         if WING_L: self._reset_rotation(WING_L, ('rz',))
         if WING_R: self._reset_rotation(WING_R, ('rz',))
+        self._reset_root_channels()
 
         print('[RetroMecha][Flight] Animacion eliminada')

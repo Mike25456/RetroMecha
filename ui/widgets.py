@@ -34,9 +34,11 @@ def isl(label, mn, mx, val, on_cc=None, annotation=''):
 
 
 def btn(label, w=140, h=28, bg=None, cmd=None, annotation=''):
-    kwargs = dict(label=label, width=w, height=h, command=cmd, annotation=annotation)
+    kwargs = dict(label=label, width=w, height=h, annotation=annotation)
     if bg:
         kwargs['backgroundColor'] = bg
+    if cmd:
+        kwargs['command'] = cmd
     return mc.button(**kwargs)
 
 
