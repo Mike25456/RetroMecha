@@ -15,7 +15,6 @@ def build():
     mc.frameLayout(
         label='  >  TERRENO',
         collapsable=True, collapse=True,
-        borderStyle='etchedIn',
         backgroundColor=[0.12, 0.22, 0.48],
         marginHeight=6, marginWidth=6,
     )
@@ -55,7 +54,7 @@ def build():
     mc.separator(h=4)
     mc.frameLayout(label='  Skyline avanzado',
                    collapsable=True, collapse=True,
-                   borderStyle='etchedIn', marginHeight=3, marginWidth=4)
+                   marginHeight=3, marginWidth=4)
     mc.columnLayout(adjustableColumn=True, rowSpacing=2)
     state.reg('t_sky_n_sl',  isl('N skylines', 1, 6, 3, on_cc=rebuild_terrain_only,
                                   annotation='Cantidad de franjas skyline al fondo'))

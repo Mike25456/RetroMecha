@@ -32,7 +32,6 @@ def build():
     mc.frameLayout(
         label='  >  MATERIALES  (Viewport 2.0)',
         collapsable=True, collapse=True,
-        borderStyle='etchedIn',
         backgroundColor=[0.40, 0.24, 0.06],
         marginHeight=8, marginWidth=6,
     )

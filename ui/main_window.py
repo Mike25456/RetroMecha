@@ -52,10 +52,13 @@ def build_ui(*, recreate: bool = True):
     _clear_state()
     state._UI_BUILDING[0] = True
 
+    # resizeToFitChildren=False + height explicito: el scrollLayout interno
+    # tiene tamaño natural pequeño, asi que con resizeToFitChildren=True la
+    # ventana se encogia y solo mostraba el primer panel.
     win = mc.window(WIN_ID, title='RetroMecha v6',
-                    sizeable=True, resizeToFitChildren=True,
+                    sizeable=True, resizeToFitChildren=False,
                     minimizeButton=True, maximizeButton=False,
-                    width=380)
+                    width=380, height=720)
 
     root = mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 

@@ -33,7 +33,7 @@ def _adv_section(module):
     mc.frameLayout(
         label=f'  {spec.get("frame_label", f"{module.capitalize()} — avanzado")}',
         collapsable=True, collapse=True,
-        borderStyle='etchedIn', marginHeight=4, marginWidth=4,
+        marginHeight=4, marginWidth=4,
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=2)
     for s in get_slider_specs(module):
@@ -93,7 +93,6 @@ def build():
     mc.frameLayout(
         label='  >  MECHA',
         collapsable=True, collapse=False,
-        borderStyle='etchedIn',
         backgroundColor=[0.10, 0.36, 0.24],
         marginHeight=6, marginWidth=6,
     )
