@@ -125,6 +125,15 @@ def clean_animations():
             pass
 
 
+def clean_camera():
+    """Borra la camara default 'rm_camera_compo' creada por RetroMecha."""
+    try:
+        from utils.camera import remove_camera
+        remove_camera()
+    except Exception:
+        pass
+
+
 def clean_lighting():
     """Borra luces direccionales con tag rmLight y aiSkyDomeLight de RetroMecha."""
     for shape in (mc.ls(type='directionalLight') or []):
@@ -169,6 +178,7 @@ def clean_scene():
     delete_nodes(nodes)
 
     clean_lighting()
+    clean_camera()
 
 
 def clean_mecha():

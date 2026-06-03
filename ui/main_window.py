@@ -1,5 +1,5 @@
-"""RetroMecha - main_window.py v5
-Thin orchestrator — delegates section building to panel modules.
+"""RetroMecha - main_window.py v6
+Pestañas Escena (mecha + terreno + materiales VP2.0) y Rendering (Arnold + luces).
 """
 
 try:
@@ -11,7 +11,13 @@ except ImportError:
 from ui import state
 from ui.scene_utils import on_delimitar
 from ui.build_actions import on_generar, random_all, on_reset, _toggle_symmetry_ui
-from ui.panels import mecha_panel, terrain_panel, animation_panel, material_panel
+from ui.panels import (
+    mecha_panel,
+    terrain_panel,
+    animation_panel,
+    material_panel,
+    rendering_panel,
+)
 
 WIN_ID = 'RetroMechaWindow'
 
@@ -46,13 +52,12 @@ def build_ui(*, recreate: bool = True):
     _clear_state()
     state._UI_BUILDING[0] = True
 
-    win = mc.window(WIN_ID, title='RetroMecha v5',
-                    sizeable=True, resizeToFitChildren=False,
+    win = mc.window(WIN_ID, title='RetroMecha v6',
+                    sizeable=True, resizeToFitChildren=True,
                     minimizeButton=True, maximizeButton=False,
-                    width=360, height=720)
+                    width=380)
 
-    mc.scrollLayout(childResizable=True)
-    mc.columnLayout(adjustableColumn=True, rowSpacing=0)
+    root = mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 
     # ── header ──────────────────────────────────────────────
     mc.separator(h=8, style='none')
@@ -61,8 +66,8 @@ def build_ui(*, recreate: bool = True):
             backgroundColor=[0.10, 0.30, 0.48])
     mc.separator(h=6, style='in')
 
-    # ── seed ────────────────────────────────────────────────
-    mc.rowLayout(nc=2, cw2=[60, 280],
+    # ── seed (compartida entre pestañas) ────────────────────
+    mc.rowLayout(nc=2, cw2=[60, 300],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[4, 4])
     mc.text(label='Semilla', align='right', font='smallPlainLabelFont')
@@ -72,17 +77,23 @@ def build_ui(*, recreate: bool = True):
         annotation='Número de semilla para reproducir generaciones',
     ))
     mc.setParent('..')
-    mc.separator(h=8, style='none')
+    mc.separator(h=6, style='none')
 
-    # ── sections ────────────────────────────────────────────
+    # ── tabs ────────────────────────────────────────────────
+    tabs = mc.tabLayout(innerMarginWidth=4, innerMarginHeight=4)
+
+    # ── Tab 1: ESCENA ────────────────────────────────────────
+    escena_scroll = mc.scrollLayout(childResizable=True, parent=tabs)
+    mc.columnLayout(adjustableColumn=True, rowSpacing=0)
+
     mecha_panel.build()
     terrain_panel.build()
     animation_panel.build()
     material_panel.build()
 
-    # ── global buttons (bottom) ─────────────────────────────
+    # global buttons
     mc.separator(h=8, style='in')
-    mc.rowLayout(nc=3, cw3=[114, 114, 114],
+    mc.rowLayout(nc=3, cw3=[118, 118, 118],
                  columnAttach3=['both', 'both', 'both'],
                  columnOffset3=[3, 3, 3])
     mc.button(label='Generar', h=38,
@@ -106,10 +117,22 @@ def build_ui(*, recreate: bool = True):
               annotation='Aplica aristas de soporte + smooth preview')
 
     mc.separator(h=6, style='none')
+    mc.setParent('..')   # cierra columnLayout interno
+    mc.setParent('..')   # cierra scrollLayout escena
+
+    # ── Tab 2: RENDERING ────────────────────────────────────
+    rendering_scroll = mc.scrollLayout(childResizable=True, parent=tabs)
+    rendering_panel.build()
+    mc.setParent('..')   # cierra scrollLayout rendering
+
+    # ── etiquetas pestañas ──────────────────────────────────
+    mc.tabLayout(tabs, edit=True,
+                 tabLabel=((escena_scroll, 'Escena'),
+                           (rendering_scroll, 'Rendering')))
 
     state._UI_BUILDING[0] = False
     # Se ejecuta una vez despues del build inicial para ocultar/mostrar filas
     # dependientes de simetria sin disparar rebuilds durante la construccion.
     _toggle_symmetry_ui()
     mc.showWindow(win)
-    print('[RetroMecha] UI v5 abierta')
+    print('[RetroMecha] UI v6 abierta (Escena | Rendering)')
