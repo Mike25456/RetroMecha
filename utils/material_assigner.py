@@ -1,6 +1,6 @@
 """
 RetroMecha — utils/material_assigner.py
-Asigna materiales aiToon a las piezas del mecha según su tier visual.
+Asigna materiales aiToon (Arnold) o Lambert (Viewport 2.0) a las piezas del mecha.
 
 Tiers:
   ARMOR  → superficie principal (main, body, surface)
@@ -13,7 +13,6 @@ Usa config/materials.json para definir paletas y reglas de clasificación.
 
 import os
 import json
-import random
 
 try:
     import maya.cmds as mc
@@ -22,8 +21,11 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 
-# Cache de materiales creados — evita recrear el mismo aiToon
+# Cache de materiales creados — evita recrear el mismo shader
 _MATERIAL_CACHE: dict = {}
+
+# Resultado cacheado de la detección de Arnold para la sesión
+_ARNOLD_CHECKED: list = [False, False]   # [ya_comprobado, resultado]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -33,13 +35,19 @@ _MATERIAL_CACHE: dict = {}
 def assign_palette_to_group(group: str, palette_name: str = 'industrial'):
     """
     Recorre todos los meshes hijos del grupo y les asigna el material
-    aiToon correspondiente a su tier.
+    aiToon (Arnold) o Lambert (VP2.0) correspondiente a su tier.
 
     Args:
         group:        nombre del grupo de Maya (ej: 'rm_head_1')
         palette_name: 'industrial' | 'oxidado' | 'artico' | 'carmesi'
     """
-    if not MAYA_AVAILABLE or not palette_name:
+    if not MAYA_AVAILABLE:
+        print('[RetroMecha][materials] Maya no disponible')
+        return
+    if not palette_name:
+        return
+    if not group or not mc.objExists(group):
+        print(f'[RetroMecha][materials] Grupo no encontrado: {group}')
         return
 
     palette = _load_palette(palette_name)
@@ -47,9 +55,12 @@ def assign_palette_to_group(group: str, palette_name: str = 'industrial'):
         print(f'[RetroMecha][materials] Paleta "{palette_name}" no encontrada')
         return
 
+    arnold_available = _has_arnold()
+    renderer_label = 'Arnold/aiToon' if arnold_available else 'Lambert/VP2.0'
+    print(f'[RetroMecha][materials] Aplicando paleta "{palette_name}" [{renderer_label}]')
+
     classification = _load_classification()
 
-    # Listar todos los meshes descendientes
     descendants = mc.listRelatives(group, allDescendents=True,
                                    type='transform', fullPath=True) or []
     descendants.append(group)
@@ -57,7 +68,6 @@ def assign_palette_to_group(group: str, palette_name: str = 'industrial'):
     counts = {'ARMOR': 0, 'JOINT': 0, 'DETAIL': 0, 'GLOW': 0, 'skipped': 0}
 
     for node in descendants:
-        # Solo asignar a transforms que tengan mesh
         shapes = mc.listRelatives(node, shapes=True, type='mesh') or []
         if not shapes:
             counts['skipped'] += 1
@@ -67,20 +77,21 @@ def assign_palette_to_group(group: str, palette_name: str = 'industrial'):
         tier  = _classify_node(short, classification)
 
         try:
-            _assign_aitoon(node, tier, palette, palette_name)
+            _assign_palette_material(node, tier, palette, palette_name)
             counts[tier] += 1
         except Exception as e:
-            print(f'[RetroMecha][materials] error en {short}: {e}')
+            print(f'[RetroMecha][materials] Error en {short} ({tier}): {e}')
 
-    print(f'[RetroMecha][materials] Paleta "{palette_name}" aplicada: '
+    print(f'[RetroMecha][materials] "{palette_name}" aplicada: '
           f'ARMOR={counts["ARMOR"]} JOINT={counts["JOINT"]} '
           f'DETAIL={counts["DETAIL"]} GLOW={counts["GLOW"]} '
           f'(omitidos: {counts["skipped"]})')
 
 
 def clear_material_cache():
-    """Limpia el cache. Útil al regenerar todo el mecha."""
+    """Limpia el cache. Llamar antes de regenerar el mecha."""
     _MATERIAL_CACHE.clear()
+    _ARNOLD_CHECKED[0] = False
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -90,101 +101,119 @@ def clear_material_cache():
 def _classify_node(node_name: str, rules: dict) -> str:
     """
     Determina el tier de un nodo según su nombre.
-    Orden de evaluación: GLOW → JOINT → DETAIL → ARMOR (catch-all)
+    Orden: GLOW → JOINT → DETAIL → ARMOR (catch-all)
     """
     for tier in ('GLOW', 'JOINT', 'DETAIL'):
-        patterns = rules.get(tier, [])
-        for pattern in patterns:
+        for pattern in rules.get(tier, []):
             if pattern in node_name:
                 return tier
     return 'ARMOR'
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  ASIGNACIÓN DE aiToon
+#  ASIGNACIÓN
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _assign_aitoon(node: str, tier: str, palette: dict, palette_name: str):
-    """Crea (o reusa del cache) el aiToon del tier y lo asigna al nodo."""
+def _assign_palette_material(node: str, tier: str, palette: dict, palette_name: str):
+    """Crea (o reutiliza del cache) el shader del tier y lo asigna al nodo."""
     cache_key = f'{palette_name}_{tier}'
-    shading_group = _MATERIAL_CACHE.get(cache_key)
+    sg = _MATERIAL_CACHE.get(cache_key)
 
-    if shading_group is None or not mc.objExists(shading_group):
-        shading_group = _create_aitoon_material(tier, palette, palette_name)
-        _MATERIAL_CACHE[cache_key] = shading_group
+    if not sg or not mc.objExists(sg):
+        sg = _create_palette_material(tier, palette, palette_name)
+        _MATERIAL_CACHE[cache_key] = sg
 
-    if shading_group:
+    if sg and mc.objExists(sg):
         try:
-            mc.sets(node, edit=True, forceElement=shading_group)
-        except Exception:
-            pass
+            mc.sets(node, edit=True, forceElement=sg)
+        except Exception as e:
+            print(f'[RetroMecha][materials] No se pudo asignar {sg} a {node}: {e}')
+    else:
+        print(f'[RetroMecha][materials] Shading group inválido para {cache_key}')
 
 
-def _create_aitoon_material(tier: str, palette: dict, palette_name: str) -> str:
+def _create_palette_material(tier: str, palette: dict, palette_name: str) -> str | None:
     """
-    Crea un nodo aiToon con su tonemap (ramp) y silhouette configurados.
-    Devuelve el nombre del shading group.
-
-    Si aiToon no está disponible (sin Arnold/MtoA), cae a Lambert como fallback.
+    Crea un shader aiToon (si Arnold está disponible) o Lambert (VP2.0).
+    Devuelve el nombre del shading group, o None si falla.
     """
     shader_name = f'rm_toon_{palette_name}_{tier.lower()}_mat'
     sg_name     = f'{shader_name}SG'
 
-    if mc.objExists(shader_name):
-        return f'{shader_name}SG' if mc.objExists(f'{shader_name}SG') else None
+    # Reutilizar si ya existe
+    if mc.objExists(shader_name) and mc.objExists(sg_name):
+        return sg_name
 
-    # Intentar aiToon; si falla, usar Lambert
     use_arnold = _has_arnold()
+    shader = None
 
     if use_arnold:
-        shader = mc.shadingNode('aiToon', asShader=True, name=shader_name)
         try:
+            shader = mc.shadingNode('aiToon', asShader=True, name=shader_name)
             _configure_aitoon(shader, tier, palette)
         except Exception as e:
-            print(f'[RetroMecha][materials] aiToon config ({tier}): {e}')
-    else:
-        shader = mc.shadingNode('lambert', asShader=True, name=shader_name)
-        _configure_lambert_fallback(shader, tier, palette)
+            print(f'[RetroMecha][materials] aiToon falló ({tier}), usando Lambert VP2.0: {e}')
+            # Limpiar nodo fallido si quedó a medias
+            for leftover in (shader_name, sg_name):
+                if leftover and mc.objExists(leftover):
+                    try:
+                        mc.delete(leftover)
+                    except Exception:
+                        pass
+            shader = None
+            use_arnold = False
 
-    # Crear shading group
-    sg = mc.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg_name)
-    mc.connectAttr(f'{shader}.outColor', f'{sg}.surfaceShader', force=True)
+    if not use_arnold:
+        try:
+            shader = mc.shadingNode('lambert', asShader=True, name=shader_name)
+            _configure_lambert_fallback(shader, tier, palette)
+        except Exception as e:
+            print(f'[RetroMecha][materials] Error creando Lambert ({tier}): {e}')
+            return None
 
-    return sg
+    if not shader or not mc.objExists(shader):
+        return None
 
+    try:
+        sg = mc.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg_name)
+        mc.connectAttr(f'{shader}.outColor', f'{sg}.surfaceShader', force=True)
+        return sg
+    except Exception as e:
+        print(f'[RetroMecha][materials] Error creando shading group ({tier}): {e}')
+        return None
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  CONFIGURACIÓN aiToon (Arnold)
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _configure_aitoon(shader: str, tier: str, palette: dict):
-    """Configura un aiToon según el tier."""
+    """Configura un nodo aiToon según el tier y la paleta."""
     ramp_data = palette.get(tier)
     if ramp_data is None:
         return
 
     if tier == 'GLOW':
-        # Glow: color sólido, emission alto, sin silhouette, sin tonemap
-        rgb = ramp_data  # es [r,g,b] no ramp
+        rgb = ramp_data
         mc.setAttr(f'{shader}.baseTint', rgb[0], rgb[1], rgb[2], type='double3')
         try:
             mc.setAttr(f'{shader}.emission', 1.0)
-            mc.setAttr(f'{shader}.emissionColor', rgb[0], rgb[1], rgb[2],
-                       type='double3')
+            mc.setAttr(f'{shader}.emissionColor', rgb[0], rgb[1], rgb[2], type='double3')
         except Exception:
             pass
         mc.setAttr(f'{shader}.enableSilhouette', 0)
         return
 
-    # ARMOR, JOINT, DETAIL: configurar base + tonemap (ramp)
-    base_color = ramp_data[0][1]   # primer stop
+    # ARMOR, JOINT, DETAIL: base + tonemap ramp + silhouette
+    base_color = ramp_data[0][1]
     mc.setAttr(f'{shader}.baseTint', base_color[0], base_color[1], base_color[2],
                type='double3')
     mc.setAttr(f'{shader}.baseWeight', 0.95)
 
-    # Crear el ramp del tonemap
-    ramp_node = mc.shadingNode('ramp', asTexture=True,
-                                name=f'{shader}_tonemap')
+    ramp_node = mc.shadingNode('ramp', asTexture=True, name=f'{shader}_tonemap')
     _populate_ramp(ramp_node, ramp_data)
     mc.connectAttr(f'{ramp_node}.outColor', f'{shader}.tonemap', force=True)
 
-    # Silhouette (outline cómic)
     mc.setAttr(f'{shader}.enableSilhouette', 1)
     outline_color = palette.get('outline_color', [0.0, 0.0, 0.0])
     outline_width = palette.get('outline_width', 3.0)
@@ -193,7 +222,6 @@ def _configure_aitoon(shader: str, tier: str, palette: dict):
                type='double3')
     mc.setAttr(f'{shader}.silhouetteWidthScale', outline_width)
 
-    # Edge detection — para resaltar biseles duros
     try:
         mc.setAttr(f'{shader}.enableEdges', 1)
         mc.setAttr(f'{shader}.creaseEdgeColor', 0.0, 0.0, 0.0, type='double3')
@@ -204,7 +232,6 @@ def _configure_aitoon(shader: str, tier: str, palette: dict):
 
 def _populate_ramp(ramp_node: str, stops: list):
     """Llena un ramp con los stops dados [(pos, [r,g,b]), ...]."""
-    # Limpiar stops por defecto (Maya crea 2 por defecto)
     for i in range(10):
         try:
             mc.removeMultiInstance(f'{ramp_node}.colorEntryList[{i}]', b=True)
@@ -216,12 +243,16 @@ def _populate_ramp(ramp_node: str, stops: list):
         mc.setAttr(f'{ramp_node}.colorEntryList[{i}].color',
                    rgb[0], rgb[1], rgb[2], type='double3')
 
-    # Interpolación: 0=none (cel-shading duro), 1=linear, 4=smooth
+    # 0=none (cel duro), 1=linear, 4=smooth
     mc.setAttr(f'{ramp_node}.interpolation', 0)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  CONFIGURACIÓN Lambert (Viewport 2.0 fallback)
+# ══════════════════════════════════════════════════════════════════════════════
+
 def _configure_lambert_fallback(shader: str, tier: str, palette: dict):
-    """Si Arnold no está cargado, usar Lambert con el color base del tier."""
+    """Configura un Lambert con el color base del tier (VP2.0 / sin Arnold)."""
     ramp_data = palette.get(tier)
     if ramp_data is None:
         return
@@ -236,9 +267,9 @@ def _configure_lambert_fallback(shader: str, tier: str, palette: dict):
         except Exception:
             pass
     else:
-        # Usar el color medio del ramp
-        mid = ramp_data[len(ramp_data) // 2][1]
-        mc.setAttr(f'{shader}.color', mid[0], mid[1], mid[2], type='double3')
+        # Primer stop = color más claro/base de la paleta
+        base = ramp_data[0][1]
+        mc.setAttr(f'{shader}.color', base[0], base[1], base[2], type='double3')
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -246,32 +277,46 @@ def _configure_lambert_fallback(shader: str, tier: str, palette: dict):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _has_arnold() -> bool:
-    """Verifica si MtoA (Arnold for Maya) está disponible."""
+    """
+    Verifica si el shader aiToon de Arnold está realmente disponible.
+    Comprueba que el tipo de nodo esté registrado, no solo que el plugin figure.
+    Cachea el resultado por sesión para evitar llamadas repetidas.
+    """
     if not MAYA_AVAILABLE:
         return False
+    if _ARNOLD_CHECKED[0]:
+        return _ARNOLD_CHECKED[1]
+
+    result = False
     try:
-        return 'mtoa' in (mc.pluginInfo(q=True, listPlugins=True) or [])
+        # La forma más fiable: comprobar si el tipo de nodo está registrado
+        result = 'aiToon' in (mc.allNodeTypes() or [])
     except Exception:
-        return False
+        result = False
+
+    _ARNOLD_CHECKED[0] = True
+    _ARNOLD_CHECKED[1] = result
+
+    if result:
+        print('[RetroMecha][materials] Arnold/aiToon detectado')
+    else:
+        print('[RetroMecha][materials] Arnold no disponible — usando Lambert VP2.0')
+
+    return result
 
 
 def _load_palette(name: str) -> dict:
-    """Carga una paleta desde config/materials.json."""
     data = _load_config()
     return data.get('_palettes', {}).get(name)
 
 
 def _load_classification() -> dict:
-    """Carga las reglas de clasificación."""
     data = _load_config()
     return data.get('_classification', {})
 
 
 def _load_config() -> dict:
-    """Lee config/materials.json."""
-    path = os.path.join(
-        os.path.dirname(__file__), '..', 'config', 'materials.json'
-    )
+    path = os.path.join(os.path.dirname(__file__), '..', 'config', 'materials.json')
     try:
         if os.path.exists(path):
             with open(path, 'r') as f:
@@ -282,5 +327,4 @@ def _load_config() -> dict:
 
 
 def list_palettes() -> list:
-    """Lista los nombres de paletas disponibles."""
     return list(_load_config().get('_palettes', {}).keys())

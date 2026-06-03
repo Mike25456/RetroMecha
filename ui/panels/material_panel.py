@@ -1,9 +1,8 @@
 """MATERIALES section of the RetroMecha UI.
 
-Coexisten dos sistemas de materiales:
-  - Lambert presets (Mike): rm_white_armor_mat, rm_graphite_mat, ...
-  - aiToon palettes (Ricardo): industrial, oxidado, artico, carmesi
-y un bloque de iluminacion procedural con aiSkyDomeLight.
+Dos sistemas de materiales completamente independientes:
+  - Viewport 2.0 (Lambert): rm_white_armor_mat, rm_graphite_mat, ...
+  - Arnold (aiToon):        paletas industrial, oxidado, artico, carmesi
 """
 
 try:
@@ -19,15 +18,14 @@ from materials.presets import SHADER_NAMES, list_presets, apply_preset
 from utils.maya_materials import ensure_material
 
 _SHADER_LABELS = {
-    'Armadura': 'rm_white_armor_mat',
-    'Estructura': 'rm_graphite_mat',
-    'Brillo': 'rm_cyan_glow_mat',
-    'Terreno base': 'rm_terrain_base_mat',
-    'Terreno oscuro': 'rm_terrain_dark_mat',
-    'Terreno acento': 'rm_terrain_accent_mat',
+    'Armadura':      'rm_white_armor_mat',
+    'Estructura':    'rm_graphite_mat',
+    'Brillo':        'rm_cyan_glow_mat',
+    'Terreno base':  'rm_terrain_base_mat',
+    'Terreno oscuro':'rm_terrain_dark_mat',
+    'Terreno acento':'rm_terrain_accent_mat',
 }
 
-# Paletas aiToon (Ricardo)
 _PALETTE_LABELS = {
     'Industrial': 'industrial',
     'Oxidado':    'oxidado',
@@ -55,85 +53,110 @@ def build():
     )
     mc.columnLayout(adjustableColumn=True, rowSpacing=4)
 
-    # ensure all shaders exist
     for shader_name in SHADER_NAMES:
         ensure_material(shader_name)
 
     presets_list = list_presets()
     _current_shader[0] = 'rm_white_armor_mat'
 
-    # ── Lambert preset dropdown ──
+    # ── VIEWPORT 2.0 (Lambert) ─────────────────────────────────
+    mc.text(
+        label='  VIEWPORT 2.0  (Lambert)',
+        align='left', font='boldLabelFont',
+        backgroundColor=[0.22, 0.18, 0.10],
+    )
+
+    # Preset dropdown + botón aplicar
+    mc.rowLayout(nc=3, cw3=[100, 130, 72],
+                 columnAttach3=['both', 'both', 'both'],
+                 columnOffset3=[0, 4, 4])
+    mc.text(label='Paleta', align='right', font='smallPlainLabelFont')
     if presets_list:
-        _preset_labels = {p: p for p in presets_list}
-        mc.rowLayout(nc=2, cw2=[128, 140],
-                     columnAttach2=['both', 'both'],
-                     columnOffset2=[0, 4])
-        mc.text(label='Paleta Lambert', align='right', font='smallPlainLabelFont',
-                annotation='Aplica una paleta Lambert predefinida')
-        mc.optionMenu(changeCommand=lambda label: _apply_material_preset(label, _preset_labels))
+        lambert_menu = mc.optionMenu(
+            annotation='Preset Lambert: colores base de los 6 shaders')
         for p in presets_list:
             mc.menuItem(label=p)
-        mc.setParent('..')
+        state.reg('lambert_preset_menu', lambert_menu)
     else:
-        mc.text(label='(sin presets Lambert)', align='left', font='smallPlainLabelFont')
+        mc.text(label='(sin presets)', align='left', font='smallPlainLabelFont')
+        state.reg('lambert_preset_menu', None)
+    mc.button(
+        label='Aplicar VP2.0', h=22,
+        backgroundColor=[0.30, 0.44, 0.22],
+        command=lambda *_: _apply_vp2(),
+        annotation='Aplica el preset Lambert y reasigna shaders VP2.0 al mecha',
+    )
+    mc.setParent('..')
 
-    # ── shader selector ──
+    # Editor individual de shader
     mc.separator(h=4)
     mc.rowLayout(nc=2, cw2=[128, 140],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
-    mc.text(label='Shader', align='right', font='smallPlainLabelFont',
+    mc.text(label='Editar shader', align='right', font='smallPlainLabelFont',
             annotation='Selecciona un material para editar sus propiedades')
     mc.optionMenu(changeCommand=_on_shader_sel,
-                  annotation='Cada shader se aplica a multiples piezas del mecha')
+                  annotation='Cada shader se aplica a múltiples piezas del mecha')
     for label in _SHADER_LABELS:
         mc.menuItem(label=label)
     mc.setParent('..')
 
-    # ── color slider ──
     state.reg('color_sl', mc.colorSliderGrp(
         label='Color', rgb=(0.86, 0.84, 0.78),
         columnWidth3=[60, 180, 52],
         changeCommand=_set_shader_color,
         annotation='Color principal del shader (click para abrir selector)',
     ))
-
-    # ── diffuse slider ──
     state.reg('d_sl', fsl('Difuso', 0.0, 1.0, 0.82, on_cc=_set_shader_diffuse,
-                           annotation='Intensidad de luz difusa del material'))
-
-    # ── glow slider ──
+                          annotation='Intensidad de luz difusa del material'))
     state.reg('i_sl', fsl('Brillo', 0.0, 1.0, 0.0, on_cc=_set_shader_incandescence,
-                           annotation='Brillo auto-emitido (solo para shader Brillo)'))
+                          annotation='Brillo auto-emitido (solo shader Brillo)'))
     mc.control(state.get('i_sl'), e=True, visible=False)
 
     _update_shader_sliders()
 
-    # ── aiToon palette (Arnold cel-shading) ──────────────────
-    mc.separator(h=8)
-    mc.text(label='Paleta aiToon (Arnold)', align='left',
-            font='smallPlainLabelFont')
-    mc.rowLayout(nc=2, cw2=[152, 152],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[0, 4])
+    # ── ARNOLD (aiToon) ────────────────────────────────────────
+    mc.separator(h=6)
+    mc.text(
+        label='  ARNOLD  (aiToon)',
+        align='left', font='boldLabelFont',
+        backgroundColor=[0.18, 0.18, 0.28],
+    )
+
+    # Indicador de disponibilidad de Arnold
+    state.reg('arnold_status_text', mc.text(
+        label=_arnold_status_label(),
+        align='left', font='smallPlainLabelFont',
+        annotation='Estado del renderer Arnold en la sesión actual',
+    ))
+
+    mc.rowLayout(nc=3, cw3=[100, 130, 72],
+                 columnAttach3=['both', 'both', 'both'],
+                 columnOffset3=[0, 4, 4])
+    mc.text(label='Paleta', align='right', font='smallPlainLabelFont')
     aitoon_menu = mc.optionMenu(
-        annotation='Selecciona una paleta aiToon con ramps y silhouette')
+        annotation='Paleta aiToon con ramps y silhouette (requiere Arnold)')
     mc.menuItem(label='(ninguna)')
     for lbl in _PALETTE_LABELS:
         mc.menuItem(label=lbl)
     state.reg('aitoon_menu', aitoon_menu)
-    mc.button(label='Aplicar aiToon', h=24,
-              backgroundColor=[0.58, 0.38, 0.12],
-              command=lambda *_: _apply_aitoon_palette(),
-              annotation='Aplica la paleta aiToon al mecha en escena')
+    mc.button(
+        label='Aplicar Arnold', h=22,
+        backgroundColor=[0.58, 0.38, 0.12],
+        command=lambda *_: _apply_aitoon_palette(),
+        annotation='Aplica la paleta aiToon al mecha (requiere Arnold/MtoA)',
+    )
     mc.setParent('..')
 
-    # ── Iluminacion procedural ───────────────────────────────
-    mc.separator(h=8)
-    mc.text(label='Iluminacion procedural', align='left',
-            font='smallPlainLabelFont')
+    # ── ILUMINACIÓN ────────────────────────────────────────────
+    mc.separator(h=6)
+    mc.text(
+        label='  ILUMINACION',
+        align='left', font='boldLabelFont',
+        backgroundColor=[0.20, 0.20, 0.14],
+    )
     lighting_menu = mc.optionMenu(width=308,
-                                   annotation='Preset de iluminacion (incluye aiSkyDomeLight)')
+                                  annotation='Preset de iluminación (incluye aiSkyDomeLight)')
     for lbl in _LIGHTING_LABELS:
         mc.menuItem(label=lbl)
     state.reg('lighting_menu', lighting_menu)
@@ -155,7 +178,47 @@ def build():
     mc.setParent('..')
 
 
-# ── callbacks ────────────────────────────────────────────────
+# ── helpers ──────────────────────────────────────────────────
+
+def _find_mecha_group():
+    from ui import scene_utils as sc
+    return sc.find_mecha_group()
+
+
+def _arnold_status_label() -> str:
+    try:
+        from utils.material_assigner import _has_arnold
+        available = _has_arnold()
+    except Exception:
+        available = False
+    if available:
+        return '  Arnold disponible — se usará aiToon'
+    return '  Arnold no detectado — se usará Lambert como fallback'
+
+
+# ── VP2.0 callbacks ───────────────────────────────────────────
+
+def _apply_vp2(*_):
+    """Aplica el preset Lambert seleccionado y reasigna shaders VP2.0 al mecha."""
+    # 1. Aplicar colores del preset al conjunto de shaders Lambert
+    preset_menu = state.get('lambert_preset_menu')
+    if preset_menu and mc.optionMenu(preset_menu, exists=True):
+        label = mc.optionMenu(preset_menu, q=True, value=True)
+        apply_preset(label)
+        _update_shader_sliders()
+
+    # 2. Reasignar shaders Lambert a todos los meshes del mecha
+    mecha_grp = _find_mecha_group()
+    if not mecha_grp:
+        print('[RetroMecha][VP2.0] No hay mecha en escena')
+        return
+    try:
+        from materials.materializer import materialize_mecha
+        materialize_mecha(mecha_grp)
+        print('[RetroMecha][VP2.0] Materiales Lambert aplicados al mecha')
+    except Exception as e:
+        print(f'[RetroMecha][VP2.0] Error: {e}')
+
 
 def _set_shader_color(*_):
     if _APPLYING_SHADER[0]:
@@ -228,40 +291,33 @@ def _on_shader_sel(label):
         _update_shader_sliders()
 
 
-def _apply_material_preset(label, preset_labels):
-    key = preset_labels.get(label, label)
-    apply_preset(key)
-    _update_shader_sliders()
-
-
-# ── aiToon palette ───────────────────────────────────────────
-
-def _find_mecha_group():
-    from ui import scene_utils as sc
-    return sc.find_mecha_group()
-
+# ── Arnold callbacks ──────────────────────────────────────────
 
 def _apply_aitoon_palette(*_):
     label = mc.optionMenu(state.get('aitoon_menu'), q=True, value=True)
     palette = _PALETTE_LABELS.get(label)
     if not palette:
-        print('[RetroMecha][aiToon] Selecciona una paleta antes de aplicar')
+        print('[RetroMecha][Arnold] Selecciona una paleta antes de aplicar')
         return
     grp = _find_mecha_group()
     if not grp:
-        print('[RetroMecha][aiToon] No hay mecha en escena')
+        print('[RetroMecha][Arnold] No hay mecha en escena')
         return
     try:
         from utils.material_assigner import assign_palette_to_group, clear_material_cache
         clear_material_cache()
         assign_palette_to_group(grp, palette)
+        # Refrescar indicador de Arnold tras aplicar
+        status = state.get('arnold_status_text')
+        if status and mc.text(status, exists=True):
+            mc.text(status, e=True, label=_arnold_status_label())
     except ImportError as e:
-        print(f'[RetroMecha][aiToon] material_assigner no disponible: {e}')
+        print(f'[RetroMecha][Arnold] material_assigner no disponible: {e}')
     except Exception as e:
-        print(f'[RetroMecha][aiToon] Error aplicando paleta: {e}')
+        print(f'[RetroMecha][Arnold] Error aplicando paleta: {e}')
 
 
-# ── Iluminacion ──────────────────────────────────────────────
+# ── Iluminación callbacks ─────────────────────────────────────
 
 def _apply_lighting(*_):
     label = mc.optionMenu(state.get('lighting_menu'), q=True, value=True)

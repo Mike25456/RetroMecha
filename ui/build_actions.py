@@ -33,6 +33,12 @@ TERRAIN_PRESET_MAP = {
     'Avanzada': 'avanzada', 'Hangar': 'hangar',
     'Campo de batalla': 'campo_de_batalla', 'Centinela': 'centinela',
 }
+_AITOON_PALETTE_LABELS = {
+    'Industrial': 'industrial',
+    'Oxidado':    'oxidado',
+    'Artico':     'artico',
+    'Carmesi':    'carmesi',
+}
 
 
 # ── helpers ──────────────────────────────────────────────────
@@ -273,9 +279,47 @@ def random_all(*_):
         randomize_terrain_controls()
     finally:
         state._APPLYING_MECHA_PRESET[0] = False
+
+    # Pick random aiToon palette and update its menu
+    rand_palette_label = random.choice(list(_AITOON_PALETTE_LABELS.keys()))
+    aitoon_menu = state.get('aitoon_menu')
+    if aitoon_menu:
+        mc.optionMenu(aitoon_menu, e=True, value=rand_palette_label)
+
     state._SEED[0] = random.randint(0, 99999)
     mc.textField(state.get('seed_field'), e=True, text=str(state._SEED[0]))
     on_generar()
+
+    # Apply random Lambert color preset and update UI menu
+    from materials.presets import list_presets, apply_preset
+    presets = list_presets()
+    if presets:
+        rand_preset = random.choice(presets)
+        apply_preset(rand_preset)
+        lambert_menu = state.get('lambert_preset_menu')
+        if lambert_menu and mc.optionMenu(lambert_menu, exists=True):
+            mc.optionMenu(lambert_menu, e=True, value=rand_preset)
+
+    # Apply random aiToon palette to mecha group
+    mecha_grp = sc.find_mecha_group()
+    if mecha_grp:
+        try:
+            from utils.material_assigner import assign_palette_to_group, clear_material_cache
+            clear_material_cache()
+            assign_palette_to_group(mecha_grp, _AITOON_PALETTE_LABELS[rand_palette_label])
+        except Exception as e:
+            print(f'[RetroMecha][Random] aiToon: {e}')
+
+    # Apply idle animation by default and start playback
+    if mecha_grp:
+        from animations.registry import get_animation
+        anim_cls = get_animation('idle')
+        if anim_cls:
+            try:
+                anim_cls(mecha_grp).apply()
+                mc.play(forward=True)
+            except Exception as e:
+                print(f'[RetroMecha][Random] Idle: {e}')
 
 
 # ── reset ────────────────────────────────────────────────────
