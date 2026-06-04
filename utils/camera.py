@@ -1,13 +1,21 @@
 """
 RetroMecha - utils/camera.py
-Camara default 'rm_camera_compo' replicando el setup hecho en Maya:
-  focalLength 24.92 | fStop 11.9 | focusDistance 30 | DOF on
-  aperture 1.41732 x 0.94488 | shutter 144 | clip 0.1 - 10000
-La camara se posiciona automaticamente para encuadrar al mecha
-considerando el lift vertical (+6) aplicado al grupo del personaje.
-"""
+Camara default 'Camera_for_render' con la configuracion final del usuario:
 
-import math
+  Transform:
+    translate (-0.211, 0.62, 20.715)
+    rotate    (6.6, 3.6, 0)
+  Shape:
+    horizontalFilmAperture 1.417
+    verticalFilmAperture   0.945
+    focalLength            21.387
+    fStop                  5.6
+    nearClip 0.1 / farClip 10000
+    DOF on
+
+Esta camara reemplaza a la antigua 'rm_camera_compo'. Es la que usa
+el boton Render del panel Rendering (resolucion 1920x1080).
+"""
 
 try:
     import maya.cmds as mc
@@ -16,38 +24,39 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 # Nombre y tag de la camara generada por RetroMecha
-CAMERA_XFORM = 'rm_camera_compo'
+CAMERA_XFORM = 'Camera_for_render'
 CAMERA_TAG   = 'rmCamera'
 
-# ── Setup replicado desde el historial MEL ─────────────────────────────
-FOCAL_LENGTH              = 24.919871
-F_STOP                    = 11.903846
+# ── Setup final (valores exactos del setup del usuario) ─────────────
+FOCAL_LENGTH              = 21.387
+F_STOP                    = 5.6
 FOCUS_DISTANCE            = 30.0
 DEPTH_OF_FIELD            = True
-HORIZONTAL_FILM_APERTURE  = 1.41732
-VERTICAL_FILM_APERTURE    = 0.94488
+HORIZONTAL_FILM_APERTURE  = 1.417
+VERTICAL_FILM_APERTURE    = 0.945
 NEAR_CLIP                 = 0.1
 FAR_CLIP                  = 10000.0
 SHUTTER_ANGLE             = 144.0
 CENTER_OF_INTEREST        = 5.0
 
-# Lift vertical aplicado al mecha en Maya (grupo desplazado +6 en Y)
-MECHA_LIFT_Y = 6.0
+# Posicion y rotacion fijas (del Channel Box del usuario)
+CAM_TRANSLATE = (-0.211, 0.62, 20.715)
+CAM_ROTATE    = (6.6, 3.6, 0.0)
 
-# Encuadre default del mecha (yaw/pitch para hero shot 3/4)
-FRAME_YAW_DEG   = 32.0
-FRAME_PITCH_DEG = 8.0
+# Lift vertical aplicado al mecha (replica el ajuste manual en Maya)
+MECHA_LIFT_Y = 6.0
 
 
 # ══════════════════════════════════════════════════════════════════════
 #  API PUBLICA
 # ══════════════════════════════════════════════════════════════════════
 
-def create_default_camera(*, frame_mecha=True, look_through=True):
-    """Crea (o recrea) la camara compo con la configuracion calibrada.
+def create_default_camera(*, look_through=True, frame_mecha=False):
+    """Crea (o recrea) Camera_for_render con la config final.
 
-    - frame_mecha:  posiciona la camara para encuadrar el mecha existente
-    - look_through: cambia el panel activo para mirar a traves de la camara
+    - look_through: cambia el panel activo para mirar a traves de la camara.
+    - frame_mecha:  False por defecto (posicion fija del usuario);
+                    si True, sobreescribe con un encuadre automatico al mecha.
     """
     if not MAYA_AVAILABLE:
         return None
@@ -80,16 +89,19 @@ def create_default_camera(*, frame_mecha=True, look_through=True):
     xform = mc.rename(xform, CAMERA_XFORM)
     shape = mc.listRelatives(xform, shapes=True)[0]
 
-    # Depth of Field final del setup MEL
+    # Depth of Field
     mc.setAttr(f'{shape}.depthOfField', 1 if DEPTH_OF_FIELD else 0)
     mc.setAttr(f'{shape}.fStop', F_STOP)
     mc.setAttr(f'{shape}.focusDistance', FOCUS_DISTANCE)
 
-    # Tag para limpieza posterior
+    # Tag para limpieza
     if not mc.attributeQuery(CAMERA_TAG, node=xform, exists=True):
         mc.addAttr(xform, longName=CAMERA_TAG,
                    attributeType='bool', defaultValue=True)
     mc.setAttr(f'{xform}.{CAMERA_TAG}', True)
+
+    # Posicion / rotacion fijas
+    _apply_fixed_transform(xform)
 
     if frame_mecha:
         _frame_on_mecha(xform, shape)
@@ -98,15 +110,15 @@ def create_default_camera(*, frame_mecha=True, look_through=True):
         _look_through_in_active_panel(xform)
 
     print(
-        f'[RetroMecha][Camera] {CAMERA_XFORM} creada '
-        f'(focal={FOCAL_LENGTH:.2f}, fStop={F_STOP:.2f}, '
-        f'focus={mc.getAttr(f"{shape}.focusDistance"):.1f}, DOF={DEPTH_OF_FIELD})'
+        f'[RetroMecha][Camera] {CAMERA_XFORM} '
+        f'(focal={FOCAL_LENGTH:.3f}, fStop={F_STOP:.2f}, '
+        f'pos={CAM_TRANSLATE}, rot={CAM_ROTATE})'
     )
     return xform
 
 
 def remove_camera():
-    """Elimina la camara compo si existe."""
+    """Elimina la camara RetroMecha si existe (por tag o por nombre)."""
     if not MAYA_AVAILABLE:
         return
     for shape in (mc.ls(type='camera') or []):
@@ -117,14 +129,15 @@ def remove_camera():
                 mc.delete(xform)
             except Exception:
                 pass
-    if mc.objExists(CAMERA_XFORM):
-        try:
-            mc.delete(CAMERA_XFORM)
-        except Exception:
-            pass
+    for name in (CAMERA_XFORM, 'rm_camera_compo'):  # incluye nombre legacy
+        if mc.objExists(name):
+            try:
+                mc.delete(name)
+            except Exception:
+                pass
 
 
-def has_rm_camera():
+def has_rm_camera() -> bool:
     if not MAYA_AVAILABLE:
         return False
     for shape in (mc.ls(type='camera') or []):
@@ -136,15 +149,14 @@ def has_rm_camera():
 
 
 def look_through_camera():
-    """Hace que el viewport activo mire a traves de la camara compo."""
+    """Hace que el viewport activo mire a traves de Camera_for_render."""
     if not MAYA_AVAILABLE or not mc.objExists(CAMERA_XFORM):
         return
     _look_through_in_active_panel(CAMERA_XFORM)
 
 
-def lift_mecha_default(extra_y=MECHA_LIFT_Y):
-    """Desplaza el grupo del mecha hacia arriba (+Y) por la cantidad indicada.
-    Replica el ajuste manual hecho en Maya: 'movi el personaje +6 en Y'."""
+def lift_mecha_default(extra_y: float = MECHA_LIFT_Y) -> bool:
+    """Desplaza el grupo del mecha hacia arriba (+Y) replicando el ajuste manual."""
     if not MAYA_AVAILABLE:
         return False
     try:
@@ -168,15 +180,38 @@ def lift_mecha_default(extra_y=MECHA_LIFT_Y):
 #  INTERNOS
 # ══════════════════════════════════════════════════════════════════════
 
-def _frame_on_mecha(xform, shape):
-    """Posiciona la camara a FOCUS_DISTANCE del centro del mecha (3/4)."""
-    target = _mecha_center()
-    cx, cy, cz = target
+def _apply_fixed_transform(xform: str):
+    """Aplica las posicion/rotacion fijas del setup del usuario."""
+    try:
+        mc.setAttr(f'{xform}.translateX', CAM_TRANSLATE[0])
+        mc.setAttr(f'{xform}.translateY', CAM_TRANSLATE[1])
+        mc.setAttr(f'{xform}.translateZ', CAM_TRANSLATE[2])
+        mc.setAttr(f'{xform}.rotateX',    CAM_ROTATE[0])
+        mc.setAttr(f'{xform}.rotateY',    CAM_ROTATE[1])
+        mc.setAttr(f'{xform}.rotateZ',    CAM_ROTATE[2])
+    except Exception as e:
+        print(f'[RetroMecha][Camera] Transform error: {e}')
+
+
+def _frame_on_mecha(xform: str, shape: str):
+    """Opcional: sobreescribe la posicion fija con un encuadre auto al mecha."""
+    import math
+    try:
+        from ui.scene_utils import find_mecha_group
+        mecha = find_mecha_group()
+        if mecha and mc.objExists(mecha):
+            bb = mc.exactWorldBoundingBox(mecha)
+            cx = (bb[0] + bb[3]) * 0.5
+            cy = (bb[1] + bb[4]) * 0.5
+            cz = (bb[2] + bb[5]) * 0.5
+        else:
+            cx, cy, cz = 0.0, MECHA_LIFT_Y, 0.0
+    except Exception:
+        cx, cy, cz = 0.0, MECHA_LIFT_Y, 0.0
 
     dist  = FOCUS_DISTANCE
-    yaw   = math.radians(FRAME_YAW_DEG)
-    pitch = math.radians(FRAME_PITCH_DEG)
-
+    yaw   = math.radians(32.0)
+    pitch = math.radians(8.0)
     cam_x = cx + dist * math.cos(pitch) * math.sin(yaw)
     cam_y = cy + dist * math.sin(pitch)
     cam_z = cz + dist * math.cos(pitch) * math.cos(yaw)
@@ -185,34 +220,14 @@ def _frame_on_mecha(xform, shape):
     mc.setAttr(f'{xform}.translateY', cam_y)
     mc.setAttr(f'{xform}.translateZ', cam_z)
 
-    _aim_at(xform, target)
-
-    # Reajustar focusDistance al real (mantiene la sensacion DOF del setup)
+    _aim_at(xform, (cx, cy, cz))
     actual = math.sqrt(
         (cam_x - cx) ** 2 + (cam_y - cy) ** 2 + (cam_z - cz) ** 2
     )
     mc.setAttr(f'{shape}.focusDistance', actual)
 
 
-def _mecha_center():
-    """Centro del bbox del mecha; si no hay mecha usa (0, MECHA_LIFT_Y, 0)."""
-    try:
-        from ui.scene_utils import find_mecha_group
-        mecha = find_mecha_group()
-        if mecha and mc.objExists(mecha):
-            bb = mc.exactWorldBoundingBox(mecha)
-            return (
-                (bb[0] + bb[3]) * 0.5,
-                (bb[1] + bb[4]) * 0.5,
-                (bb[2] + bb[5]) * 0.5,
-            )
-    except Exception:
-        pass
-    return (0.0, MECHA_LIFT_Y, 0.0)
-
-
-def _aim_at(xform, target):
-    """Orienta xform hacia target usando un aimConstraint temporal."""
+def _aim_at(xform: str, target):
     loc = mc.spaceLocator(name='_rm_cam_aim_tmp', position=target)[0]
     try:
         cons = mc.aimConstraint(
@@ -229,8 +244,7 @@ def _aim_at(xform, target):
             mc.delete(loc)
 
 
-def _look_through_in_active_panel(xform):
-    """Pone la camara en el modelPanel con foco; si no hay foco, el primero."""
+def _look_through_in_active_panel(xform: str):
     panel = None
     try:
         focused = mc.getPanel(withFocus=True)

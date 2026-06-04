@@ -1,12 +1,11 @@
-"""Panel RENDERING — Iluminacion + Camara.
+"""Panel RENDERING — Render + Iluminacion (incl. atmosfera) + Camara.
 
 Esta pestaña agrupa lo que NO se gestiona desde la pestaña Escena:
+  - Boton RENDER 1920x1080 (Arnold) desde Camera_for_render
   - Preset de iluminacion (3 opciones)
-  - Sliders de intensidad por luz, intensidad skydome y temperatura
-  - Camara default 'compo'
-
-Los materiales se gestionan completamente desde la pestaña Escena
-(panel MATERIALES). Usan aiStandardSurface cuando Arnold esta cargado.
+  - Sliders de intensidad de luces / skydome / temperatura
+  - Slider de densidad de aiAtmosphereVolume
+  - Camera_for_render: crear / eliminar / look through / lift mecha
 """
 
 try:
@@ -24,9 +23,15 @@ _LIGHTING_PRESET_LABELS = {
     'Retro':     'retro',
 }
 
-DEFAULT_LIGHT_INTENSITY = 1.5
+DEFAULT_LIGHT_INTENSITY   = 1.5
 DEFAULT_SKYDOME_INTENSITY = 0.35
-DEFAULT_TEMPERATURE = 6500
+DEFAULT_TEMPERATURE       = 6500
+
+# Atmosfera (aiAtmosphereVolume)
+DEFAULT_DENSITY = 0.034
+DENSITY_MIN     = 0.02
+DENSITY_MAX     = 0.08
+DEFAULT_ANISOTROPY = 0.666
 
 
 def build():
@@ -36,7 +41,27 @@ def build():
 
     mc.separator(h=8, style='none')
 
+    # ── RENDER ─────────────────────────────────────────────────
+    mc.text(
+        label='  RENDER',
+        align='left', font='boldLabelFont', h=22,
+        backgroundColor=[0.30, 0.10, 0.10],
+    )
+    mc.separator(h=4, style='none')
+    mc.text(
+        label='  1920 x 1080  |  Camera_for_render  |  Arnold',
+        align='left', font='smallPlainLabelFont',
+    )
+    mc.button(
+        label='Render', h=34,
+        backgroundColor=[0.70, 0.18, 0.18],
+        command=lambda *_: _do_render(),
+        annotation='Configura Arnold + resolucion 1920x1080 y lanza el render '
+                   'desde Camera_for_render en la Render View',
+    )
+
     # ── ILUMINACION ────────────────────────────────────────────
+    mc.separator(h=8, style='none')
     mc.text(
         label='  ILUMINACION',
         align='left', font='boldLabelFont', h=22,
@@ -44,7 +69,7 @@ def build():
     )
     mc.separator(h=4, style='none')
 
-    # Preset
+    # Preset de luces
     mc.rowLayout(nc=2, cw2=[120, 200],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
@@ -57,7 +82,7 @@ def build():
     state.reg('render_light_preset_menu', light_preset_menu)
     mc.setParent('..')
 
-    # Sliders
+    # Sliders intensidad/temperatura
     state.reg('render_lights_intensity_sl', fsl(
         'Intensidad luces', 0.0, 5.0, DEFAULT_LIGHT_INTENSITY,
         on_cc=_on_lights_intensity,
@@ -72,7 +97,16 @@ def build():
         'Temperatura (K)', 1500.0, 12000.0, DEFAULT_TEMPERATURE,
         step=100, prec=0,
         on_cc=_on_temperature,
-        annotation='Temperatura de color en Kelvin (3200K=calida, 6500K=neutra, 9000K=fria)',
+        annotation='Temperatura de color en Kelvin (3200K calida, 6500K neutra, 9000K fria)',
+    ))
+
+    # Slider densidad aiAtmosphereVolume
+    state.reg('render_atmosphere_density_sl', fsl(
+        'Densidad atmosfera', DENSITY_MIN, DENSITY_MAX, DEFAULT_DENSITY,
+        step=0.001, prec=3,
+        on_cc=_on_atmosphere_density,
+        annotation='Densidad del aiAtmosphereVolume (volumetrica Arnold). '
+                   f'Rango: {DENSITY_MIN}-{DENSITY_MAX} (default {DEFAULT_DENSITY})',
     ))
 
     mc.rowLayout(nc=2, cw2=[160, 160],
@@ -81,11 +115,11 @@ def build():
     mc.button(label='Crear / Recrear luces', h=26,
               backgroundColor=[0.60, 0.40, 0.14],
               command=lambda *_: _apply_lighting_preset(),
-              annotation='Crea luces direccionales + aiSkyDomeLight')
+              annotation='Crea luces direccionales + aiSkyDomeLight + aiAtmosphereVolume')
     mc.button(label='Eliminar luces', h=26,
               backgroundColor=[0.46, 0.16, 0.12],
               command=lambda *_: _remove_lighting(),
-              annotation='Elimina luces y sky dome creados por RetroMecha')
+              annotation='Elimina luces, sky dome y atmosfera creados por RetroMecha')
     mc.setParent('..')
 
     # ── CAMARA ─────────────────────────────────────────────────
@@ -98,7 +132,8 @@ def build():
     mc.separator(h=4, style='none')
 
     mc.text(
-        label='  Setup compo: focal 24.92  |  fStop 11.9  |  focus 30  |  DOF on',
+        label='  Camera_for_render: focal 21.39  |  fStop 5.6  |  '
+              'pos fija del setup',
         align='left', font='smallPlainLabelFont',
     )
 
@@ -108,12 +143,12 @@ def build():
     mc.button(label='Crear / Recrear camara', h=26,
               backgroundColor=[0.18, 0.46, 0.36],
               command=lambda *_: _apply_default_camera(),
-              annotation='Crea rm_camera_compo con la config del setup MEL '
-                         'y la apunta al mecha actual')
+              annotation='Crea Camera_for_render con la config final del setup '
+                         '(posicion / rotacion fijas del usuario)')
     mc.button(label='Eliminar camara', h=26,
               backgroundColor=[0.46, 0.16, 0.12],
               command=lambda *_: _remove_default_camera(),
-              annotation='Elimina rm_camera_compo de la escena')
+              annotation='Elimina Camera_for_render de la escena')
     mc.setParent('..')
 
     mc.rowLayout(nc=2, cw2=[160, 160],
@@ -122,18 +157,18 @@ def build():
     mc.button(label='Look through', h=26,
               backgroundColor=[0.20, 0.34, 0.44],
               command=lambda *_: _look_through_camera(),
-              annotation='Mira a traves de rm_camera_compo en el panel activo')
+              annotation='Mira a traves de Camera_for_render en el panel activo')
     mc.button(label='Lift mecha +6', h=26,
               backgroundColor=[0.38, 0.30, 0.46],
               command=lambda *_: _lift_mecha_default(),
               annotation='Desplaza el grupo del mecha +6 en Y '
-                         '(replica el ajuste manual del setup compo)')
+                         '(replica el ajuste manual del setup)')
     mc.setParent('..')
 
     mc.separator(h=6, style='none')
     mc.setParent('..')
 
-    # Auto-generar luces al abrir si no hay
+    # Auto-generar luces + atmosfera al abrir si no hay
     _ensure_default_lighting()
 
 
@@ -142,7 +177,7 @@ def build():
 # ══════════════════════════════════════════════════════════════
 
 def _ensure_default_lighting():
-    """Si no hay luces RetroMecha en escena, crea el preset 'studio' por defecto."""
+    """Si no hay luces RetroMecha, crea preset 'studio' + atmosfera default."""
     try:
         from utils import lighting
         if not lighting.has_rm_lights():
@@ -152,6 +187,24 @@ def _ensure_default_lighting():
             _on_temperature(DEFAULT_TEMPERATURE)
     except Exception as e:
         print(f'[RetroMecha][Render] Auto-luces: {e}')
+    try:
+        from utils import atmosphere
+        if not atmosphere.has_atmosphere():
+            atmosphere.ensure_atmosphere(DEFAULT_DENSITY, DEFAULT_ANISOTROPY)
+    except Exception as e:
+        print(f'[RetroMecha][Render] Auto-atmosfera: {e}')
+
+
+# ══════════════════════════════════════════════════════════════
+#  CALLBACKS — Render
+# ══════════════════════════════════════════════════════════════
+
+def _do_render(*_):
+    try:
+        from utils.render import render_now
+        render_now()
+    except Exception as e:
+        print(f'[RetroMecha][Render] {e}')
 
 
 # ══════════════════════════════════════════════════════════════
@@ -169,7 +222,7 @@ def _on_lighting_preset_changed(*_):
 
 
 def _apply_lighting_preset(*_):
-    """Crea/recrea las luces con el preset seleccionado y aplica los sliders."""
+    """Crea/recrea las luces + atmosfera con el preset y aplica los sliders."""
     menu = state.get('render_light_preset_menu')
     if not menu or not mc.optionMenu(menu, exists=True):
         return
@@ -179,23 +232,37 @@ def _apply_lighting_preset(*_):
     try:
         from utils import lighting
         lighting.apply_lighting(preset, sky_dome=True)
-        _on_lights_intensity(mc.floatSliderGrp(state.get('render_lights_intensity_sl'),
-                                                q=True, value=True))
-        _on_skydome_intensity(mc.floatSliderGrp(state.get('render_skydome_intensity_sl'),
-                                                 q=True, value=True))
-        _on_temperature(mc.floatSliderGrp(state.get('render_temperature_sl'),
-                                          q=True, value=True))
+        _on_lights_intensity(mc.floatSliderGrp(
+            state.get('render_lights_intensity_sl'), q=True, value=True))
+        _on_skydome_intensity(mc.floatSliderGrp(
+            state.get('render_skydome_intensity_sl'), q=True, value=True))
+        _on_temperature(mc.floatSliderGrp(
+            state.get('render_temperature_sl'), q=True, value=True))
     except Exception as e:
         print(f'[RetroMecha][Render] Lighting: {e}')
+
+    # Atmosfera + slider actual
+    try:
+        from utils import atmosphere
+        density = mc.floatSliderGrp(
+            state.get('render_atmosphere_density_sl'), q=True, value=True)
+        atmosphere.ensure_atmosphere(density, DEFAULT_ANISOTROPY)
+    except Exception as e:
+        print(f'[RetroMecha][Render] Atmosfera: {e}')
 
 
 def _remove_lighting(*_):
     try:
         from utils import lighting
         lighting.remove_lighting()
-        print('[RetroMecha][Render] Luces eliminadas')
     except Exception as e:
         print(f'[RetroMecha][Render] Lighting: {e}')
+    try:
+        from utils import atmosphere
+        atmosphere.remove_atmosphere()
+    except Exception as e:
+        print(f'[RetroMecha][Render] Atmosfera: {e}')
+    print('[RetroMecha][Render] Luces y atmosfera eliminadas')
 
 
 def _on_lights_intensity(val):
@@ -223,6 +290,14 @@ def _on_temperature(val):
         print(f'[RetroMecha][Render] Temperature: {e}')
 
 
+def _on_atmosphere_density(val):
+    try:
+        from utils import atmosphere
+        atmosphere.set_density(float(val))
+    except Exception as e:
+        print(f'[RetroMecha][Render] Atmosfera density: {e}')
+
+
 # ══════════════════════════════════════════════════════════════
 #  CALLBACKS - Camara
 # ══════════════════════════════════════════════════════════════
@@ -230,7 +305,7 @@ def _on_temperature(val):
 def _apply_default_camera(*_):
     try:
         from utils.camera import create_default_camera
-        create_default_camera(frame_mecha=True, look_through=True)
+        create_default_camera(frame_mecha=False, look_through=True)
     except Exception as e:
         print(f'[RetroMecha][Render] Camara: {e}')
 
