@@ -1,9 +1,9 @@
 """
 RetroMecha - utils/camera.py
-Camara default 'Camera_for_render' con la configuracion final del usuario:
+Camara default 'Camara_for_render' con la configuracion final del usuario:
 
   Transform:
-    translate (-0.211, 0.62, 20.715)
+    translate (0.0, 0.62, 20.715)
     rotate    (6.6, 3.6, 0)
   Shape:
     horizontalFilmAperture 1.417
@@ -24,7 +24,7 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 # Nombre y tag de la camara generada por RetroMecha
-CAMERA_XFORM = 'Camera_for_render'
+CAMERA_XFORM = 'Camara_for_render'
 CAMERA_TAG   = 'rmCamera'
 
 # ── Setup final (valores exactos del setup del usuario) ─────────────
@@ -40,7 +40,7 @@ SHUTTER_ANGLE             = 144.0
 CENTER_OF_INTEREST        = 5.0
 
 # Posicion y rotacion fijas (del Channel Box del usuario)
-CAM_TRANSLATE = (-0.211, 0.62, 20.715)
+CAM_TRANSLATE = (0.0, 0.62, 20.715)
 CAM_ROTATE    = (6.6, 3.6, 0.0)
 
 # Lift vertical aplicado al mecha (replica el ajuste manual en Maya)
@@ -52,7 +52,7 @@ MECHA_LIFT_Y = 6.0
 # ══════════════════════════════════════════════════════════════════════
 
 def create_default_camera(*, look_through=True, frame_mecha=False):
-    """Crea (o recrea) Camera_for_render con la config final.
+    """Crea (o recrea) Camara_for_render con la config final.
 
     - look_through: cambia el panel activo para mirar a traves de la camara.
     - frame_mecha:  False por defecto (posicion fija del usuario);
@@ -127,7 +127,7 @@ def remove_camera():
                 mc.delete(xform)
             except Exception:
                 pass
-    for name in (CAMERA_XFORM, 'rm_camera_compo'):  # incluye nombre legacy
+    for name in (CAMERA_XFORM, 'Camera_for_render', 'rm_camera_compo'):  # incluye nombre legacy
         if mc.objExists(name):
             try:
                 mc.delete(name)
@@ -147,14 +147,14 @@ def has_rm_camera() -> bool:
 
 
 def look_through_camera():
-    """Hace que el viewport activo mire a traves de Camera_for_render."""
+    """Hace que el viewport activo mire a traves de Camara_for_render."""
     if not MAYA_AVAILABLE or not mc.objExists(CAMERA_XFORM):
         return
     _look_through_in_active_panel(CAMERA_XFORM)
 
 
 def lock_camera(lock: bool = True) -> bool:
-    """Bloquea/desbloquea los canales de transform de Camera_for_render."""
+    """Bloquea/desbloquea los canales de transform de Camara_for_render."""
     if not MAYA_AVAILABLE or not mc.objExists(CAMERA_XFORM):
         return False
     for attr in (

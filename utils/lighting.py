@@ -139,22 +139,23 @@ def _palette_terrain_color(palette_label: str = 'Default'):
 
 
 def _compute_background_z() -> float:
-    """Z = (back del skyline) + 4. Si no hay skyline, usa DEFAULT_BACK_Z."""
+    """Z delante de skyline + monumento. Si no hay, usa DEFAULT_BACK_Z."""
     if not MAYA_AVAILABLE:
         return DEFAULT_BACK_Z + BACKGROUND_Z_OFFSET
-    back = None
-    for node in (mc.ls('rm_skyline_*', type='transform') or []):
+    front = None
+    for node in (mc.ls('rm_skyline_*', type='transform') or []) + \
+                (mc.ls('rm_monument_*', type='transform') or []):
         if not mc.objExists(node):
             continue
         try:
             bb = mc.exactWorldBoundingBox(node)
-            if back is None or bb[2] < back:
-                back = bb[2]
+            if front is None or bb[5] > front:
+                front = bb[5]
         except Exception:
             pass
-    if back is None:
-        back = DEFAULT_BACK_Z
-    return back + BACKGROUND_Z_OFFSET
+    if front is None:
+        front = DEFAULT_BACK_Z
+    return front + BACKGROUND_Z_OFFSET
 
 
 def _set_xform(node: str, t=None, r=None, s=None):
@@ -393,7 +394,8 @@ def _create_background(bg_z: float):
     _tag(xform)
 
 
-def _create_one_meshlight(cube_name: str, tx: float, bg_z: float, mecha_color):
+def _create_one_meshlight(cube_name: str, tx: float, bg_z: float,
+                          mecha_color, use_mtoa: bool = True):
     """Crea un aiMeshLight desde un cubo escalado. Parenteo el light bajo el cubo."""
     cube_result = mc.polyCube(
         name=cube_name,
@@ -412,9 +414,12 @@ def _create_one_meshlight(cube_name: str, tx: float, bg_z: float, mecha_color):
     _apply_mesh_visibility(cube_shape)
 
     light_xform_name = f'{cube_name}{VEAM_LIGHT_SUF}'
-    light_xform, light_shape = _create_meshlight_with_mtoa(
-        cube_xform, cube_shape, light_xform_name
-    )
+    light_xform = None
+    light_shape = None
+    if use_mtoa:
+        light_xform, light_shape = _create_meshlight_with_mtoa(
+            cube_xform, cube_shape, light_xform_name
+        )
     if not light_shape:
         light_shape_name = f'{light_xform_name}Shape'
         light_shape = mc.shadingNode('aiMeshLight', asLight=True, name=light_shape_name)
@@ -454,11 +459,28 @@ def _create_one_meshlight(cube_name: str, tx: float, bg_z: float, mecha_color):
 
     _tag(cube_xform)
     _tag(light_xform)
+    return cube_xform, light_xform
 
 
 def _create_veam_meshlights(mecha_color, bg_z: float):
-    _create_one_meshlight(VEAM_NAME_L, VEAM_TX_L, bg_z, mecha_color)
-    _create_one_meshlight(VEAM_NAME_R, VEAM_TX_R, bg_z, mecha_color)
+    created = []
+    created.append(_create_one_meshlight(VEAM_NAME_L, VEAM_TX_L, bg_z, mecha_color))
+    created.append(_create_one_meshlight(VEAM_NAME_R, VEAM_TX_R, bg_z, mecha_color))
+
+    for name, (cube_xform, light_xform) in zip((VEAM_NAME_L, VEAM_NAME_R), created):
+        expected_light = f'{name}{VEAM_LIGHT_SUF}'
+        if not light_xform or not mc.objExists(expected_light):
+            try:
+                if cube_xform and mc.objExists(cube_xform):
+                    mc.delete(cube_xform)
+                if mc.objExists(expected_light):
+                    mc.delete(expected_light)
+            except Exception:
+                pass
+            print(f'[RetroMecha][Lighting] Reintentando {expected_light} sin mtoa')
+            _create_one_meshlight(name,
+                                  VEAM_TX_L if name == VEAM_NAME_L else VEAM_TX_R,
+                                  bg_z, mecha_color, use_mtoa=False)
 
 
 # ══════════════════════════════════════════════════════════════════════

@@ -126,7 +126,7 @@ def clean_animations():
 
 
 def clean_camera():
-    """Borra la camara default Camera_for_render creada por RetroMecha."""
+    """Borra la camara default Camara_for_render creada por RetroMecha."""
     try:
         from utils.camera import remove_camera
         remove_camera()

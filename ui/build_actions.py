@@ -317,6 +317,26 @@ def _apply_idle_to_mecha():
         print(f'[RetroMecha][Anim] No se pudo aplicar idle: {e}')
 
 
+def _apply_terrain_visuals(palette: str):
+    """Crea sky + sky_material y recrea luces segun paleta."""
+    try:
+        from utils.sky import create_sky
+        create_sky()
+    except Exception as e:
+        print(f'[RetroMecha][Terrain] Cielo: {e}')
+    try:
+        from materials.sky_material import create_sky_material
+        create_sky_material(palette)
+    except Exception as e:
+        print(f'[RetroMecha][Terrain] Sky material: {e}')
+
+    try:
+        from utils import lighting
+        lighting.apply_lighting(palette)
+    except Exception as e:
+        print(f'[RetroMecha][Terrain] Luces: {e}')
+
+
 # ── rebuild ──────────────────────────────────────────────────
 
 def rebuild_mecha(*_):
@@ -351,24 +371,7 @@ def rebuild_terrain_only(*_):
         except Exception:
             palette = 'Default'
 
-        # Regenerar cielo con la familia de color de la paleta actual
-        try:
-            from utils.sky import create_sky
-            create_sky()
-        except Exception as e:
-            print(f'[RetroMecha][Terrain] Cielo: {e}')
-        try:
-            from materials.sky_material import create_sky_material
-            create_sky_material(palette)
-        except Exception as e:
-            print(f'[RetroMecha][Terrain] Sky material: {e}')
-
-        # Recrear luces — bg_z depende del skyline (que acaba de cambiar)
-        try:
-            from utils import lighting
-            lighting.apply_lighting(palette)
-        except Exception as e:
-            print(f'[RetroMecha][Terrain] Luces: {e}')
+        _apply_terrain_visuals(palette)
 
     return sc.scene_update(_work)
 
@@ -406,6 +409,14 @@ def on_generar(*_):
             create_default_camera(frame_mecha=True, look_through=True)
         except Exception as e:
             print(f'[RetroMecha][Generar] Camara: {e}')
+
+        # Sky + luces siempre desde el terreno
+        try:
+            from ui.panels.material_panel import current_palette_label
+            palette = current_palette_label()
+        except Exception:
+            palette = 'Default'
+        _apply_terrain_visuals(palette)
 
         # Animacion idle + auto-play
         _apply_idle_to_mecha()

@@ -1,6 +1,6 @@
 """
 RetroMecha - utils/render.py
-Trigger de render Arnold a 1920x1080 desde Camera_for_render.
+Trigger de render Arnold a 1920x1080 desde Camara_for_render.
 """
 
 try:
@@ -25,7 +25,7 @@ def _has_arnold() -> bool:
 
 def set_render_settings():
     """Configura Arnold como renderer + resolucion 1920x1080.
-    Marca Camera_for_render como UNICA camara renderable.
+    Marca Camara_for_render como UNICA camara renderable.
     """
     if not MAYA_AVAILABLE:
         return False
@@ -48,7 +48,7 @@ def set_render_settings():
     except Exception as e:
         print(f'[RetroMecha][Render] resolution: {e}')
 
-    # Camera_for_render como unica renderable
+    # Camara_for_render como unica renderable
     from utils.camera import CAMERA_XFORM
     cam_shape = _camera_shape(CAMERA_XFORM)
     if not cam_shape:
@@ -65,7 +65,7 @@ def set_render_settings():
 
 
 def render_now() -> bool:
-    """Configura el render y lanza la Render View con Camera_for_render."""
+    """Configura el render y lanza la Render View con Camara_for_render."""
     if not MAYA_AVAILABLE:
         return False
 
