@@ -73,7 +73,7 @@ class WingModule(BaseModule):
 
         mc.parent(root, *blades, *extras, grp)
 
-        # Aplicar materiales aiToon si hay paleta activa
+        # Aplicar materiales si hay paleta activa
         self._assign_materials(grp)
 
         return self._finalize_group(grp, position, rotation, scale)

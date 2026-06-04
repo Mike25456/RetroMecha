@@ -48,7 +48,7 @@ def build(wrapped=True):
                   backgroundColor=T.CYAN,
                   command=_apply_animation,
                   annotation='Aplica la animación seleccionada al mecha')
-        mc.button(label='Remover', h=28,
+        mc.button(label='Eliminar', h=28,
                   backgroundColor=T.SLATE,
                   command=_remove_animation,
                   annotation='Elimina la animación actual del mecha')

@@ -6,7 +6,6 @@ Clase base con pipeline generativo completo:
     ├─ _build_X()           ← geometría manual del módulo
     ├─ _deform_mesh()       ← escala no-uniforme + vertex displacement
     ├─ _attach_subpieces()  ← snap/conform sobre la superficie
-    ├─ _assign_materials()  ← aiToon por tier (ARMOR/JOINT/DETAIL/GLOW)
     ├─ _cleanup_history()   ← deleteHistory final
     └─ _finalize_group()    ← posiciona en mundo
 
@@ -14,7 +13,6 @@ COMPATIBILIDAD TOTAL con módulos existentes (head/torso/arm/wing):
   Solo necesitan llamar opcionalmente:
     self._deform_mesh(main_mesh)
     self._attach_subpieces(grp, main_mesh)
-    self._assign_materials(grp)         ← NUEVO
     self._cleanup_history(grp)
     return self._finalize_group(grp, position, rotation, scale)
 """
@@ -148,27 +146,11 @@ class BaseModule(ABC):
             pass
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  MATERIALES (NUEVO)
+    #  MATERIALES (legacy no-op — modules still call this)
     # ══════════════════════════════════════════════════════════════════════════
 
     def _assign_materials(self, grp: str):
-        """
-        Asigna materiales aiToon a cada pieza del grupo según su tier.
-        Si palette es None, no hace nada (los shaders aiStandardSurface
-        se aplican mas tarde via materialize_mecha).
-        """
-        if not MAYA_AVAILABLE:
-            return
-        palette = self._get('palette', None)
-        if not palette:
-            return
-        try:
-            from utils.material_assigner import assign_palette_to_group
-            assign_palette_to_group(grp, palette)
-        except ImportError:
-            pass
-        except Exception as e:
-            print(f'[RetroMecha][BaseModule] _assign_materials: {e}')
+        pass
 
     # ══════════════════════════════════════════════════════════════════════════
     #  LIMPIEZA

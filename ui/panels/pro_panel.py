@@ -18,7 +18,7 @@ from ui.panels.mecha_panel_v2 import build_with_tabs
 _TABS = [
     ('mecha', 'MECHA', widgets.ACCENT_ACTION),
     ('terrain', 'TERRENO', widgets.ACCENT_ACTION),
-    ('materials', 'MAT', widgets.ACCENT_ACTION),
+    ('materials', 'MATERIAL', widgets.ACCENT_ACTION),
     ('render', 'RENDER', widgets.ACCENT_ACTION),
 ]
 
@@ -34,17 +34,17 @@ def build():
 
     mc.rowLayout(nc=2, cw2=[165, 165],
                  columnAttach2=['both', 'both'])
-    widgets.secondary_button('Random Todo', widgets.ACCENT_ACTION, random_all, height=30)
-    widgets.secondary_button('Reset', widgets.ACCENT_DANGER, on_reset, height=30)
+    widgets.secondary_button('Ensamblar escena', widgets.ACCENT_ACTION, random_all, height=30)
+    widgets.secondary_button('Limpiar', widgets.ACCENT_DANGER, on_reset, height=30)
     mc.setParent('..')
     mc.separator(h=6, style='none')
 
-    mc.text(label='MOVIMIENTO', align='left', font='smallPlainLabelFont')
+    mc.text(label='Movimiento', align='left', font='smallPlainLabelFont')
     coll = mc.radioCollection()
     mc.rowLayout(nc=3, cw3=[110, 110, 110])
     rb_map = {}
     try:
-        for key, label in [('idle', 'Idle'), ('flight', 'Vuelo'), ('spin', 'Spin')]:
+        for key, label in [('idle', 'Reposo'), ('flight', 'Vuelo'), ('spin', 'Giro')]:
             rb = mc.radioButton(label=label,
                                 onCommand=lambda *_, k=key: apply_animation_quick(k))
             rb_map[key] = rb
@@ -129,17 +129,17 @@ def _render_tab(tab_id):
 
 
 def _render_mecha():
-    widgets.secondary_button('Random Mecha', widgets.ACCENT_ACTION, random_mecha, height=30)
+    widgets.secondary_button('Ensamblar Mecha', widgets.ACCENT_ACTION, random_mecha, height=30)
     mc.separator(h=6, style='none')
 
     build_with_tabs(
         ['general', 'head', 'arm', 'torso', 'wing', 'nucleus'],
-        ['General', 'Head', 'Arms', 'Torso', 'Wings', 'Nucleus'],
+        ['General', 'Cabeza', 'Brazos', 'Torso', 'Alas', 'Núcleo'],
         [[0.18, 0.18, 0.20]] * 6,
     )
 
 
 def _render_terrain():
-    widgets.secondary_button('Random Terreno', widgets.ACCENT_ACTION, random_terrain, height=30)
+    widgets.secondary_button('Ensamblar Escenario', widgets.ACCENT_ACTION, random_terrain, height=30)
     mc.separator(h=6, style='none')
     terrain_panel.build(wrapped=False)

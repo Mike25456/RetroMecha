@@ -114,7 +114,7 @@ def _clamp_intensity(v) -> float:
     return max(INTENSITY_MIN, float(v))
 
 
-def _palette_mecha_color(palette_label: str = 'Default'):
+def _palette_mecha_color(palette_label: str = 'Predeterminado'):
     """Color del glow accent del mecha (rm_cyan_glow_mat.color)."""
     try:
         from materials.presets import PRESETS
@@ -125,7 +125,7 @@ def _palette_mecha_color(palette_label: str = 'Default'):
         return (0.04, 0.75, 1.0)
 
 
-def _palette_terrain_color(palette_label: str = 'Default'):
+def _palette_terrain_color(palette_label: str = 'Predeterminado'):
     """Color del accent del terreno (rm_terrain_accent_mat.color)."""
     try:
         from materials.presets import PRESETS
@@ -345,7 +345,7 @@ def _create_veam_meshlights(mecha_color, bg_z: float):
 #  API PUBLICA
 # ══════════════════════════════════════════════════════════════════════
 
-def apply_lighting(palette_label: str = 'Default'):
+def apply_lighting(palette_label: str = 'Predeterminado'):
     """Crea (o recrea) las 5 luces palette-aware con las intensidades stored."""
     if not MAYA_AVAILABLE:
         return
