@@ -1,6 +1,22 @@
 """
-RetroMecha — utils/lighting.py
-Presets de iluminacion procedural + control granular de intensidad y temperatura.
+RetroMecha - utils/lighting.py  v4
+Iluminacion completa con 5 luces aiArea/aiMesh basadas en paleta:
+
+  luz_ambiente            - aiAreaLight quad  (suelo, color paleta)
+  foco_mecha              - aiAreaLight disk  (foco del mecha, BLANCA)
+  background              - aiAreaLight quad  (fondo, BLANCA)
+  veam_light_izquierdo    - aiMeshLight cubo  (rayo izq, color paleta)
+  veam_light_derecho      - aiMeshLight cubo  (rayo der simetrico, color paleta)
+
+Reglas:
+  - luz_ambiente y veam_light_* toman color del cyan_glow de la paleta activa
+    (acento del mecha → composicion armonica con el resto de materiales).
+  - background y foco_mecha son BLANCAS por especificacion.
+  - background.translateZ y veam_light_*.translateZ se calculan como
+    (skyline_back_z + 4)  →  4 unidades delante de los elementos de fondo.
+  - veam_light_izquierdo / veam_light_derecho son simetricos en X.
+
+Todas las luces llevan el tag rmLight para limpieza segura.
 """
 
 try:
@@ -9,219 +25,56 @@ try:
 except ImportError:
     MAYA_AVAILABLE = False
 
-_LIGHT_TAG    = 'rmLight'
-_DOME_XFORM   = 'aiSkyDomeLight1'
-_DOME_SHAPE   = 'aiSkyDomeLightShape1'
+_LIGHT_TAG = 'rmLight'
 
-PRESETS = {
-    'studio': [
-        dict(name='rm_key_light',  intensity=1.5, color=[1.00, 0.97, 0.92], rot=[-45,  45, 0]),
-        dict(name='rm_fill_light', intensity=0.4, color=[0.70, 0.82, 1.00], rot=[ 30,-120, 0]),
-        dict(name='rm_back_light', intensity=0.8, color=[1.00, 0.95, 0.80], rot=[-20, 160, 0]),
-    ],
-    'dramatic': [
-        dict(name='rm_key_light',  intensity=3.0, color=[1.00, 0.85, 0.60], rot=[-60,  30, 0]),
-        dict(name='rm_fill_light', intensity=0.5, color=[0.40, 0.50, 1.00], rot=[ 20,-150, 0]),
-        dict(name='rm_back_light', intensity=1.2, color=[1.00, 0.70, 0.50], rot=[-10, 180, 0]),
-    ],
-    'retro': [
-        dict(name='rm_key_light',  intensity=2.0, color=[1.00, 0.90, 0.70], rot=[-80,   0, 0]),
-        dict(name='rm_fill_light', intensity=0.7, color=[0.80, 0.40, 1.00], rot=[  0,  90, 0]),
-        dict(name='rm_back_light', intensity=0.5, color=[0.40, 0.80, 1.00], rot=[ 20, -90, 0]),
-    ],
-}
+# ── Z offset respecto al fondo ───────────────────────────────────────
+BACKGROUND_Z_OFFSET = 4.0      # 4 unidades delante del skyline
+DEFAULT_BACK_Z      = -55.0    # fallback si no hay rm_skyline_* en escena
 
-DEFAULT_SKYDOME_INTENSITY = 0.35
-DEFAULT_TEMPERATURE = 6500   # neutral white (D65)
+# ── luz_ambiente (aiAreaLight quad — color paleta) ───────────────────
+AMBIENT_NAME      = 'luz_ambiente'
+AMBIENT_TRANSLATE = (0.0, 0.189, 0.0)
+AMBIENT_ROTATE    = (90.0, 0.0, 0.0)
+AMBIENT_SCALE     = (72.185, 72.185, 72.185)
+AMBIENT_INTENSITY = 8.974
+AMBIENT_EXPOSURE  = 9.522
 
+# ── foco_mecha (aiAreaLight disk — BLANCA) ──────────────────────────
+FOCO_NAME      = 'foco_mecha'
+FOCO_TRANSLATE = (0.0, 0.414, 0.0)
+FOCO_ROTATE    = (90.0, 0.0, 0.0)
+FOCO_SCALE     = (2.345, 2.345, 2.345)
+FOCO_INTENSITY = 5.577
+FOCO_EXPOSURE  = 3.766
+FOCO_COLOR     = (1.0, 1.0, 1.0)
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  API PÚBLICA
-# ══════════════════════════════════════════════════════════════════════════════
+# ── background (aiAreaLight quad — BLANCA, Z dinamico) ──────────────
+BG_NAME      = 'background'
+BG_TRANS_XY  = (0.0, 0.0)   # X, Y; Z se calcula
+BG_ROTATE    = (90.0, 0.0, 0.0)
+BG_SCALE     = (81.476, 1.007, 43.871)
+BG_INTENSITY = 10.000
+BG_EXPOSURE  = 6.591
+BG_COLOR     = (1.0, 1.0, 1.0)
 
-def apply_lighting(preset_name: str = 'studio', sky_dome: bool = True):
-    """Aplica un preset, eliminando luces anteriores creadas por RetroMecha."""
-    if not MAYA_AVAILABLE:
-        return
+# ── veam_light_* (aiMeshLight cubo simetrico — color paleta) ─────────
+VEAM_NAME_L    = 'veam_light_izquierdo'
+VEAM_NAME_R    = 'veam_light_derecho'
+VEAM_LIGHT_SUF = '_light'        # nombre del aiMeshLight: <name>_light
+VEAM_TX_L      = -20.564
+VEAM_TX_R      = +20.564
+VEAM_TY        = 8.144
+VEAM_SCALE     = (1.0, 387.639, 1.0)
+VEAM_INTENSITY = 5.449
+VEAM_EXPOSURE  = 8.524
 
-    remove_lighting()
-
-    for cfg in PRESETS.get(preset_name, PRESETS['studio']):
-        _create_dir_light(cfg['name'], cfg['intensity'], cfg['color'], cfg['rot'])
-
-    if sky_dome:
-        _create_sky_dome()
-
-    msg = f'[RetroMecha][Lighting] "{preset_name}" aplicado'
-    print(msg + (' + aiSkyDomeLight' if sky_dome else ''))
-
-
-def remove_lighting():
-    if not MAYA_AVAILABLE:
-        return
-
-    for shape in mc.ls(type='directionalLight') or []:
-        parents = mc.listRelatives(shape, parent=True) or []
-        xform = parents[0] if parents else shape
-        if mc.attributeQuery(_LIGHT_TAG, node=xform, exists=True):
-            try:
-                mc.delete(xform)
-            except Exception:
-                pass
-
-    _delete_sky_dome()
+# Multiplicador global de intensidad (slider de la UI)
+_INTENSITY_MULT = [1.0]
 
 
-def sky_dome_exists() -> bool:
-    return MAYA_AVAILABLE and (
-        mc.objExists(_DOME_XFORM) or mc.objExists(_DOME_SHAPE)
-        or bool(mc.ls(type='aiSkyDomeLight'))
-    )
-
-
-def list_rm_lights() -> list:
-    """Devuelve los transforms de las luces direccionales taggeadas como rmLight."""
-    if not MAYA_AVAILABLE:
-        return []
-    result = []
-    for shape in mc.ls(type='directionalLight') or []:
-        parents = mc.listRelatives(shape, parent=True) or []
-        xform = parents[0] if parents else shape
-        if mc.attributeQuery(_LIGHT_TAG, node=xform, exists=True):
-            result.append(xform)
-    return result
-
-
-def set_lights_intensity(value: float):
-    """Setea la intensidad de TODAS las luces direccionales rmLight."""
-    if not MAYA_AVAILABLE:
-        return
-    for xform in list_rm_lights():
-        shapes = mc.listRelatives(xform, shapes=True, type='directionalLight') or []
-        for shape in shapes:
-            try:
-                mc.setAttr(f'{shape}.intensity', value)
-            except Exception:
-                pass
-
-
-def set_skydome_intensity(value: float):
-    """Setea la intensidad del aiSkyDomeLight."""
-    if not MAYA_AVAILABLE:
-        return
-    for shape in mc.ls(type='aiSkyDomeLight') or []:
-        try:
-            mc.setAttr(f'{shape}.intensity', value)
-        except Exception:
-            pass
-
-
-def set_lights_temperature(kelvin: float):
-    """Aplica una temperatura de color (Kelvin) a las luces direccionales."""
-    if not MAYA_AVAILABLE:
-        return
-    rgb = _kelvin_to_rgb(kelvin)
-    for xform in list_rm_lights():
-        shapes = mc.listRelatives(xform, shapes=True, type='directionalLight') or []
-        for shape in shapes:
-            try:
-                mc.setAttr(f'{shape}.color', rgb[0], rgb[1], rgb[2], type='double3')
-            except Exception:
-                pass
-            # Si Arnold está cargado, activar useColorTemperature también
-            for attr in ('aiUseColorTemperature', 'aiColorTemperature'):
-                full = f'{shape}.{attr}'
-                if mc.attributeQuery(attr, node=shape, exists=True):
-                    try:
-                        if attr == 'aiUseColorTemperature':
-                            mc.setAttr(full, 1)
-                        else:
-                            mc.setAttr(full, kelvin)
-                    except Exception:
-                        pass
-
-
-def set_skydome_temperature(kelvin: float):
-    """Aplica temperatura al aiSkyDomeLight (usa atributo Arnold si existe)."""
-    if not MAYA_AVAILABLE:
-        return
-    rgb = _kelvin_to_rgb(kelvin)
-    for shape in mc.ls(type='aiSkyDomeLight') or []:
-        try:
-            mc.setAttr(f'{shape}.color', rgb[0], rgb[1], rgb[2], type='double3')
-        except Exception:
-            pass
-        for attr in ('aiUseColorTemperature', 'aiColorTemperature'):
-            if mc.attributeQuery(attr, node=shape, exists=True):
-                try:
-                    if attr == 'aiUseColorTemperature':
-                        mc.setAttr(f'{shape}.{attr}', 1)
-                    else:
-                        mc.setAttr(f'{shape}.{attr}', kelvin)
-                except Exception:
-                    pass
-
-
-def has_rm_lights() -> bool:
-    return MAYA_AVAILABLE and bool(list_rm_lights())
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  INTERNOS
-# ══════════════════════════════════════════════════════════════════════════════
-
-def _create_dir_light(name: str, intensity: float, color: list, rot: list):
-    if mc.objExists(name):
-        mc.delete(name)
-
-    result = mc.directionalLight(name=name, intensity=intensity, rgb=color)
-    if mc.nodeType(result) != 'transform':
-        parents = mc.listRelatives(result, parent=True) or []
-        xform = parents[0] if parents else result
-    else:
-        xform = result
-
-    mc.rotate(rot[0], rot[1], rot[2], xform, absolute=True)
-
-    if not mc.attributeQuery(_LIGHT_TAG, node=xform, exists=True):
-        mc.addAttr(xform, longName=_LIGHT_TAG, attributeType='bool', defaultValue=True)
-    return xform
-
-
-def _create_sky_dome():
-    if not _has_arnold():
-        print('[RetroMecha][Lighting] MtoA no disponible — aiSkyDomeLight omitido')
-        return None
-
-    _delete_sky_dome()
-
-    try:
-        xform = mc.createNode('transform', name=_DOME_XFORM)
-        shape = mc.createNode('aiSkyDomeLight', name=_DOME_SHAPE, parent=xform)
-        mc.setAttr(f'{shape}.intensity', DEFAULT_SKYDOME_INTENSITY)
-        mc.setAttr(f'{shape}.color', 0.35, 0.45, 0.65, type='double3')
-        print(f'[RetroMecha][Lighting] {_DOME_XFORM} creado')
-        return xform
-    except Exception as e:
-        print(f'[RetroMecha][Lighting] Error creando aiSkyDomeLight: {e}')
-        return None
-
-
-def _delete_sky_dome():
-    for existing in mc.ls(type='aiSkyDomeLight') or []:
-        parents = mc.listRelatives(existing, parent=True) or []
-        target = parents[0] if parents else existing
-        try:
-            mc.delete(target)
-        except Exception:
-            pass
-    for name in (_DOME_XFORM, _DOME_SHAPE):
-        if mc.objExists(name):
-            try:
-                mc.delete(name)
-            except Exception:
-                pass
-
+# ══════════════════════════════════════════════════════════════════════
+#  HELPERS
+# ══════════════════════════════════════════════════════════════════════
 
 def _has_arnold() -> bool:
     if not MAYA_AVAILABLE:
@@ -232,29 +85,362 @@ def _has_arnold() -> bool:
         return False
 
 
-def _kelvin_to_rgb(kelvin: float) -> tuple:
+def _palette_accent_color(palette_label: str = 'Default'):
+    """Color de acento del mecha (cyan_glow) para tenir las luces palette-aware."""
+    try:
+        from materials.presets import PRESETS
+        return PRESETS.get(palette_label, {}) \
+                      .get('rm_cyan_glow_mat', {}) \
+                      .get('color', (0.04, 0.75, 1.0))
+    except Exception:
+        return (0.04, 0.75, 1.0)
+
+
+def _compute_background_z() -> float:
+    """Z = (back del skyline) + 4. Si no hay skyline, usa DEFAULT_BACK_Z."""
+    if not MAYA_AVAILABLE:
+        return DEFAULT_BACK_Z + BACKGROUND_Z_OFFSET
+    back = None
+    for node in (mc.ls('rm_skyline_*', type='transform') or []):
+        if not mc.objExists(node):
+            continue
+        try:
+            bb = mc.exactWorldBoundingBox(node)
+            if back is None or bb[2] < back:
+                back = bb[2]
+        except Exception:
+            pass
+    if back is None:
+        back = DEFAULT_BACK_Z
+    return back + BACKGROUND_Z_OFFSET
+
+
+def _set_xform(node: str, t=None, r=None, s=None):
+    if t is not None:
+        for ax, v in zip('XYZ', t):
+            try: mc.setAttr(f'{node}.translate{ax}', float(v))
+            except Exception: pass
+    if r is not None:
+        for ax, v in zip('XYZ', r):
+            try: mc.setAttr(f'{node}.rotate{ax}', float(v))
+            except Exception: pass
+    if s is not None:
+        for ax, v in zip('XYZ', s):
+            try: mc.setAttr(f'{node}.scale{ax}', float(v))
+            except Exception: pass
+
+
+def _set_attr(node: str, attr: str, value):
+    try:
+        mc.setAttr(f'{node}.{attr}', value)
+    except Exception as e:
+        print(f'[RetroMecha][Lighting] setAttr {node}.{attr}: {e}')
+
+
+def _set_color(node: str, attr: str, rgb):
+    try:
+        mc.setAttr(f'{node}.{attr}', rgb[0], rgb[1], rgb[2], type='double3')
+    except Exception as e:
+        print(f'[RetroMecha][Lighting] color {node}.{attr}: {e}')
+
+
+def _tag(xform: str):
+    if not mc.attributeQuery(_LIGHT_TAG, node=xform, exists=True):
+        mc.addAttr(xform, longName=_LIGHT_TAG,
+                   attributeType='bool', defaultValue=True)
+    mc.setAttr(f'{xform}.{_LIGHT_TAG}', True)
+
+
+def _apply_visibility_defaults(shape: str):
+    """Visibility contributions standard: camera/transmission 0, resto 1."""
+    _set_attr(shape, 'aiCamera',        0.0)
+    _set_attr(shape, 'aiTransmission',  0.0)
+    _set_attr(shape, 'aiDiffuse',       1.0)
+    _set_attr(shape, 'aiSpecular',      1.0)
+    _set_attr(shape, 'aiSss',           1.0)
+    _set_attr(shape, 'aiIndirect',      1.0)
+    _set_attr(shape, 'aiVolume',        1.0)
+    _set_attr(shape, 'aiMaxBounces',    999)
+
+
+def _apply_area_shadow_defaults(shape: str):
+    _set_attr(shape, 'aiSpread',                1.0)
+    _set_attr(shape, 'aiSamples',               1)
+    _set_attr(shape, 'aiNormalize',             1)
+    _set_attr(shape, 'aiCastShadows',           1)
+    _set_attr(shape, 'aiShadowDensity',         1.0)
+    _set_attr(shape, 'aiCastVolumetricShadows', 1)
+    _set_attr(shape, 'aiVolumeSamples',         2)
+    _set_attr(shape, 'aiRoundness',             0.0)
+    _set_attr(shape, 'aiSoftEdge',              0.0)
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  CREADORES
+# ══════════════════════════════════════════════════════════════════════
+
+def _create_area_light(name: str, light_shape_enum: int) -> tuple[str, str]:
+    """Crea aiAreaLight con nombre y light shape (0=quad, 1=disk, ...).
+    Retorna (transform, shape)."""
+    shape = mc.shadingNode('aiAreaLight', asLight=True, name=f'{name}Shape')
+    parents = mc.listRelatives(shape, parent=True) or []
+    xform = parents[0] if parents else shape
+    xform = mc.rename(xform, name)
+    shape = mc.listRelatives(xform, shapes=True)[0]
+    # Light shape (0=quad, 1=disk, 2=cylinder)
+    try:
+        mc.setAttr(f'{shape}.aiTranslator', 'quad', type='string')
+    except Exception:
+        pass
+    # Algunos MtoA usan aiLightShape (enum)
+    try:
+        mc.setAttr(f'{shape}.aiLightShape', light_shape_enum)
+    except Exception:
+        pass
+    return xform, shape
+
+
+def _create_luz_ambiente(accent_rgb, mult: float):
+    xform, shape = _create_area_light(AMBIENT_NAME, light_shape_enum=0)  # quad
+    _set_xform(xform, AMBIENT_TRANSLATE, AMBIENT_ROTATE, AMBIENT_SCALE)
+    _set_color(shape, 'color', accent_rgb)
+    _set_attr(shape, 'aiIntensity', AMBIENT_INTENSITY * mult)
+    _set_attr(shape, 'aiExposure',  AMBIENT_EXPOSURE)
+    _apply_area_shadow_defaults(shape)
+    _apply_visibility_defaults(shape)
+    _tag(xform)
+
+
+def _create_foco_mecha(mult: float):
+    xform, shape = _create_area_light(FOCO_NAME, light_shape_enum=1)  # disk
+    _set_xform(xform, FOCO_TRANSLATE, FOCO_ROTATE, FOCO_SCALE)
+    _set_color(shape, 'color', FOCO_COLOR)
+    _set_attr(shape, 'aiIntensity', FOCO_INTENSITY * mult)
+    _set_attr(shape, 'aiExposure',  FOCO_EXPOSURE)
+    _apply_area_shadow_defaults(shape)
+    _apply_visibility_defaults(shape)
+    _tag(xform)
+
+
+def _create_background(bg_z: float, mult: float):
+    xform, shape = _create_area_light(BG_NAME, light_shape_enum=0)  # quad
+    bx, by = BG_TRANS_XY
+    _set_xform(xform, (bx, by, bg_z), BG_ROTATE, BG_SCALE)
+    _set_color(shape, 'color', BG_COLOR)
+    _set_attr(shape, 'aiIntensity', BG_INTENSITY * mult)
+    _set_attr(shape, 'aiExposure',  BG_EXPOSURE)
+    _apply_area_shadow_defaults(shape)
+    _apply_visibility_defaults(shape)
+    _tag(xform)
+
+
+def _create_one_meshlight(cube_name: str, tx: float, bg_z: float,
+                          accent_rgb, mult: float):
+    """Crea un aiMeshLight a partir de un cubo escalado, simetrico en X."""
+    # 1. Cubo base
+    cube_result = mc.polyCube(
+        name=cube_name,
+        width=1.0, height=1.0, depth=1.0,
+        subdivisionsX=1, subdivisionsY=1, subdivisionsZ=1,
+        axis=(0, 1, 0),
+        createUVs=3,           # Normalize
+        constructionHistory=False,
+    )
+    cube_xform = cube_result[0]
+    if cube_xform != cube_name:
+        cube_xform = mc.rename(cube_xform, cube_name)
+    _set_xform(cube_xform, (tx, VEAM_TY, bg_z), (0, 0, 0), VEAM_SCALE)
+
+    cube_shape = mc.listRelatives(cube_xform, shapes=True)[0]
+
+    # 2. aiMeshLight
+    light_xform_name = f'{cube_name}{VEAM_LIGHT_SUF}'
+    light_shape_name = f'{light_xform_name}Shape'
+    light_shape = mc.shadingNode('aiMeshLight', asLight=True, name=light_shape_name)
+    parents = mc.listRelatives(light_shape, parent=True) or []
+    light_xform = parents[0] if parents else light_shape
+    light_xform = mc.rename(light_xform, light_xform_name)
+    light_shape = mc.listRelatives(light_xform, shapes=True)[0]
+
+    # 3. Conexion mesh → light
+    try:
+        mc.connectAttr(f'{cube_shape}.outMesh',
+                       f'{light_shape}.inMesh', force=True)
+    except Exception as e:
+        print(f'[RetroMecha][Lighting] connect mesh→light: {e}')
+
+    # 4. Atributos de la luz (color paleta)
+    _set_color(light_shape, 'color', accent_rgb)
+    _set_attr(light_shape, 'aiIntensity',           VEAM_INTENSITY * mult)
+    _set_attr(light_shape, 'aiExposure',            VEAM_EXPOSURE)
+    _set_attr(light_shape, 'aiLightVisible',        0)
+    _set_attr(light_shape, 'aiSamples',             1)
+    _set_attr(light_shape, 'aiNormalize',           1)
+    _set_attr(light_shape, 'aiCastShadows',         1)
+    _set_attr(light_shape, 'aiShadowDensity',       1.0)
+    _set_attr(light_shape, 'aiCastVolumetricShadows', 1)
+    _set_attr(light_shape, 'aiVolumeSamples',       2)
+    _set_attr(light_shape, 'aiMaxBounces',          999)
+    _set_attr(light_shape, 'aiDiffuse',             1.0)
+    _set_attr(light_shape, 'aiSpecular',            1.0)
+    _set_attr(light_shape, 'aiSss',                 1.0)
+    _set_attr(light_shape, 'aiIndirect',            1.0)
+    _set_attr(light_shape, 'aiVolume',              1.0)
+
+    # Tag tanto la geometria como la luz
+    _tag(cube_xform)
+    _tag(light_xform)
+
+
+def _create_veam_meshlights(accent_rgb, bg_z: float, mult: float):
+    _create_one_meshlight(VEAM_NAME_L, VEAM_TX_L, bg_z, accent_rgb, mult)
+    _create_one_meshlight(VEAM_NAME_R, VEAM_TX_R, bg_z, accent_rgb, mult)
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  API PUBLICA
+# ══════════════════════════════════════════════════════════════════════
+
+def apply_lighting(palette_label: str = 'Default', intensity_mult: float | None = None):
+    """Crea (o recrea) las 5 luces palette-aware.
+
+    Args:
+        palette_label:   nombre del preset (Default/Atardecer/Frio/Oxidado/Neon)
+        intensity_mult:  multiplicador global (None = mantiene el actual)
     """
-    Aproximación Tanner Helland de blackbody → RGB normalizado [0..1].
-    Rango útil: 1000 K – 12000 K.
-    """
-    import math
-    k = max(1000.0, min(40000.0, float(kelvin))) / 100.0
+    if not MAYA_AVAILABLE:
+        return
 
-    if k <= 66:
-        r = 255.0
-        g = 99.4708025861 * math.log(max(k, 1e-6)) - 161.1195681661
-    else:
-        r = 329.698727446 * ((k - 60) ** -0.1332047592)
-        g = 288.1221695283 * ((k - 60) ** -0.0755148492)
+    remove_lighting()
 
-    if k >= 66:
-        b = 255.0
-    elif k <= 19:
-        b = 0.0
-    else:
-        b = 138.5177312231 * math.log(max(k - 10, 1e-6)) - 305.0447927307
+    if not _has_arnold():
+        print('[RetroMecha][Lighting] Arnold no cargado — abortando')
+        return
 
-    def clamp(v):
-        return max(0.0, min(255.0, v)) / 255.0
+    if intensity_mult is not None:
+        _INTENSITY_MULT[0] = float(intensity_mult)
+    mult = _INTENSITY_MULT[0]
 
-    return (clamp(r), clamp(g), clamp(b))
+    accent = _palette_accent_color(palette_label)
+    bg_z   = _compute_background_z()
+
+    _create_luz_ambiente(accent, mult)
+    _create_foco_mecha(mult)
+    _create_background(bg_z, mult)
+    _create_veam_meshlights(accent, bg_z, mult)
+
+    print(
+        f'[RetroMecha][Lighting] palette={palette_label} '
+        f'accent={tuple(round(v,3) for v in accent)} bg_z={bg_z:.2f} mult={mult}'
+    )
+
+
+def remove_lighting():
+    """Elimina TODAS las luces (legacy + nuevas) por tag rmLight + nombres."""
+    if not MAYA_AVAILABLE:
+        return
+
+    candidates = set()
+    for ltype in ('directionalLight', 'aiAreaLight', 'aiMeshLight',
+                  'aiSkyDomeLight'):
+        for shape in (mc.ls(type=ltype) or []):
+            parents = mc.listRelatives(shape, parent=True) or []
+            xform = parents[0] if parents else shape
+            candidates.add(xform)
+
+    for xform in candidates:
+        if not mc.objExists(xform):
+            continue
+        try:
+            if mc.attributeQuery(_LIGHT_TAG, node=xform, exists=True):
+                mc.delete(xform)
+        except Exception:
+            pass
+
+    # Por nombre — el cubo del mesh light no es light type, hay que buscarlo aparte
+    for name in (
+        VEAM_NAME_L, VEAM_NAME_R,
+        f'{VEAM_NAME_L}{VEAM_LIGHT_SUF}', f'{VEAM_NAME_R}{VEAM_LIGHT_SUF}',
+        AMBIENT_NAME, FOCO_NAME, BG_NAME,
+        # Legacy
+        'rm_key_light', 'rm_fill_light', 'rm_back_light',
+        'aiSkyDomeLight1', 'aiSkyDomeLightShape1',
+    ):
+        if mc.objExists(name):
+            try:
+                mc.delete(name)
+            except Exception:
+                pass
+
+
+def has_rm_lights() -> bool:
+    if not MAYA_AVAILABLE:
+        return False
+    return any(mc.objExists(n) for n in (AMBIENT_NAME, FOCO_NAME, BG_NAME))
+
+
+def set_lights_intensity(value: float):
+    """Multiplicador global de intensidad para todas las luces RetroMecha."""
+    if not MAYA_AVAILABLE:
+        return
+    _INTENSITY_MULT[0] = float(value)
+    mult = _INTENSITY_MULT[0]
+
+    for name, base in (
+        (AMBIENT_NAME, AMBIENT_INTENSITY),
+        (FOCO_NAME,    FOCO_INTENSITY),
+        (BG_NAME,      BG_INTENSITY),
+    ):
+        if not mc.objExists(name):
+            continue
+        shapes = mc.listRelatives(name, shapes=True) or []
+        if shapes:
+            try:
+                mc.setAttr(f'{shapes[0]}.aiIntensity', base * mult)
+            except Exception:
+                pass
+
+    for veam_name in (VEAM_NAME_L, VEAM_NAME_R):
+        light_xform = f'{veam_name}{VEAM_LIGHT_SUF}'
+        if not mc.objExists(light_xform):
+            continue
+        shapes = mc.listRelatives(light_xform, shapes=True) or []
+        if shapes:
+            try:
+                mc.setAttr(f'{shapes[0]}.aiIntensity', VEAM_INTENSITY * mult)
+            except Exception:
+                pass
+
+
+def set_palette(palette_label: str):
+    """Recolorea luz_ambiente y veam_light_* con el accent de otra paleta."""
+    if not MAYA_AVAILABLE:
+        return
+    accent = _palette_accent_color(palette_label)
+    # luz_ambiente
+    if mc.objExists(AMBIENT_NAME):
+        shapes = mc.listRelatives(AMBIENT_NAME, shapes=True) or []
+        if shapes:
+            _set_color(shapes[0], 'color', accent)
+    # veam_lights
+    for veam_name in (VEAM_NAME_L, VEAM_NAME_R):
+        light_xform = f'{veam_name}{VEAM_LIGHT_SUF}'
+        if mc.objExists(light_xform):
+            shapes = mc.listRelatives(light_xform, shapes=True) or []
+            if shapes:
+                _set_color(shapes[0], 'color', accent)
+    print(f'[RetroMecha][Lighting] palette recoloreada → {palette_label}')
+
+
+def list_rm_lights() -> list:
+    """Lista xforms con tag rmLight."""
+    if not MAYA_AVAILABLE:
+        return []
+    result = []
+    for ltype in ('aiAreaLight', 'aiMeshLight'):
+        for shape in (mc.ls(type=ltype) or []):
+            parents = mc.listRelatives(shape, parent=True) or []
+            xform = parents[0] if parents else shape
+            if mc.attributeQuery(_LIGHT_TAG, node=xform, exists=True):
+                result.append(xform)
+    return result

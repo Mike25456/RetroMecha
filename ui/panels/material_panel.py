@@ -140,6 +140,13 @@ def _on_preset_changed(*_):
             update_sky_ramp(label)
     except Exception:
         pass
+    # Recolorear las luces palette-aware (luz_ambiente + veam_light_*)
+    try:
+        from utils import lighting
+        if lighting.has_rm_lights():
+            lighting.set_palette(label)
+    except Exception:
+        pass
 
 
 def _apply_materials(*_):

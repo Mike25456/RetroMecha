@@ -1,11 +1,16 @@
-"""Panel RENDERING — Render + Iluminacion (incl. atmosfera) + Camara.
+"""Panel RENDERING — Render + Iluminacion (palette-aware + atmosfera) + Camara.
 
 Esta pestaña agrupa lo que NO se gestiona desde la pestaña Escena:
   - Boton RENDER 1920x1080 (Arnold) desde Camera_for_render
-  - Preset de iluminacion (3 opciones)
-  - Sliders de intensidad de luces / skydome / temperatura
+  - Iluminacion: 5 luces (luz_ambiente, foco_mecha, background,
+                 veam_light izquierdo/derecho) palette-aware
   - Slider de densidad de aiAtmosphereVolume
+  - Cielo: sky polyPlane + bends + sky_material
   - Camera_for_render: crear / eliminar / look through / lift mecha
+
+luz_ambiente y veam_light_* siguen la paleta de colores activa
+(accent del mecha = rm_cyan_glow_mat). background y foco_mecha
+son siempre blancas.
 """
 
 try:
@@ -17,20 +22,12 @@ except ImportError:
 from ui import state
 from ui.widgets import fsl
 
-_LIGHTING_PRESET_LABELS = {
-    'Estudio':   'studio',
-    'Dramatico': 'dramatic',
-    'Retro':     'retro',
-}
-
-DEFAULT_LIGHT_INTENSITY   = 1.5
-DEFAULT_SKYDOME_INTENSITY = 0.35
-DEFAULT_TEMPERATURE       = 6500
+DEFAULT_LIGHT_INTENSITY = 1.0   # multiplicador global
 
 # Atmosfera (aiAtmosphereVolume)
-DEFAULT_DENSITY = 0.034
-DENSITY_MIN     = 0.02
-DENSITY_MAX     = 0.08
+DEFAULT_DENSITY    = 0.034
+DENSITY_MIN        = 0.02
+DENSITY_MAX        = 0.08
 DEFAULT_ANISOTROPY = 0.666
 
 
@@ -69,35 +66,17 @@ def build():
     )
     mc.separator(h=4, style='none')
 
-    # Preset de luces
-    mc.rowLayout(nc=2, cw2=[120, 200],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[0, 4])
-    mc.text(label='Preset', align='right', font='smallPlainLabelFont')
-    light_preset_menu = mc.optionMenu(
-        changeCommand=_on_lighting_preset_changed,
-        annotation='Preset de iluminacion: 3 luces direccionales + skydome')
-    for lbl in _LIGHTING_PRESET_LABELS:
-        mc.menuItem(label=lbl)
-    state.reg('render_light_preset_menu', light_preset_menu)
-    mc.setParent('..')
+    mc.text(
+        label='  luz_ambiente + veam_light: color de paleta  |  '
+              'background + foco_mecha: BLANCAS',
+        align='left', font='smallPlainLabelFont',
+    )
 
-    # Sliders intensidad/temperatura
+    # Slider intensidad (multiplicador global)
     state.reg('render_lights_intensity_sl', fsl(
-        'Intensidad luces', 0.0, 5.0, DEFAULT_LIGHT_INTENSITY,
+        'Intensidad luces', 0.0, 3.0, DEFAULT_LIGHT_INTENSITY,
         on_cc=_on_lights_intensity,
-        annotation='Intensidad de las luces direccionales (key/fill/back)',
-    ))
-    state.reg('render_skydome_intensity_sl', fsl(
-        'Intensidad skydome', 0.0, 3.0, DEFAULT_SKYDOME_INTENSITY,
-        on_cc=_on_skydome_intensity,
-        annotation='Intensidad del aiSkyDomeLight (requiere Arnold)',
-    ))
-    state.reg('render_temperature_sl', fsl(
-        'Temperatura (K)', 1500.0, 12000.0, DEFAULT_TEMPERATURE,
-        step=100, prec=0,
-        on_cc=_on_temperature,
-        annotation='Temperatura de color en Kelvin (3200K calida, 6500K neutra, 9000K fria)',
+        annotation='Multiplicador global aplicado a las 5 luces RetroMecha',
     ))
 
     # Slider densidad aiAtmosphereVolume
@@ -114,12 +93,13 @@ def build():
                  columnOffset2=[0, 4])
     mc.button(label='Crear / Recrear luces', h=26,
               backgroundColor=[0.60, 0.40, 0.14],
-              command=lambda *_: _apply_lighting_preset(),
-              annotation='Crea luces direccionales + aiSkyDomeLight + aiAtmosphereVolume')
+              command=lambda *_: _apply_lighting(),
+              annotation='Crea las 5 luces (ambient/foco/bg/2 mesh) + atmosfera. '
+                         'Colores segun la paleta activa.')
     mc.button(label='Eliminar luces', h=26,
               backgroundColor=[0.46, 0.16, 0.12],
               command=lambda *_: _remove_lighting(),
-              annotation='Elimina luces, sky dome y atmosfera creados por RetroMecha')
+              annotation='Elimina luces y atmosfera creadas por RetroMecha')
     mc.setParent('..')
 
     # Cielo (polyPlane + 2 bends)
@@ -129,11 +109,12 @@ def build():
     mc.button(label='Crear / Recrear cielo', h=26,
               backgroundColor=[0.20, 0.36, 0.50],
               command=lambda *_: _apply_sky(),
-              annotation='Crea sky (polyPlane 24x24 + bend1 envelope 2 + bend2)')
+              annotation='Crea sky (polyPlane 24x24 + bend1 envelope 2 + bend2) '
+                         '+ sky_material acorde a paleta')
     mc.button(label='Eliminar cielo', h=26,
               backgroundColor=[0.46, 0.16, 0.12],
               command=lambda *_: _remove_sky_cb(),
-              annotation='Elimina el sky y sus deformadores creados por RetroMecha')
+              annotation='Elimina el sky, sus deformadores y el sky_material')
     mc.setParent('..')
 
     # ── CAMARA ─────────────────────────────────────────────────
@@ -190,15 +171,22 @@ def build():
 #  HELPERS
 # ══════════════════════════════════════════════════════════════
 
+def _current_palette():
+    """Lee la paleta activa del menu de materiales (fallback 'Default')."""
+    try:
+        from ui.panels.material_panel import current_palette_label
+        return current_palette_label()
+    except Exception:
+        return 'Default'
+
+
 def _ensure_default_lighting():
-    """Si no hay luces RetroMecha, crea preset 'studio' + atmosfera default."""
+    """Crea las 5 luces palette-aware + atmosfera default si no existen."""
     try:
         from utils import lighting
         if not lighting.has_rm_lights():
-            lighting.apply_lighting('studio', sky_dome=True)
-            _on_lights_intensity(DEFAULT_LIGHT_INTENSITY)
-            _on_skydome_intensity(DEFAULT_SKYDOME_INTENSITY)
-            _on_temperature(DEFAULT_TEMPERATURE)
+            lighting.apply_lighting(_current_palette(),
+                                    intensity_mult=DEFAULT_LIGHT_INTENSITY)
     except Exception as e:
         print(f'[RetroMecha][Render] Auto-luces: {e}')
     try:
@@ -225,37 +213,23 @@ def _do_render(*_):
 #  CALLBACKS — Iluminacion
 # ══════════════════════════════════════════════════════════════
 
-def _on_lighting_preset_changed(*_):
-    """Al cambiar el preset, recrear las luces si ya existen."""
-    try:
-        from utils import lighting
-        if lighting.has_rm_lights():
-            _apply_lighting_preset()
-    except Exception:
-        pass
-
-
-def _apply_lighting_preset(*_):
-    """Crea/recrea las luces + atmosfera con el preset y aplica los sliders."""
-    menu = state.get('render_light_preset_menu')
-    if not menu or not mc.optionMenu(menu, exists=True):
-        return
-    label = mc.optionMenu(menu, q=True, value=True)
-    preset = _LIGHTING_PRESET_LABELS.get(label, 'studio')
+def _apply_lighting(*_):
+    """Crea/recrea las 5 luces con la paleta activa + intensidad del slider."""
+    intensity = DEFAULT_LIGHT_INTENSITY
+    sl = state.get('render_lights_intensity_sl')
+    if sl and mc.floatSliderGrp(sl, exists=True):
+        try:
+            intensity = mc.floatSliderGrp(sl, q=True, value=True)
+        except Exception:
+            pass
 
     try:
         from utils import lighting
-        lighting.apply_lighting(preset, sky_dome=True)
-        _on_lights_intensity(mc.floatSliderGrp(
-            state.get('render_lights_intensity_sl'), q=True, value=True))
-        _on_skydome_intensity(mc.floatSliderGrp(
-            state.get('render_skydome_intensity_sl'), q=True, value=True))
-        _on_temperature(mc.floatSliderGrp(
-            state.get('render_temperature_sl'), q=True, value=True))
+        lighting.apply_lighting(_current_palette(), intensity_mult=intensity)
     except Exception as e:
         print(f'[RetroMecha][Render] Lighting: {e}')
 
-    # Atmosfera + slider actual
+    # Atmosfera con el valor actual del slider
     try:
         from utils import atmosphere
         density = mc.floatSliderGrp(
@@ -285,23 +259,6 @@ def _on_lights_intensity(val):
         lighting.set_lights_intensity(float(val))
     except Exception as e:
         print(f'[RetroMecha][Render] Lights intensity: {e}')
-
-
-def _on_skydome_intensity(val):
-    try:
-        from utils import lighting
-        lighting.set_skydome_intensity(float(val))
-    except Exception as e:
-        print(f'[RetroMecha][Render] Skydome intensity: {e}')
-
-
-def _on_temperature(val):
-    try:
-        from utils import lighting
-        lighting.set_lights_temperature(float(val))
-        lighting.set_skydome_temperature(float(val))
-    except Exception as e:
-        print(f'[RetroMecha][Render] Temperature: {e}')
 
 
 def _on_atmosphere_density(val):
@@ -360,12 +317,23 @@ def _apply_sky(*_):
         create_sky()
     except Exception as e:
         print(f'[RetroMecha][Render] Cielo: {e}')
+    # Crear el sky material con la paleta actual
+    try:
+        from materials.sky_material import create_sky_material
+        create_sky_material(_current_palette())
+    except Exception as e:
+        print(f'[RetroMecha][Render] Sky material: {e}')
 
 
 def _remove_sky_cb(*_):
     try:
         from utils.sky import remove_sky
         remove_sky()
-        print('[RetroMecha][Render] Cielo eliminado')
     except Exception as e:
         print(f'[RetroMecha][Render] Cielo: {e}')
+    try:
+        from materials.sky_material import remove_sky_material
+        remove_sky_material()
+    except Exception as e:
+        print(f'[RetroMecha][Render] Sky material: {e}')
+    print('[RetroMecha][Render] Cielo eliminado')

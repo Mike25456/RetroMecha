@@ -31,32 +31,42 @@ _ROLE_TO_TIER = {
 # Paleta aiToon activa — None = usar aiStandardSurface base
 _ACTIVE_PALETTE = [None]
 
-# Defaults en terminos semanticos.
+# Default global de diffuseRoughness para reducir reflejos del lobulo difuso.
+DEFAULT_DIFFUSE_ROUGHNESS = 0.5
+
+# Defaults en terminos semanticos. terrain_accent es emisivo segun su color base.
 MATERIALS = {
     'rm_white_armor_mat': {
-        'color':   (0.86, 0.84, 0.78),
-        'diffuse': 0.82,
+        'color':            (0.86, 0.84, 0.78),
+        'diffuse':          0.82,
+        'diffuseRoughness': DEFAULT_DIFFUSE_ROUGHNESS,
     },
     'rm_graphite_mat': {
-        'color':   (0.12, 0.13, 0.13),
-        'diffuse': 0.72,
+        'color':            (0.12, 0.13, 0.13),
+        'diffuse':          0.72,
+        'diffuseRoughness': DEFAULT_DIFFUSE_ROUGHNESS,
     },
     'rm_cyan_glow_mat': {
-        'color':         (0.04, 0.75, 1.0),
-        'incandescence': (0.0, 0.55, 0.85),
-        'diffuse':       0.45,
+        'color':            (0.04, 0.75, 1.0),
+        'incandescence':    (0.0, 0.55, 0.85),
+        'diffuse':          0.45,
+        'diffuseRoughness': DEFAULT_DIFFUSE_ROUGHNESS,
     },
     'rm_terrain_base_mat': {
-        'color':   (0.30, 0.31, 0.29),
-        'diffuse': 0.68,
+        'color':            (0.30, 0.31, 0.29),
+        'diffuse':          0.68,
+        'diffuseRoughness': DEFAULT_DIFFUSE_ROUGHNESS,
     },
     'rm_terrain_dark_mat': {
-        'color':   (0.13, 0.14, 0.13),
-        'diffuse': 0.58,
+        'color':            (0.13, 0.14, 0.13),
+        'diffuse':          0.58,
+        'diffuseRoughness': DEFAULT_DIFFUSE_ROUGHNESS,
     },
     'rm_terrain_accent_mat': {
-        'color':   (0.42, 0.36, 0.28),
-        'diffuse': 0.64,
+        'color':            (0.42, 0.36, 0.28),
+        'incandescence':    (0.42, 0.36, 0.28),   # ← emisivo (mismo color)
+        'diffuse':          0.64,
+        'diffuseRoughness': DEFAULT_DIFFUSE_ROUGHNESS,
     },
 }
 
@@ -100,6 +110,8 @@ def set_semantic_attr(shader: str, semantic: str, value) -> bool:
             mc.setAttr(f'{shader}.baseColor', *value, type='double3')
         elif semantic == 'diffuse':
             mc.setAttr(f'{shader}.base', float(value))
+        elif semantic == 'diffuseRoughness':
+            mc.setAttr(f'{shader}.diffuseRoughness', float(value))
         elif semantic == 'incandescence':
             # Emission: peso = 1 si el color tiene algun canal > 0, sino 0
             weight = 1.0 if any(v > 1e-4 for v in value) else 0.0
@@ -125,6 +137,8 @@ def get_semantic_attr(shader: str, semantic: str):
             return mc.getAttr(f'{shader}.baseColor')[0]
         if semantic == 'diffuse':
             return mc.getAttr(f'{shader}.base')
+        if semantic == 'diffuseRoughness':
+            return mc.getAttr(f'{shader}.diffuseRoughness')
         if semantic == 'incandescence':
             return mc.getAttr(f'{shader}.emissionColor')[0]
         if semantic == 'ambientColor':
