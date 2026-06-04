@@ -106,22 +106,36 @@ def _palette_mecha_color(palette_label: str = 'Default'):
     """Color del glow accent del mecha (rm_cyan_glow_mat.color)."""
     try:
         from materials.presets import PRESETS
-        return PRESETS.get(palette_label, {}) \
-                      .get('rm_cyan_glow_mat', {}) \
-                      .get('color', (0.04, 0.75, 1.0))
+        preset_key = _resolve_preset_key(palette_label, PRESETS)
+        if preset_key:
+            return PRESETS.get(preset_key, {}) \
+                          .get('rm_cyan_glow_mat', {}) \
+                          .get('color', (0.04, 0.75, 1.0))
     except Exception:
-        return (0.04, 0.75, 1.0)
+        pass
+
+    toon_col, _ = _toon_palette_colors(palette_label)
+    if toon_col:
+        return toon_col
+    return (0.04, 0.75, 1.0)
 
 
 def _palette_terrain_color(palette_label: str = 'Default'):
     """Color del accent del terreno (rm_terrain_accent_mat.color)."""
     try:
         from materials.presets import PRESETS
-        return PRESETS.get(palette_label, {}) \
-                      .get('rm_terrain_accent_mat', {}) \
-                      .get('color', (0.42, 0.36, 0.28))
+        preset_key = _resolve_preset_key(palette_label, PRESETS)
+        if preset_key:
+            return PRESETS.get(preset_key, {}) \
+                          .get('rm_terrain_accent_mat', {}) \
+                          .get('color', (0.42, 0.36, 0.28))
     except Exception:
-        return (0.42, 0.36, 0.28)
+        pass
+
+    _, toon_col = _toon_palette_colors(palette_label)
+    if toon_col:
+        return toon_col
+    return (0.42, 0.36, 0.28)
 
 
 def _compute_background_z() -> float:
@@ -172,6 +186,66 @@ def _set_color(node: str, attr: str, rgb):
         print(f'[RetroMecha][Lighting] color {node}.{attr}: {e}')
 
 
+def _resolve_preset_key(label: str, presets: dict) -> str | None:
+    if not label:
+        return None
+    if label in presets:
+        return label
+    label_l = label.lower()
+    for k in presets:
+        if k.lower() == label_l:
+            return k
+    return None
+
+
+def _ramp_mid_color(ramp):
+    if not ramp:
+        return None
+    try:
+        best = min(ramp, key=lambda item: abs(float(item[0]) - 0.5))
+        rgb = best[1]
+        return (float(rgb[0]), float(rgb[1]), float(rgb[2]))
+    except Exception:
+        return None
+
+
+def _toon_palette_colors(palette_key: str):
+    """Colores aproximados para paletas aiToon (quick mode)."""
+    try:
+        from utils.material_assigner import _load_palette
+        palette = _load_palette(palette_key)
+        if not palette:
+            return None, None
+        mecha_col = palette.get('GLOW')
+        if mecha_col and len(mecha_col) >= 3:
+            mecha_col = (float(mecha_col[0]), float(mecha_col[1]), float(mecha_col[2]))
+        terrain_ramp = palette.get('DETAIL') or palette.get('ARMOR') or palette.get('JOINT')
+        terrain_col = _ramp_mid_color(terrain_ramp)
+        return mecha_col, terrain_col
+    except Exception:
+        return None, None
+
+
+def _set_light_attr(shape: str, candidates: tuple[str, ...], value) -> bool:
+    for attr in candidates:
+        try:
+            if mc.attributeQuery(attr, node=shape, exists=True):
+                _set_attr(shape, attr, value)
+                return True
+        except Exception:
+            pass
+    print(f'[RetroMecha][Lighting] attr faltante en {shape}: {candidates}')
+    return False
+
+
+def _set_light_intensity(shape: str, value):
+    return _set_light_attr(shape, ('aiIntensity', 'intensity'), value)
+
+
+def _set_light_exposure(shape: str, value):
+    return _set_light_attr(shape, ('aiExposure', 'exposure'), value)
+
+
 def _tag(xform: str):
     if not mc.attributeQuery(_LIGHT_TAG, node=xform, exists=True):
         mc.addAttr(xform, longName=_LIGHT_TAG,
@@ -191,15 +265,61 @@ def _apply_visibility_defaults(shape: str):
 
 
 def _apply_area_shadow_defaults(shape: str):
-    _set_attr(shape, 'aiSpread',                1.0)
-    _set_attr(shape, 'aiSamples',               1)
-    _set_attr(shape, 'aiNormalize',             1)
-    _set_attr(shape, 'aiCastShadows',           1)
-    _set_attr(shape, 'aiShadowDensity',         1.0)
-    _set_attr(shape, 'aiCastVolumetricShadows', 1)
-    _set_attr(shape, 'aiVolumeSamples',         2)
-    _set_attr(shape, 'aiRoundness',             0.0)
-    _set_attr(shape, 'aiSoftEdge',              0.0)
+    _set_light_attr(shape, ('aiSpread', 'spread'), 1.0)
+    _set_light_attr(shape, ('aiSamples', 'samples'), 1)
+    _set_light_attr(shape, ('aiNormalize', 'normalize'), 1)
+    _set_light_attr(shape, ('aiCastShadows', 'castShadows'), 1)
+    _set_light_attr(shape, ('aiShadowDensity', 'shadowDensity'), 1.0)
+    _set_light_attr(shape, ('aiCastVolumetricShadows', 'castVolumetricShadows'), 1)
+    _set_light_attr(shape, ('aiVolumeSamples', 'volumeSamples'), 2)
+    _set_light_attr(shape, ('aiRoundness', 'roundness'), 0.0)
+    _set_light_attr(shape, ('aiSoftEdge', 'softEdge'), 0.0)
+
+
+def _apply_mesh_visibility(mesh_shape: str):
+    _set_attr(mesh_shape, 'primaryVisibility', 0)
+    _set_attr(mesh_shape, 'castsShadows', 0)
+    _set_attr(mesh_shape, 'receiveShadows', 0)
+    _set_attr(mesh_shape, 'visibleInReflections', 0)
+    _set_attr(mesh_shape, 'visibleInRefractions', 0)
+    _set_attr(mesh_shape, 'overrideEnabled', 1)
+    _set_attr(mesh_shape, 'overrideDisplayType', 2)  # template (wire)
+    _set_attr(mesh_shape, 'overrideShading', 0)
+
+
+def _create_meshlight_with_mtoa(cube_xform: str, cube_shape: str, light_xform_name: str):
+    """Intenta crear aiMeshLight usando mtoa.utils (si está disponible)."""
+    if not _has_arnold():
+        return None, None
+    try:
+        import mtoa.utils as mutils
+    except Exception:
+        return None, None
+
+    prev_sel = mc.ls(selection=True) or []
+    light_shape = None
+    light_xform = None
+    try:
+        mc.select(cube_xform, replace=True)
+        mutils.createMeshLight()
+        lights = mc.listConnections(f'{cube_shape}.outMesh', type='aiMeshLight') or []
+        if lights:
+            light_shape = lights[-1]
+            parents = mc.listRelatives(light_shape, parent=True) or []
+            light_xform = parents[0] if parents else light_shape
+            light_xform = mc.rename(light_xform, light_xform_name)
+            light_shape = mc.listRelatives(light_xform, shapes=True)[0]
+    except Exception as e:
+        print(f'[RetroMecha][Lighting] mtoa meshLight: {e}')
+    finally:
+        try:
+            if prev_sel:
+                mc.select(prev_sel, replace=True)
+            else:
+                mc.select(clear=True)
+        except Exception:
+            pass
+    return light_xform, light_shape
 
 
 def _shape_of(xform: str, type_filter: str | None = None):
@@ -243,8 +363,8 @@ def _create_luz_ambiente(terrain_color):
     xform, shape = _create_area_light(AMBIENT_NAME, light_shape_enum=0)  # quad
     _set_xform(xform, AMBIENT_TRANSLATE, AMBIENT_ROTATE, AMBIENT_SCALE)
     _set_color(shape, 'color', terrain_color)
-    _set_attr(shape, 'aiIntensity', _clamp_intensity(_AMBIENT_I[0]))
-    _set_attr(shape, 'aiExposure',  AMBIENT_EXPOSURE)
+    _set_light_intensity(shape, _clamp_intensity(_AMBIENT_I[0]))
+    _set_light_exposure(shape,  AMBIENT_EXPOSURE)
     _apply_area_shadow_defaults(shape)
     _apply_visibility_defaults(shape)
     _tag(xform)
@@ -254,8 +374,8 @@ def _create_foco_mecha():
     xform, shape = _create_area_light(FOCO_NAME, light_shape_enum=1)  # disk
     _set_xform(xform, FOCO_TRANSLATE, FOCO_ROTATE, FOCO_SCALE)
     _set_color(shape, 'color', FOCO_COLOR)
-    _set_attr(shape, 'aiIntensity', _clamp_intensity(_FOCO_I[0]))
-    _set_attr(shape, 'aiExposure',  FOCO_EXPOSURE)
+    _set_light_intensity(shape, _clamp_intensity(_FOCO_I[0]))
+    _set_light_exposure(shape,  FOCO_EXPOSURE)
     _apply_area_shadow_defaults(shape)
     _apply_visibility_defaults(shape)
     _tag(xform)
@@ -266,8 +386,8 @@ def _create_background(bg_z: float):
     bx, by = BG_TRANS_XY
     _set_xform(xform, (bx, by, bg_z), BG_ROTATE, BG_SCALE)
     _set_color(shape, 'color', BG_COLOR)
-    _set_attr(shape, 'aiIntensity', _clamp_intensity(_BG_I[0]))
-    _set_attr(shape, 'aiExposure',  BG_EXPOSURE)
+    _set_light_intensity(shape, _clamp_intensity(_BG_I[0]))
+    _set_light_exposure(shape,  BG_EXPOSURE)
     _apply_area_shadow_defaults(shape)
     _apply_visibility_defaults(shape)
     _tag(xform)
@@ -289,14 +409,19 @@ def _create_one_meshlight(cube_name: str, tx: float, bg_z: float, mecha_color):
     _set_xform(cube_xform, (tx, VEAM_TY, bg_z), (0, 0, 0), VEAM_SCALE)
 
     cube_shape = mc.listRelatives(cube_xform, shapes=True)[0]
+    _apply_mesh_visibility(cube_shape)
 
     light_xform_name = f'{cube_name}{VEAM_LIGHT_SUF}'
-    light_shape_name = f'{light_xform_name}Shape'
-    light_shape = mc.shadingNode('aiMeshLight', asLight=True, name=light_shape_name)
-    parents = mc.listRelatives(light_shape, parent=True) or []
-    light_xform = parents[0] if parents else light_shape
-    light_xform = mc.rename(light_xform, light_xform_name)
-    light_shape = mc.listRelatives(light_xform, shapes=True)[0]
+    light_xform, light_shape = _create_meshlight_with_mtoa(
+        cube_xform, cube_shape, light_xform_name
+    )
+    if not light_shape:
+        light_shape_name = f'{light_xform_name}Shape'
+        light_shape = mc.shadingNode('aiMeshLight', asLight=True, name=light_shape_name)
+        parents = mc.listRelatives(light_shape, parent=True) or []
+        light_xform = parents[0] if parents else light_shape
+        light_xform = mc.rename(light_xform, light_xform_name)
+        light_shape = mc.listRelatives(light_xform, shapes=True)[0]
 
     try:
         mc.connectAttr(f'{cube_shape}.outMesh',
@@ -311,21 +436,21 @@ def _create_one_meshlight(cube_name: str, tx: float, bg_z: float, mecha_color):
         print(f'[RetroMecha][Lighting] parent light→cube: {e}')
 
     _set_color(light_shape, 'color', mecha_color)
-    _set_attr(light_shape, 'aiIntensity',             _clamp_intensity(_VEAM_I[0]))
-    _set_attr(light_shape, 'aiExposure',              VEAM_EXPOSURE)
-    _set_attr(light_shape, 'aiLightVisible',          0)
-    _set_attr(light_shape, 'aiSamples',               1)
-    _set_attr(light_shape, 'aiNormalize',             1)
-    _set_attr(light_shape, 'aiCastShadows',           1)
-    _set_attr(light_shape, 'aiShadowDensity',         1.0)
-    _set_attr(light_shape, 'aiCastVolumetricShadows', 1)
-    _set_attr(light_shape, 'aiVolumeSamples',         2)
-    _set_attr(light_shape, 'aiMaxBounces',            999)
-    _set_attr(light_shape, 'aiDiffuse',               1.0)
-    _set_attr(light_shape, 'aiSpecular',              1.0)
-    _set_attr(light_shape, 'aiSss',                   1.0)
-    _set_attr(light_shape, 'aiIndirect',              1.0)
-    _set_attr(light_shape, 'aiVolume',                1.0)
+    _set_light_intensity(light_shape, _clamp_intensity(_VEAM_I[0]))
+    _set_light_exposure(light_shape,  VEAM_EXPOSURE)
+    _set_light_attr(light_shape, ('aiLightVisible', 'lightVisible'), 0)
+    _set_light_attr(light_shape, ('aiSamples', 'samples'), 1)
+    _set_light_attr(light_shape, ('aiNormalize', 'normalize'), 1)
+    _set_light_attr(light_shape, ('aiCastShadows', 'castShadows'), 1)
+    _set_light_attr(light_shape, ('aiShadowDensity', 'shadowDensity'), 1.0)
+    _set_light_attr(light_shape, ('aiCastVolumetricShadows', 'castVolumetricShadows'), 1)
+    _set_light_attr(light_shape, ('aiVolumeSamples', 'volumeSamples'), 2)
+    _set_light_attr(light_shape, ('aiMaxBounces', 'maxBounces'), 999)
+    _set_light_attr(light_shape, ('aiDiffuse', 'diffuse'), 1.0)
+    _set_light_attr(light_shape, ('aiSpecular', 'specular'), 1.0)
+    _set_light_attr(light_shape, ('aiSss', 'sss'), 1.0)
+    _set_light_attr(light_shape, ('aiIndirect', 'indirect'), 1.0)
+    _set_light_attr(light_shape, ('aiVolume', 'volume'), 1.0)
 
     _tag(cube_xform)
     _tag(light_xform)
@@ -419,24 +544,21 @@ def set_ambient_intensity(value: float):
     _AMBIENT_I[0] = _clamp_intensity(value)
     shape = _shape_of(AMBIENT_NAME, type_filter='aiAreaLight')
     if shape:
-        try: mc.setAttr(f'{shape}.aiIntensity', _AMBIENT_I[0])
-        except Exception: pass
+        _set_light_intensity(shape, _AMBIENT_I[0])
 
 
 def set_foco_intensity(value: float):
     _FOCO_I[0] = _clamp_intensity(value)
     shape = _shape_of(FOCO_NAME, type_filter='aiAreaLight')
     if shape:
-        try: mc.setAttr(f'{shape}.aiIntensity', _FOCO_I[0])
-        except Exception: pass
+        _set_light_intensity(shape, _FOCO_I[0])
 
 
 def set_background_intensity(value: float):
     _BG_I[0] = _clamp_intensity(value)
     shape = _shape_of(BG_NAME, type_filter='aiAreaLight')
     if shape:
-        try: mc.setAttr(f'{shape}.aiIntensity', _BG_I[0])
-        except Exception: pass
+        _set_light_intensity(shape, _BG_I[0])
 
 
 def set_veam_intensity(value: float):
@@ -445,8 +567,7 @@ def set_veam_intensity(value: float):
         light_xform = f'{veam_name}{VEAM_LIGHT_SUF}'
         shape = _shape_of(light_xform, type_filter='aiMeshLight')
         if shape:
-            try: mc.setAttr(f'{shape}.aiIntensity', _VEAM_I[0])
-            except Exception: pass
+            _set_light_intensity(shape, _VEAM_I[0])
 
 
 def get_intensities() -> dict:

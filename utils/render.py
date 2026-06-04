@@ -69,7 +69,7 @@ def render_now() -> bool:
     if not MAYA_AVAILABLE:
         return False
 
-    from utils.camera import CAMERA_XFORM, create_default_camera
+    from utils.camera import CAMERA_XFORM, create_default_camera, look_through_camera, lock_camera
 
     # Asegurar que la camara existe
     if not mc.objExists(CAMERA_XFORM):
@@ -78,6 +78,11 @@ def render_now() -> bool:
         if not mc.objExists(CAMERA_XFORM):
             print('[RetroMecha][Render] No se pudo crear la camara')
             return False
+    try:
+        look_through_camera()
+        lock_camera(True)
+    except Exception as e:
+        print(f'[RetroMecha][Render] Camara (look/lock): {e}')
 
     if not _has_arnold():
         print('[RetroMecha][Render] Arnold no cargado — abortando')

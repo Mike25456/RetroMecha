@@ -288,6 +288,13 @@ def apply_palette_quick(palette_key):
     except Exception as e:
         print(f'[RetroMecha][aiToon] Error aplicando paleta: {e}')
 
+    try:
+        from utils import lighting
+        if lighting.has_rm_lights():
+            lighting.set_palette(palette_key)
+    except Exception as e:
+        print(f'[RetroMecha][aiToon] Luces: {e}')
+
 
 def apply_color_preset_quick(preset_name):
     """Aplica un preset de colores (Default/Atardecer/...) por nombre.
