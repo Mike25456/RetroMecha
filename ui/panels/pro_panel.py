@@ -51,9 +51,10 @@ def build():
     except Exception as e:
         print(f'[RetroMecha][Pro] Error en MOVIMIENTO: {e}')
     mc.setParent('..')
-    active = state._ACTIVE_ANIM[0]
-    if active in rb_map:
-        mc.radioCollection(coll, e=True, select=rb_map[active])
+    state.reg('anim_rb_coll', coll)
+    state.reg('anim_rb_map', rb_map)
+    from ui.build_actions import _sync_anim_ui
+    _sync_anim_ui()
     mc.separator(h=6, style='none')
 
     _build_tab_bar()
