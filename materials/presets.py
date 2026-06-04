@@ -3,7 +3,9 @@ try:
 except ImportError:
     mc = None
 
-from utils.maya_materials import ensure_material, set_semantic_attr
+from utils.maya_materials import (
+    ensure_material, set_semantic_attr, DEFAULT_DIFFUSE_ROUGHNESS,
+)
 
 SHADER_NAMES = [
     "rm_white_armor_mat",
@@ -44,6 +46,7 @@ PRESETS = {
         },
         "rm_terrain_accent_mat": {
             "color": (0.42, 0.36, 0.28),
+            "incandescence": (0.42, 0.36, 0.28),
             "ambientColor": (0.07, 0.055, 0.04),
             "diffuse": 0.64,
         },
@@ -77,6 +80,7 @@ PRESETS = {
         },
         "rm_terrain_accent_mat": {
             "color": (0.42, 0.30, 0.20),
+            "incandescence": (0.42, 0.30, 0.20),
             "ambientColor": (0.09, 0.045, 0.025),
             "diffuse": 0.60,
         },
@@ -110,6 +114,7 @@ PRESETS = {
         },
         "rm_terrain_accent_mat": {
             "color": (0.31, 0.35, 0.39),
+            "incandescence": (0.31, 0.35, 0.39),
             "ambientColor": (0.055, 0.07, 0.09),
             "diffuse": 0.60,
         },
@@ -143,6 +148,7 @@ PRESETS = {
         },
         "rm_terrain_accent_mat": {
             "color": (0.40, 0.26, 0.14),
+            "incandescence": (0.40, 0.26, 0.14),
             "ambientColor": (0.085, 0.045, 0.02),
             "diffuse": 0.58,
         },
@@ -176,6 +182,7 @@ PRESETS = {
         },
         "rm_terrain_accent_mat": {
             "color": (0.26, 0.22, 0.34),
+            "incandescence": (0.26, 0.22, 0.34),
             "ambientColor": (0.055, 0.04, 0.09),
             "diffuse": 0.58,
         },
@@ -200,6 +207,11 @@ def apply_preset(name: str) -> bool:
         if not mc.objExists(shader):
             print(f"[RetroMecha][Material] Shader {shader} no existe")
             continue
+
+        # Default global: diffuseRoughness=0.5 (menos reflejo del lobulo difuso)
+        # Si el preset lo sobreescribe explicitamente, esa override gana.
+        set_semantic_attr(shader, 'diffuseRoughness', DEFAULT_DIFFUSE_ROUGHNESS)
+
         for semantic, value in attrs.items():
             set_semantic_attr(shader, semantic, value)
     print(f"[RetroMecha][Material] Preset '{name}' aplicado")

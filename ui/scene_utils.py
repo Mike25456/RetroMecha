@@ -126,10 +126,33 @@ def clean_animations():
 
 
 def clean_camera():
-    """Borra la camara default 'rm_camera_compo' creada por RetroMecha."""
+    """Borra la camara default Camera_for_render creada por RetroMecha."""
     try:
         from utils.camera import remove_camera
         remove_camera()
+    except Exception:
+        pass
+
+
+def clean_atmosphere():
+    """Borra el aiAtmosphereVolume creado por RetroMecha."""
+    try:
+        from utils.atmosphere import remove_atmosphere
+        remove_atmosphere()
+    except Exception:
+        pass
+
+
+def clean_sky():
+    """Borra el cielo (polyPlane + 2 bend deformers) + sky_material asociado."""
+    try:
+        from utils.sky import remove_sky
+        remove_sky()
+    except Exception:
+        pass
+    try:
+        from materials.sky_material import remove_sky_material
+        remove_sky_material()
     except Exception:
         pass
 
@@ -178,6 +201,8 @@ def clean_scene():
     delete_nodes(nodes)
 
     clean_lighting()
+    clean_atmosphere()
+    clean_sky()
     clean_camera()
 
 
