@@ -41,10 +41,10 @@ def build():
 
     mc.text(label='Movimiento', align='left', font='smallPlainLabelFont')
     coll = mc.radioCollection()
-    mc.rowLayout(nc=3, cw3=[110, 110, 110])
+    mc.rowLayout(nc=4, cw4=[85, 85, 85, 85])
     rb_map = {}
     try:
-        for key, label in [('idle', 'Reposo'), ('flight', 'Vuelo'), ('spin', 'Giro')]:
+        for key, label in [('idle', 'Reposo'), ('flight', 'Vuelo'), ('spin', 'Giro'), ('charge', 'Carga')]:
             rb = mc.radioButton(label=label,
                                 onCommand=lambda *_, k=key: apply_animation_quick(k))
             rb_map[key] = rb

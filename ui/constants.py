@@ -2,6 +2,7 @@
 
 HEAD_STYLE_LABELS = {
     'Casco': 'helmet', 'Dron': 'drone', 'Centinela': 'sentinel',
+    'Cráneo': 'skull', 'Kabuto': 'kabuto',
 }
 ARM_STYLE_LABELS = {
     'Estándar': 'standard', 'Pesado': 'heavy',
@@ -15,11 +16,11 @@ WING_STYLE_LABELS = {
 }
 TORSO_STYLE_LABELS = {
     'Base': 'core', 'Pesado': 'heavy', 'Delgado': 'slim', 'Compacto': 'compact',
-    'Samurái': 'samurai',
+    'Samurái': 'samurai', 'Insecto': 'insect',
 }
 NUCLEUS_STYLE_LABELS = {
     'Anillo': 'ring', 'Columna': 'column', 'Orbe': 'orb',
-    'Cruz': 'cross',
+    'Cruz': 'cross', 'Orbes': 'orb_cluster',
 }
 TERRAIN_PRESET_MAP = {
     'Avanzada': 'avanzada', 'Hangar': 'hangar',
