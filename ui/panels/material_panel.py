@@ -18,7 +18,7 @@ from ui.widgets import fsl
 import ui.theme as T
 
 from materials.presets import SHADER_NAMES, list_presets, apply_preset
-from utils.maya_materials import ensure_material
+from utils.maya_materials import ensure_material, set_semantic_attr, get_semantic_attr
 
 _SHADER_LABELS = {
     'Armadura': 'rm_white_armor_mat',
@@ -86,15 +86,7 @@ def build(wrapped=True):
 
     _update_shader_sliders()
 
-    mc.separator(h=8)
-    mc.button(
-        label='Aplicar materiales al mecha', h=28,
-        backgroundColor=T.CYAN,
-        command=lambda *_: _apply_materials(),
-        annotation='Aplica la paleta actual y reasigna los shaders al mecha y terreno',
-    )
-
-    mc.separator(h=4, style='none')
+    mc.separator(h=4)
     mc.setParent('..')
     if wrapped:
         mc.setParent('..')
@@ -111,9 +103,7 @@ def _set_shader_color(*_):
         return
     try:
         rgb = mc.colorSliderGrp(state.get('color_sl'), q=True, rgb=True)
-        mc.setAttr(f'{sh}.color',
-                   float(rgb[0]), float(rgb[1]), float(rgb[2]),
-                   type='double3')
+        set_semantic_attr(sh, 'color', tuple(float(c) for c in rgb))
     except Exception:
         pass
 
@@ -123,10 +113,7 @@ def _set_shader_diffuse(val):
     if sh:
         ensure_material(sh)
     if sh and mc.objExists(sh):
-        try:
-            mc.setAttr(f'{sh}.diffuse', val)
-        except Exception:
-            pass
+        set_semantic_attr(sh, 'diffuse', float(val))
 
 
 def _set_shader_incandescence(val):
@@ -134,10 +121,8 @@ def _set_shader_incandescence(val):
     if sh:
         ensure_material(sh)
     if sh and mc.objExists(sh) and sh == 'rm_cyan_glow_mat':
-        try:
-            mc.setAttr(f'{sh}.incandescence', val, val, val, type='double3')
-        except Exception:
-            pass
+        v = float(val)
+        set_semantic_attr(sh, 'incandescence', (v, v, v))
 
 
 def _update_shader_sliders():
@@ -149,15 +134,18 @@ def _update_shader_sliders():
         return
     _APPLYING_SHADER[0] = True
     try:
-        col = mc.getAttr(f'{sh}.color')[0]
-        mc.colorSliderGrp(state.get('color_sl'), e=True, rgb=col)
-        d = mc.getAttr(f'{sh}.diffuse')
-        mc.floatSliderGrp(state.get('d_sl'), e=True, value=d)
+        col = get_semantic_attr(sh, 'color')
+        if col is not None:
+            mc.colorSliderGrp(state.get('color_sl'), e=True, rgb=tuple(col))
+        d = get_semantic_attr(sh, 'diffuse')
+        if d is not None:
+            mc.floatSliderGrp(state.get('d_sl'), e=True, value=float(d))
         is_glow = (sh == 'rm_cyan_glow_mat')
         mc.control(state.get('i_sl'), e=True, visible=is_glow)
         if is_glow:
-            inc = mc.getAttr(f'{sh}.incandescence')[0]
-            mc.floatSliderGrp(state.get('i_sl'), e=True, value=inc[0])
+            inc = get_semantic_attr(sh, 'incandescence')
+            if inc is not None:
+                mc.floatSliderGrp(state.get('i_sl'), e=True, value=float(inc[0]))
     except Exception:
         pass
     finally:
@@ -204,16 +192,6 @@ def _build_shader_tabs():
         mc.setParent('..')
 
 
-def _find_mecha_group():
-    from ui import scene_utils as sc
-    return sc.find_mecha_group()
-
-
-def _find_scene_group():
-    from ui import scene_utils as sc
-    return sc.find_scene_group()
-
-
 def _on_preset_changed(*_):
     """Al cambiar la paleta, actualizar los shaders en memoria + sky + luces."""
     preset_menu = state.get('materials_preset_menu')
@@ -239,75 +217,15 @@ def _on_preset_changed(*_):
         pass
 
 
-def _apply_materials(*_):
-    """Aplica la paleta + reasigna shaders al mecha, terreno y sky."""
-    palette_label = current_palette_label()
-    preset_menu = state.get('materials_preset_menu')
-    if _safe_ctrl_exists(preset_menu):
-        try:
-            apply_preset(palette_label)
-            _update_shader_sliders()
-        except Exception:
-            pass
-
-    mecha_grp = _find_mecha_group()
-    scene_grp = _find_scene_group()
-    target = scene_grp or mecha_grp
-    if not target:
-        print('[RetroMecha][Mat] No hay mecha en escena')
-        return
-
-    try:
-        from materials.materializer import materialize_mecha, materialize_terrain
-        if mecha_grp:
-            materialize_mecha(mecha_grp)
-        if scene_grp:
-            for child in (mc.listRelatives(scene_grp, children=True, type='transform') or []):
-                if child.startswith('rm_terrain_'):
-                    materialize_terrain(child)
-        print('[RetroMecha][Mat] Materiales aplicados')
-    except Exception as e:
-        print(f'[RetroMecha][Mat] Error: {e}')
-
-    try:
-        from materials.sky_material import (
-            create_sky_material, update_sky_ramp, has_sky_material,
-        )
-        if mc.objExists('sky'):
-            if has_sky_material():
-                update_sky_ramp(palette_label)
-            else:
-                create_sky_material(palette_label)
-    except Exception as e:
-        print(f'[RetroMecha][Mat] Sky: {e}')
-
-
 def current_palette_label() -> str:
     """Devuelve el label del preset seleccionado (Default si no hay)."""
     preset_menu = state.get('materials_preset_menu')
     if _safe_ctrl_exists(preset_menu):
         try:
-            return mc.optionMenu(preset_menu, q=True, value=True) or 'Default'
+            return mc.optionMenu(preset_menu, q=True, value=True) or 'Predeterminado'
         except Exception:
             pass
-    return 'Default'
-
-
-def apply_palette_quick(palette_key):
-    """Aplica una paleta aiToon directamente por key (modo Rapido)."""
-    grp = _find_mecha_group()
-    if not grp:
-        print('[RetroMecha][aiToon] No hay mecha en escena')
-        return
-    try:
-        from utils.material_assigner import assign_palette_to_group, clear_material_cache
-        clear_material_cache()
-        assign_palette_to_group(grp, palette_key)
-        print(f'[RetroMecha][aiToon] Paleta {palette_key} aplicada')
-    except ImportError as e:
-        print(f'[RetroMecha][aiToon] material_assigner no disponible: {e}')
-    except Exception as e:
-        print(f'[RetroMecha][aiToon] Error aplicando paleta: {e}')
+    return 'Predeterminado'
 
     try:
         from utils import lighting

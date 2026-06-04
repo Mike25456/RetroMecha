@@ -17,7 +17,7 @@ SHADER_NAMES = [
 ]
 
 PRESETS = {
-    "Default": {
+    "Predeterminado": {
         "rm_white_armor_mat": {
             "color": (0.86, 0.84, 0.78),
             "ambientColor": (0.12, 0.12, 0.11),

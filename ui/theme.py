@@ -20,6 +20,7 @@ DARK     = (0.043, 0.051, 0.063)   # #0b0d10  sub-panel profundo (el más oscuro
 OK       = (0.176, 0.831, 0.467)   # verde
 WARN     = (0.960, 0.690, 0.220)   # amber
 ERR      = (0.870, 0.270, 0.270)   # rojo
+PURPLE   = (0.350, 0.180, 0.300)  # morado oscuro desaturado
 
 
 # ── Helpers ─────────────────────────────────────────────

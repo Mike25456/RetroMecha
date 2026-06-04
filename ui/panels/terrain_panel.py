@@ -49,7 +49,7 @@ def build(wrapped=True):
         on_cc=rebuild_terrain_only,
     ))
     state.reg('t_deb_sl', isl(
-        'Debris', 20, 150, params.get('debris_count', 80),
+        'Escombros', 20, 150, params.get('debris_count', 80),
         on_cc=rebuild_terrain_only,
     ))
     state.reg('t_pil_sl', isl(
@@ -66,9 +66,9 @@ def build(wrapped=True):
     ))
 
     mc.separator(h=4)
-    mc.text(label='SKYLINE', align='left', font='smallPlainLabelFont')
+    mc.text(label='Horizonte', align='left', font='smallPlainLabelFont')
     state.reg('t_sky_n_sl', isl(
-        'Skylines', 1, 6, params.get('skyline_count', 3),
+        'Edificios', 1, 6, params.get('skyline_count', 3),
         on_cc=rebuild_terrain_only,
     ))
     state.reg('t_sky_z_sl', fsl(
@@ -76,7 +76,7 @@ def build(wrapped=True):
         step=1.0, on_cc=rebuild_terrain_only,
     ))
     state.reg('t_sky_sp_sl', fsl(
-        'Expansion X', 10.0, 80.0, params.get('skyline_spread_x', 40.0),
+        'Expansión X', 10.0, 80.0, params.get('skyline_spread_x', 40.0),
         step=1.0, on_cc=rebuild_terrain_only,
     ))
 

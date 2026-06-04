@@ -1,11 +1,11 @@
 """Shared UI labels and value maps for RetroMecha."""
 
 HEAD_STYLE_LABELS = {
-    'Casco': 'helmet', 'Drone': 'drone', 'Centinela': 'sentinel',
+    'Casco': 'helmet', 'Dron': 'drone', 'Centinela': 'sentinel',
 }
 ARM_STYLE_LABELS = {
-    'Estandar': 'standard', 'Pesado': 'heavy',
-    'Cuchilla': 'blade', 'Cañon': 'cannon',
+    'Estándar': 'standard', 'Pesado': 'heavy',
+    'Cuchilla': 'blade', 'Cañón': 'cannon',
     'Escudo': 'shield',
 }
 WING_STYLE_LABELS = {

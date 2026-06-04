@@ -71,49 +71,44 @@ def build():
     )
 
     state.reg('render_ambient_i_sl', fsl(
-        'Ambient (luz_ambiente)', INTENSITY_MIN, INTENSITY_MAX, AMBIENT_INTENSITY,
+        'Ambiente', INTENSITY_MIN, INTENSITY_MAX, AMBIENT_INTENSITY,
         step=0.1, prec=2,
         on_cc=_on_ambient_intensity,
-        annotation='Intensidad de luz_ambiente (aiAreaLight quad, '
-                   'color del terreno segun paleta)',
+        annotation='Intensidad de luz_ambiente',
     ))
     state.reg('render_foco_i_sl', fsl(
-        'Foco (foco_mecha)', INTENSITY_MIN, INTENSITY_MAX, FOCO_INTENSITY,
+        'Foco', INTENSITY_MIN, INTENSITY_MAX, FOCO_INTENSITY,
         step=0.1, prec=2,
         on_cc=_on_foco_intensity,
-        annotation='Intensidad de foco_mecha (aiAreaLight disk, BLANCA)',
+        annotation='Intensidad de foco_mecha',
     ))
     state.reg('render_bg_i_sl', fsl(
-        'Background', INTENSITY_MIN, INTENSITY_MAX, BG_INTENSITY,
+        'Fondo', INTENSITY_MIN, INTENSITY_MAX, BG_INTENSITY,
         step=0.1, prec=2,
         on_cc=_on_bg_intensity,
-        annotation='Intensidad de background (aiAreaLight quad, BLANCA, '
-                   'Z = skyline + 4)',
+        annotation='Intensidad de luz de fondo',
     ))
     state.reg('render_veam_i_sl', fsl(
-        'Mesh (veam izq/der)', INTENSITY_MIN, INTENSITY_MAX, VEAM_INTENSITY,
+        'VEAM', INTENSITY_MIN, INTENSITY_MAX, VEAM_INTENSITY,
         step=0.1, prec=2,
         on_cc=_on_veam_intensity,
-        annotation='Intensidad de veam_light_izquierdo y veam_light_derecho '
-                   '(aiMeshLight, color glow del mecha)',
+        annotation='Intensidad de las luces VEAM izquierda y derecha',
     ))
 
     state.reg('render_atmosphere_density_sl', fsl(
-        'Densidad atmosfera', DENSITY_MIN, DENSITY_MAX, DEFAULT_DENSITY,
+        'Atmósfera', DENSITY_MIN, DENSITY_MAX, DEFAULT_DENSITY,
         step=0.001, prec=3,
         on_cc=_on_atmosphere_density,
-        annotation='Densidad del aiAtmosphereVolume (volumetrica Arnold). '
-                   f'Rango: {DENSITY_MIN}-{DENSITY_MAX} (default {DEFAULT_DENSITY})',
+        annotation='Densidad atmosférica volumétrica',
     ))
 
     mc.rowLayout(nc=2, cw2=[160, 160],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
-    mc.button(label='Crear / Recrear luces', h=26,
+    mc.button(label='Crear luces', h=26,
               backgroundColor=T.CYAN,
               command=lambda *_: _apply_lighting(),
-              annotation='Crea las 5 luces (ambient/foco/bg/2 mesh) + atmosfera. '
-                         'Colores segun la paleta activa.')
+              annotation='Crea las 5 luces + atmósfera. Colores según la paleta activa.')
     mc.button(label='Eliminar luces', h=26,
               backgroundColor=T.SLATE,
               command=lambda *_: _remove_lighting(),
@@ -132,11 +127,10 @@ def build():
     mc.rowLayout(nc=2, cw2=[160, 160],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
-    mc.button(label='Crear / Recrear cielo', h=26,
+    mc.button(label='Crear cielo', h=26,
               backgroundColor=T.CYAN,
               command=lambda *_: _apply_sky(),
-              annotation='Crea sky (polyPlane 24x24 + bend1 envelope 2 + bend2) '
-                         '+ sky_material acorde a paleta')
+              annotation='Crea cielo curvo + material de cielo acorde a la paleta')
     mc.button(label='Eliminar cielo', h=26,
               backgroundColor=T.SLATE,
               command=lambda *_: _remove_sky_cb(),
@@ -161,15 +155,14 @@ def build():
     mc.rowLayout(nc=2, cw2=[160, 160],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
-    mc.button(label='Crear / Recrear camara', h=26,
+    mc.button(label='Crear cámara', h=26,
               backgroundColor=T.CYAN,
               command=lambda *_: _apply_default_camera(),
-        annotation='Crea Camara_for_render con la config final del setup '
-                         '(posicion / rotacion fijas del usuario)')
-    mc.button(label='Eliminar camara', h=26,
+              annotation='Crea Camera_for_render con posición y rotación fijas')
+    mc.button(label='Eliminar cámara', h=26,
               backgroundColor=T.SLATE,
               command=lambda *_: _remove_default_camera(),
-        annotation='Elimina Camara_for_render de la escena')
+              annotation='Elimina Camera_for_render de la escena')
     mc.setParent('..')
 
     mc.rowLayout(nc=2, cw2=[160, 160],
@@ -201,7 +194,7 @@ def _current_palette():
         from ui.panels.material_panel import current_palette_label
         return current_palette_label()
     except Exception:
-        return 'Default'
+        return 'Predeterminado'
 
 
 def _ensure_default_lighting():
