@@ -6,6 +6,7 @@ HEAD_STYLE_LABELS = {
 ARM_STYLE_LABELS = {
     'Estandar': 'standard', 'Pesado': 'heavy',
     'Cuchilla': 'blade', 'Cañon': 'cannon',
+    'Escudo': 'shield',
 }
 WING_STYLE_LABELS = {
     'Agujas': 'needle', 'Compactas': 'compact', 'Abanico': 'fan',

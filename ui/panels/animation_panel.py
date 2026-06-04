@@ -6,20 +6,23 @@ try:
 except ImportError:
     MAYA_AVAILABLE = False
 
-from ui import scene_utils as sc
+import ui.theme as T
+from ui import scene_utils as sc, state
 from animations.registry import list_animations, get_animation
 
 
 _current_anim = [None]
 
 
-def build():
-    mc.frameLayout(
-        label='  >  ANIMACIONES',
-        collapsable=True, collapse=True,
-        backgroundColor=[0.44, 0.18, 0.10],
-        marginHeight=6, marginWidth=6,
-    )
+def build(wrapped=True):
+    if wrapped:
+        mc.frameLayout(
+            label='  >  ANIMACIONES',
+            collapsable=True, collapse=True,
+            borderStyle='etchedIn',
+            backgroundColor=T.PANEL,
+            marginHeight=6, marginWidth=6,
+        )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
 
     anims = list_animations()
@@ -42,11 +45,11 @@ def build():
                      columnAttach2=['both', 'both'],
                      columnOffset2=[3, 3])
         mc.button(label='Aplicar', h=28,
-                  backgroundColor=[0.62, 0.30, 0.14],
+                  backgroundColor=T.CYAN,
                   command=_apply_animation,
                   annotation='Aplica la animación seleccionada al mecha')
         mc.button(label='Remover', h=28,
-                  backgroundColor=[0.42, 0.14, 0.10],
+                  backgroundColor=T.SLATE,
                   command=_remove_animation,
                   annotation='Elimina la animación actual del mecha')
         mc.setParent('..')
@@ -56,7 +59,8 @@ def build():
 
     mc.separator(h=4, style='none')
     mc.setParent('..')
-    mc.setParent('..')
+    if wrapped:
+        mc.setParent('..')
 
 
 def _apply_animation(*_):
@@ -85,7 +89,8 @@ def _remove_animation(*_):
 
 
 def apply_animation_quick(name):
-    """Aplica animación por nombre directamente (modo Rápido)."""
+    """Aplica animación por nombre directamente (modo Rápido/Pro)."""
+    state._ACTIVE_ANIM[0] = name
     mecha_root = sc.find_mecha_group()
     if not mecha_root:
         print('[RetroMecha][Anim] No hay mecha en escena')

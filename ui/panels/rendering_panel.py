@@ -1,16 +1,12 @@
-"""Panel RENDERING — Render + Iluminacion (palette-aware + atmosfera) + Camara.
+"""Panel RENDERING — Render, iluminacion, cielo y camara.
 
-Esta pestaña agrupa lo que NO se gestiona desde la pestaña Escena:
   - Boton RENDER 1920x1080 (Arnold) desde Camera_for_render
   - Iluminacion: 5 luces (luz_ambiente, foco_mecha, background,
                  veam_light izquierdo/derecho) palette-aware
+  - Sliders individuales de intensidad por luz
   - Slider de densidad de aiAtmosphereVolume
   - Cielo: sky polyPlane + bends + sky_material
-  - Camera_for_render: crear / eliminar / look through / lift mecha
-
-luz_ambiente y veam_light_* siguen la paleta de colores activa
-(accent del mecha = rm_cyan_glow_mat). background y foco_mecha
-son siempre blancas.
+  - Camara: crear/eliminar/look through/lift mecha
 """
 
 try:
@@ -21,14 +17,13 @@ except ImportError:
 
 from ui import state
 from ui.widgets import fsl
+import ui.theme as T
 
-# Intensidades base por luz (defaults absolutos, no multiplicador)
 from utils.lighting import (
     AMBIENT_INTENSITY, FOCO_INTENSITY, BG_INTENSITY, VEAM_INTENSITY,
     INTENSITY_MIN, INTENSITY_MAX,
 )
 
-# Atmosfera (aiAtmosphereVolume)
 DEFAULT_DENSITY    = 0.034
 DENSITY_MIN        = 0.02
 DENSITY_MAX        = 0.08
@@ -36,7 +31,6 @@ DEFAULT_ANISOTROPY = 0.666
 
 
 def build():
-    """Construye el panel completo de rendering."""
     mc.columnLayout(adjustableColumn=True, rowSpacing=4,
                     columnAttach=('both', 4))
 
@@ -46,7 +40,7 @@ def build():
     mc.text(
         label='  RENDER',
         align='left', font='boldLabelFont', h=22,
-        backgroundColor=[0.30, 0.10, 0.10],
+        backgroundColor=T.PANEL,
     )
     mc.separator(h=4, style='none')
     mc.text(
@@ -55,7 +49,7 @@ def build():
     )
     mc.button(
         label='Render', h=34,
-        backgroundColor=[0.70, 0.18, 0.18],
+        backgroundColor=T.CYAN,
         command=lambda *_: _do_render(),
         annotation='Configura Arnold + resolucion 1920x1080 y lanza el render '
                    'desde Camera_for_render en la Render View',
@@ -66,7 +60,7 @@ def build():
     mc.text(
         label='  ILUMINACION',
         align='left', font='boldLabelFont', h=22,
-        backgroundColor=[0.18, 0.18, 0.28],
+        backgroundColor=T.PANEL,
     )
     mc.separator(h=4, style='none')
 
@@ -76,7 +70,6 @@ def build():
         align='left', font='smallPlainLabelFont',
     )
 
-    # Sliders individuales por luz (min INTENSITY_MIN, default = spec base)
     state.reg('render_ambient_i_sl', fsl(
         'Ambient (luz_ambiente)', INTENSITY_MIN, INTENSITY_MAX, AMBIENT_INTENSITY,
         step=0.1, prec=2,
@@ -105,7 +98,6 @@ def build():
                    '(aiMeshLight, color glow del mecha)',
     ))
 
-    # Slider densidad aiAtmosphereVolume
     state.reg('render_atmosphere_density_sl', fsl(
         'Densidad atmosfera', DENSITY_MIN, DENSITY_MAX, DEFAULT_DENSITY,
         step=0.001, prec=3,
@@ -118,27 +110,35 @@ def build():
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.button(label='Crear / Recrear luces', h=26,
-              backgroundColor=[0.60, 0.40, 0.14],
+              backgroundColor=T.CYAN,
               command=lambda *_: _apply_lighting(),
               annotation='Crea las 5 luces (ambient/foco/bg/2 mesh) + atmosfera. '
                          'Colores segun la paleta activa.')
     mc.button(label='Eliminar luces', h=26,
-              backgroundColor=[0.46, 0.16, 0.12],
+              backgroundColor=T.SLATE,
               command=lambda *_: _remove_lighting(),
               annotation='Elimina luces y atmosfera creadas por RetroMecha')
     mc.setParent('..')
 
-    # Cielo (polyPlane + 2 bends)
+    # ── CIELO ──────────────────────────────────────────────────
+    mc.separator(h=8, style='none')
+    mc.text(
+        label='  CIELO',
+        align='left', font='boldLabelFont', h=22,
+        backgroundColor=T.PANEL,
+    )
+    mc.separator(h=4, style='none')
+
     mc.rowLayout(nc=2, cw2=[160, 160],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.button(label='Crear / Recrear cielo', h=26,
-              backgroundColor=[0.20, 0.36, 0.50],
+              backgroundColor=T.CYAN,
               command=lambda *_: _apply_sky(),
               annotation='Crea sky (polyPlane 24x24 + bend1 envelope 2 + bend2) '
                          '+ sky_material acorde a paleta')
     mc.button(label='Eliminar cielo', h=26,
-              backgroundColor=[0.46, 0.16, 0.12],
+              backgroundColor=T.SLATE,
               command=lambda *_: _remove_sky_cb(),
               annotation='Elimina el sky, sus deformadores y el sky_material')
     mc.setParent('..')
@@ -148,7 +148,7 @@ def build():
     mc.text(
         label='  CAMARA',
         align='left', font='boldLabelFont', h=22,
-        backgroundColor=[0.12, 0.24, 0.20],
+        backgroundColor=T.PANEL,
     )
     mc.separator(h=4, style='none')
 
@@ -162,12 +162,12 @@ def build():
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.button(label='Crear / Recrear camara', h=26,
-              backgroundColor=[0.18, 0.46, 0.36],
+              backgroundColor=T.CYAN,
               command=lambda *_: _apply_default_camera(),
               annotation='Crea Camera_for_render con la config final del setup '
                          '(posicion / rotacion fijas del usuario)')
     mc.button(label='Eliminar camara', h=26,
-              backgroundColor=[0.46, 0.16, 0.12],
+              backgroundColor=T.SLATE,
               command=lambda *_: _remove_default_camera(),
               annotation='Elimina Camera_for_render de la escena')
     mc.setParent('..')
@@ -176,11 +176,11 @@ def build():
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.button(label='Look through', h=26,
-              backgroundColor=[0.20, 0.34, 0.44],
+              backgroundColor=T.CYAN,
               command=lambda *_: _look_through_camera(),
               annotation='Mira a traves de Camera_for_render en el panel activo')
     mc.button(label='Lift mecha +6', h=26,
-              backgroundColor=[0.38, 0.30, 0.46],
+              backgroundColor=T.CYAN,
               command=lambda *_: _lift_mecha_default(),
               annotation='Desplaza el grupo del mecha +6 en Y '
                          '(replica el ajuste manual del setup)')
@@ -189,7 +189,6 @@ def build():
     mc.separator(h=6, style='none')
     mc.setParent('..')
 
-    # Auto-generar luces + atmosfera al abrir si no hay
     _ensure_default_lighting()
 
 
@@ -198,7 +197,6 @@ def build():
 # ══════════════════════════════════════════════════════════════
 
 def _current_palette():
-    """Lee la paleta activa del menu de materiales (fallback 'Default')."""
     try:
         from ui.panels.material_panel import current_palette_label
         return current_palette_label()
@@ -207,7 +205,6 @@ def _current_palette():
 
 
 def _ensure_default_lighting():
-    """Crea las 5 luces palette-aware + atmosfera default si no existen."""
     try:
         from utils import lighting
         if not lighting.has_rm_lights():
@@ -239,10 +236,6 @@ def _do_render(*_):
 # ══════════════════════════════════════════════════════════════
 
 def _apply_lighting(*_):
-    """Crea/recrea las 5 luces con la paleta activa.
-    Las intensidades vienen de los 4 sliders, que pueblan los setters
-    individuales de lighting (almacenados a nivel de modulo)."""
-    # Sincronizar sliders → setters (que actualizan storage interno)
     try:
         from utils import lighting
         for slider_key, setter in (
@@ -257,12 +250,10 @@ def _apply_lighting(*_):
                     setter(mc.floatSliderGrp(sl, q=True, value=True))
                 except Exception:
                     pass
-        # Recrear con la paleta actual
         lighting.apply_lighting(_current_palette())
     except Exception as e:
         print(f'[RetroMecha][Render] Lighting: {e}')
 
-    # Atmosfera con el valor actual del slider
     try:
         from utils import atmosphere
         density = mc.floatSliderGrp(
@@ -333,7 +324,7 @@ def _on_atmosphere_density(val):
 def _apply_default_camera(*_):
     try:
         from utils.camera import create_default_camera
-        create_default_camera(frame_mecha=False, look_through=True)
+        create_default_camera(frame_mecha=True, look_through=True)
     except Exception as e:
         print(f'[RetroMecha][Render] Camara: {e}')
 
@@ -352,7 +343,7 @@ def _look_through_camera(*_):
         from utils.camera import look_through_camera
         look_through_camera()
     except Exception as e:
-        print(f'[RetroMecha][Render] Look through: {e}')
+        print('[RetroMecha][Render] Look through: {e}')
 
 
 def _lift_mecha_default(*_):
@@ -374,7 +365,6 @@ def _apply_sky(*_):
         create_sky()
     except Exception as e:
         print(f'[RetroMecha][Render] Cielo: {e}')
-    # Crear el sky material con la paleta actual
     try:
         from materials.sky_material import create_sky_material
         create_sky_material(_current_palette())

@@ -580,6 +580,47 @@ def get_intensities() -> dict:
     }
 
 
+def _set_intensity(name: str, value: float):
+    """Actualiza una intensidad individual en memoria + luz en escena si existe."""
+    if not MAYA_AVAILABLE:
+        return
+    _LIGHT_INTENSITIES[name] = float(value)
+    if mc.objExists(name):
+        shapes = mc.listRelatives(name, shapes=True) or []
+        if shapes:
+            try:
+                mc.setAttr(f'{shapes[0]}.aiIntensity', float(value))
+            except Exception:
+                pass
+
+
+def set_ambient_intensity(value: float):
+    _set_intensity(AMBIENT_NAME, value)
+
+
+def set_foco_intensity(value: float):
+    _set_intensity(FOCO_NAME, value)
+
+
+def set_background_intensity(value: float):
+    _set_intensity(BG_NAME, value)
+
+
+def set_veam_intensity(value: float):
+    if not MAYA_AVAILABLE:
+        return
+    _VEAM_INTENSITY[0] = float(value)
+    for veam_name in (VEAM_NAME_L, VEAM_NAME_R):
+        light_xform = f'{veam_name}{VEAM_LIGHT_SUF}'
+        if mc.objExists(light_xform):
+            shapes = mc.listRelatives(light_xform, shapes=True) or []
+            if shapes:
+                try:
+                    mc.setAttr(f'{shapes[0]}.aiIntensity', float(value))
+                except Exception:
+                    pass
+
+
 def set_palette(palette_label: str):
     """Recolorea luz_ambiente (terrain) y veam_lights (mecha) con otra paleta."""
     if not MAYA_AVAILABLE:

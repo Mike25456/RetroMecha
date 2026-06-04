@@ -17,6 +17,14 @@ from ui.constants import (
 )
 from ui.module_advanced import get_slider_specs
 
+# Paleta aiToon (no esta en ui.constants — uso local)
+_AITOON_PALETTE_LABELS = {
+    'Industrial': 'industrial',
+    'Oxidado':    'oxidado',
+    'Artico':     'artico',
+    'Carmesi':    'carmesi',
+}
+
 
 # ── safe control access (mode-agnostic) ──────────────────────
 
@@ -123,11 +131,28 @@ def _safe_set_txt(name, value):
         pass
 
 
+# ── centralized control existence check ──────────────────────
+
+def _safe_ctrl_exists(ctrl):
+    """Check if a raw Maya control handle exists. Never raises."""
+    if not ctrl:
+        return False
+    try:
+        return mc.control(ctrl, exists=True)
+    except Exception:
+        return False
+
+
+def _safe_exists(name):
+    """Check a state-registered control by name. Never raises."""
+    return _safe_ctrl_exists(state.get(name))
+
+
 # ── helpers ──────────────────────────────────────────────────
 
 def _resolve_seed():
     ctrl = state.get('seed_field')
-    if ctrl and mc.control(ctrl, exists=True):
+    if _safe_ctrl_exists(ctrl):
         txt = mc.textField(ctrl, q=True, text=True).strip()
         if txt.isdigit():
             seed = int(txt)
@@ -143,57 +168,94 @@ def _resolve_seed():
 # ── collect ──────────────────────────────────────────────────
 
 def _collect_mecha():
+    params = {
+        'height_scale': 1.0,
+        'symmetry': True,
+        'use_head': True,
+        'use_arms': True,
+        'use_wings': True,
+        'use_energy_fields': True,
+        'head_style': 'helmet',
+        'arm_style': 'standard',
+        'arm_style_right': None,
+        'wing_style': 'needle',
+        'wing_style_right': None,
+        'torso_style': 'core',
+        'nucleus_style': 'ring',
+    }
+    params.update(state._MECHA_PARAMS)
+
     adv = {}
     for module in ('head', 'arm', 'wing', 'torso', 'nucleus'):
         for spec in get_slider_specs(module):
             key = f'{module}.{spec["key"]}'
             ctrl = state.get(key)
-            if ctrl and mc.control(ctrl, exists=True):
+            if _safe_ctrl_exists(ctrl):
                 adv[spec['key']] = mc.floatSliderGrp(ctrl, q=True, value=True)
 
     def _resolve_style(labels, ctrl_name, default):
         label = _safe_opt(ctrl_name)
         return labels.get(label, default) if label else default
 
-    params = {
-        'height_scale': _safe_val('height_sl', 1.0),
-        'symmetry': _safe_cb('sym_cb', True),
+    params.update({
+        'height_scale': _safe_val('height_sl', params.get('height_scale', 1.0)),
+        'symmetry': _safe_cb('sym_cb', params.get('symmetry', True)),
         'use_head': True,
-        'use_arms': _safe_cb('arms_cb', True),
-        'use_wings': _safe_cb('wings_cb', True),
-        'use_energy_fields': _safe_cb('energy_cb', True),
-        'head_style': _resolve_style(HEAD_STYLE_LABELS, 'head_style_menu', 'helmet'),
-        'arm_style': _resolve_style(ARM_STYLE_LABELS, 'arm_style_menu', 'standard'),
-        'arm_style_right': _resolve_style(ARM_STYLE_LABELS, 'arm_style_right_menu', None),
-        'wing_style': _resolve_style(WING_STYLE_LABELS, 'wing_style_menu', 'needle'),
-        'wing_style_right': _resolve_style(WING_STYLE_LABELS, 'wing_style_right_menu', None),
-        'torso_style': _resolve_style(TORSO_STYLE_LABELS, 'torso_style_menu', 'core'),
-        'nucleus_style': _resolve_style(NUCLEUS_STYLE_LABELS, 'nucleus_style_menu', 'ring'),
+        'use_arms': _safe_cb('arms_cb', params.get('use_arms', True)),
+        'use_wings': _safe_cb('wings_cb', params.get('use_wings', True)),
+        'use_energy_fields': _safe_cb('energy_cb', params.get('use_energy_fields', True)),
+        'head_style': _resolve_style(HEAD_STYLE_LABELS, 'head_style_menu', params.get('head_style', 'helmet')),
+        'arm_style': _resolve_style(ARM_STYLE_LABELS, 'arm_style_menu', params.get('arm_style', 'standard')),
+        'arm_style_right': _resolve_style(ARM_STYLE_LABELS, 'arm_style_right_menu', params.get('arm_style_right')),
+        'wing_style': _resolve_style(WING_STYLE_LABELS, 'wing_style_menu', params.get('wing_style', 'needle')),
+        'wing_style_right': _resolve_style(WING_STYLE_LABELS, 'wing_style_right_menu', params.get('wing_style_right')),
+        'torso_style': _resolve_style(TORSO_STYLE_LABELS, 'torso_style_menu', params.get('torso_style', 'core')),
+        'nucleus_style': _resolve_style(NUCLEUS_STYLE_LABELS, 'nucleus_style_menu', params.get('nucleus_style', 'ring')),
         **adv,
-    }
+    })
     if state._MODE[0] == 'quick':
         params.update(state._QUICK_MECHA_OVERRIDES)
+    state._MECHA_PARAMS.clear()
+    state._MECHA_PARAMS.update(params)
     return params
 
 
 def _collect_terrain():
     result = {
-        'monument_scale': _safe_val('t_mon_sl', 5.5),
-        'platform_count': _safe_int('t_plat_sl', 8),
-        'fragment_count': _safe_int('t_frag_sl', 12),
-        'debris_count': _safe_int('t_deb_sl', 80),
-        'pillar_count': _safe_int('t_pil_sl', 8),
-        'ramp_probability': _safe_val('t_ramp_sl', 0.55),
-        'ring_max_r': _safe_val('t_ring_sl', 22.0),
+        'monument_scale': 5.5,
+        'platform_count': 8,
+        'fragment_count': 12,
+        'debris_count': 80,
+        'pillar_count': 8,
+        'ramp_probability': 0.55,
+        'ring_max_r': 22.0,
+        'skyline_count': 3,
+        'skyline_distance_z': -55.0,
+        'skyline_spread_x': 40.0,
+    }
+    result.update(state._TERRAIN_PARAMS)
+    result = {
+        'monument_scale': _safe_val('t_mon_sl', result['monument_scale']),
+        'platform_count': _safe_int('t_plat_sl', result['platform_count']),
+        'fragment_count': _safe_int('t_frag_sl', result['fragment_count']),
+        'debris_count': _safe_int('t_deb_sl', result['debris_count']),
+        'pillar_count': _safe_int('t_pil_sl', result['pillar_count']),
+        'ramp_probability': _safe_val('t_ramp_sl', result['ramp_probability']),
+        'ring_max_r': _safe_val('t_ring_sl', result['ring_max_r']),
+        'skyline_count': result['skyline_count'],
+        'skyline_distance_z': result['skyline_distance_z'],
+        'skyline_spread_x': result['skyline_spread_x'],
     }
     if state.get('t_sky_n_sl'):
-        result['skyline_count'] = _safe_int('t_sky_n_sl', 3)
+        result['skyline_count'] = _safe_int('t_sky_n_sl', result['skyline_count'])
     if state.get('t_sky_z_sl'):
-        result['skyline_distance_z'] = _safe_val('t_sky_z_sl', -55.0)
+        result['skyline_distance_z'] = _safe_val('t_sky_z_sl', result['skyline_distance_z'])
     if state.get('t_sky_sp_sl'):
-        result['skyline_spread_x'] = _safe_val('t_sky_sp_sl', 40.0)
+        result['skyline_spread_x'] = _safe_val('t_sky_sp_sl', result['skyline_spread_x'])
     if state._MODE[0] == 'quick':
         result.update(state._QUICK_TERRAIN_OVERRIDES)
+    state._TERRAIN_PARAMS.clear()
+    state._TERRAIN_PARAMS.update(result)
     return result
 
 
@@ -250,6 +312,7 @@ def _apply_idle_to_mecha():
             anim.apply()
             mc.currentTime(0)
             mc.play(forward=True)
+            state._ACTIVE_ANIM[0] = 'idle'
     except Exception as e:
         print(f'[RetroMecha][Anim] No se pudo aplicar idle: {e}')
 
@@ -340,22 +403,9 @@ def on_generar(*_):
         # Camara default compo (se reposiciona contra el bbox actualizado)
         try:
             from utils.camera import create_default_camera
-            create_default_camera(frame_mecha=False, look_through=True)
+            create_default_camera(frame_mecha=True, look_through=True)
         except Exception as e:
             print(f'[RetroMecha][Generar] Camara: {e}')
-
-        # Cielo (polyPlane + 2 bend deformers) + sky_material acorde a paleta
-        try:
-            from utils.sky import create_sky
-            create_sky()
-        except Exception as e:
-            print(f'[RetroMecha][Generar] Cielo: {e}')
-        try:
-            from materials.sky_material import create_sky_material
-            from ui.panels.material_panel import current_palette_label
-            create_sky_material(current_palette_label())
-        except Exception as e:
-            print(f'[RetroMecha][Generar] Sky material: {e}')
 
         # Animacion idle + auto-play
         _apply_idle_to_mecha()
@@ -371,14 +421,14 @@ def _random_module_adv(module):
         ctrl = state.get(key)
         if not ctrl:
             continue
-        try:
-            if mc.control(ctrl, exists=True):
+        if _safe_ctrl_exists(ctrl):
+            try:
                 mc.floatSliderGrp(
                     ctrl, e=True,
                     value=random.uniform(float(spec['min']), float(spec['max'])),
                 )
-        except Exception:
-            pass
+            except Exception:
+                pass
 
 
 def _set_random_mecha_controls():
@@ -398,6 +448,7 @@ def _set_random_mecha_controls():
     }
     if state._MODE[0] == 'quick':
         state._QUICK_MECHA_OVERRIDES.update(quick_values)
+    state._MECHA_PARAMS.update(quick_values)
 
     _safe_set_opt('mecha_preset_menu', 'Custom')
     _safe_set_val('height_sl', quick_values['height_scale'])
@@ -443,6 +494,7 @@ def randomize_terrain_controls():
     }
     if state._MODE[0] == 'quick':
         state._QUICK_TERRAIN_OVERRIDES.update(quick_values)
+    state._TERRAIN_PARAMS.update(quick_values)
 
     state._APPLYING_TERRAIN_VALUES[0] = True
     try:
@@ -480,25 +532,38 @@ def random_all(*_):
     _safe_set_txt('seed_field', str(state._SEED[0]))
     on_generar()
 
-    # Apply random color preset (aiStandardSurface) and sync UI
+    # Apply random Lambert preset (Viewport 2.0) and sync UI
     from materials.presets import list_presets, apply_preset
     presets = list_presets()
     rand_preset = random.choice(presets) if presets else None
     if rand_preset:
         apply_preset(rand_preset)
-        preset_menu = state.get('materials_preset_menu')
-        if preset_menu and mc.optionMenu(preset_menu, exists=True):
-            mc.optionMenu(preset_menu, e=True, value=rand_preset)
+        lambert_menu = state.get('lambert_preset_menu')
+        if lambert_menu and _safe_ctrl_exists(lambert_menu):
+            try:
+                mc.optionMenu(lambert_menu, e=True, value=rand_preset)
+            except Exception:
+                pass
 
     mecha_grp = sc.find_mecha_group()
 
-    # Reasignar shaders aiStandardSurface al mecha
+    # Reasignar shaders Lambert al mecha
     if mecha_grp:
         try:
             from materials.materializer import materialize_mecha
             materialize_mecha(mecha_grp)
         except Exception as e:
-            print(f'[RetroMecha][Random] Materials: {e}')
+            print(f'[RetroMecha][Random] Lambert: {e}')
+
+    # Apply random aiToon palette via rendering panel menu (si Arnold cargado)
+    rand_palette_label = random.choice(list(_AITOON_PALETTE_LABELS.keys()))
+    if mecha_grp:
+        try:
+            from utils.material_assigner import assign_palette_to_group, clear_material_cache
+            clear_material_cache()
+            assign_palette_to_group(mecha_grp, _AITOON_PALETTE_LABELS[rand_palette_label])
+        except Exception as e:
+            print(f'[RetroMecha][Random] aiToon: {e}')
 
     # Idle animation + playback
     if mecha_grp:
@@ -547,36 +612,40 @@ def apply_mecha_preset(key):
                 k: v for k, v in preset.items()
                 if not k.startswith('_')
             })
+        state._MECHA_PARAMS.update({
+            k: v for k, v in preset.items()
+            if not k.startswith('_')
+        })
         _safe_set_val('height_sl', preset.get('height_scale', 1.0))
         _safe_set_cb('sym_cb', preset.get('symmetry', True))
         _safe_set_cb('arms_cb', preset.get('use_arms', True))
         _safe_set_cb('wings_cb', preset.get('use_wings', True))
         _safe_set_cb('energy_cb', preset.get('use_energy_fields', True))
-        if state.get('head_style_menu') and mc.control(state.get('head_style_menu'), exists=True):
+        if _safe_exists('head_style_menu'):
             sc.set_option_by_value(state.get('head_style_menu'), HEAD_STYLE_LABELS,
                                    preset.get('head_style', 'helmet'))
-        if state.get('arm_style_menu') and mc.control(state.get('arm_style_menu'), exists=True):
+        if _safe_exists('arm_style_menu'):
             sc.set_option_by_value(state.get('arm_style_menu'), ARM_STYLE_LABELS,
                                    preset.get('arm_style', 'standard'))
         arm_right = preset.get('arm_style_right')
-        if arm_right and state.get('arm_style_right_menu') and mc.control(state.get('arm_style_right_menu'), exists=True):
+        if arm_right and _safe_exists('arm_style_right_menu'):
             sc.set_option_by_value(state.get('arm_style_right_menu'), ARM_STYLE_LABELS, arm_right)
-        if state.get('wing_style_menu') and mc.control(state.get('wing_style_menu'), exists=True):
+        if _safe_exists('wing_style_menu'):
             sc.set_option_by_value(state.get('wing_style_menu'), WING_STYLE_LABELS,
                                    preset.get('wing_style', 'needle'))
         wing_right = preset.get('wing_style_right')
-        if wing_right and state.get('wing_style_right_menu') and mc.control(state.get('wing_style_right_menu'), exists=True):
+        if wing_right and _safe_exists('wing_style_right_menu'):
             sc.set_option_by_value(state.get('wing_style_right_menu'), WING_STYLE_LABELS, wing_right)
-        if state.get('torso_style_menu') and mc.control(state.get('torso_style_menu'), exists=True):
+        if _safe_exists('torso_style_menu'):
             sc.set_option_by_value(state.get('torso_style_menu'), TORSO_STYLE_LABELS,
                                    preset.get('torso_style', 'core'))
-        if state.get('nucleus_style_menu') and mc.control(state.get('nucleus_style_menu'), exists=True):
+        if _safe_exists('nucleus_style_menu'):
             sc.set_option_by_value(state.get('nucleus_style_menu'), NUCLEUS_STYLE_LABELS,
                                    preset.get('nucleus_style', 'ring'))
         for module in ('head', 'arm', 'wing', 'torso', 'nucleus'):
             for spec in get_slider_specs(module):
                 ctrl = state.get(f'{module}.{spec["key"]}')
-                if ctrl and mc.control(ctrl, exists=True) and spec['key'] in preset:
+                if _safe_ctrl_exists(ctrl) and spec['key'] in preset:
                     mc.floatSliderGrp(ctrl, e=True, value=preset[spec['key']])
     finally:
         state._APPLYING_MECHA_PRESET[0] = False
@@ -589,10 +658,16 @@ def _toggle_symmetry_ui(*_):
     if state._UI_BUILDING[0]:
         return
     ctrl = state.get('sym_cb')
-    if not ctrl or not mc.control(ctrl, exists=True):
+    if not _safe_ctrl_exists(ctrl):
         return
-    on = mc.checkBox(ctrl, q=True, value=True)
+    try:
+        on = mc.checkBox(ctrl, q=True, value=True)
+    except Exception:
+        return
     for row_name in ('arm_right_row', 'wing_right_row'):
         row = state.get(row_name)
-        if row and mc.control(row, exists=True):
-            mc.control(row, e=True, visible=not on)
+        if _safe_ctrl_exists(row):
+            try:
+                mc.control(row, e=True, visible=not on)
+            except Exception:
+                pass

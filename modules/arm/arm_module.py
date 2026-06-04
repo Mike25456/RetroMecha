@@ -15,12 +15,14 @@ import modules.arm.style_standard as standard_mod
 import modules.arm.style_heavy    as heavy_mod
 import modules.arm.style_blade    as blade_mod
 import modules.arm.style_cannon   as cannon_mod
+import modules.arm.style_shield   as shield_mod
 
 _STYLES = {
     'standard': standard_mod,
     'heavy':    heavy_mod,
     'blade':    blade_mod,
     'cannon':   cannon_mod,
+    'shield':   shield_mod,
 }
 
 
