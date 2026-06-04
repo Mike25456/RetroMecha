@@ -1,6 +1,6 @@
 """Panel RENDERING — Render, iluminacion, cielo y camara.
 
-  - Boton RENDER 1920x1080 (Arnold) desde Camera_for_render
+  - Boton RENDER 1920x1080 (Arnold) desde Camara_for_render
   - Iluminacion: 5 luces (luz_ambiente, foco_mecha, background,
                  veam_light izquierdo/derecho) palette-aware
   - Sliders individuales de intensidad por luz
@@ -44,7 +44,7 @@ def build():
     )
     mc.separator(h=4, style='none')
     mc.text(
-        label='  1920 x 1080  |  Camera_for_render  |  Arnold',
+        label='  1920 x 1080  |  Camara_for_render  |  Arnold',
         align='left', font='smallPlainLabelFont',
     )
     mc.button(
@@ -52,7 +52,7 @@ def build():
         backgroundColor=T.CYAN,
         command=lambda *_: _do_render(),
         annotation='Configura Arnold + resolucion 1920x1080 y lanza el render '
-                   'desde Camera_for_render en la Render View',
+                   'desde Camara_for_render en la Render View',
     )
 
     # ── ILUMINACION ────────────────────────────────────────────
@@ -153,7 +153,7 @@ def build():
     mc.separator(h=4, style='none')
 
     mc.text(
-        label='  Camera_for_render: focal 21.39  |  fStop 5.6  |  '
+        label='  Camara_for_render: focal 21.39  |  fStop 5.6  |  '
               'pos fija del setup',
         align='left', font='smallPlainLabelFont',
     )
@@ -164,12 +164,12 @@ def build():
     mc.button(label='Crear / Recrear camara', h=26,
               backgroundColor=T.CYAN,
               command=lambda *_: _apply_default_camera(),
-              annotation='Crea Camera_for_render con la config final del setup '
+        annotation='Crea Camara_for_render con la config final del setup '
                          '(posicion / rotacion fijas del usuario)')
     mc.button(label='Eliminar camara', h=26,
               backgroundColor=T.SLATE,
               command=lambda *_: _remove_default_camera(),
-              annotation='Elimina Camera_for_render de la escena')
+        annotation='Elimina Camara_for_render de la escena')
     mc.setParent('..')
 
     mc.rowLayout(nc=2, cw2=[160, 160],
@@ -178,7 +178,7 @@ def build():
     mc.button(label='Look through', h=26,
               backgroundColor=T.CYAN,
               command=lambda *_: _look_through_camera(),
-              annotation='Mira a traves de Camera_for_render en el panel activo')
+        annotation='Mira a traves de Camara_for_render en el panel activo')
     mc.button(label='Lift mecha +6', h=26,
               backgroundColor=T.CYAN,
               command=lambda *_: _lift_mecha_default(),

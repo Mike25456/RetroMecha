@@ -1,9 +1,9 @@
 """
 RetroMecha - utils/camera.py
-Camara default 'Camera_for_render' con la configuracion final del usuario:
+Camara default 'Camara_for_render' con la configuracion final del usuario:
 
   Transform:
-    translate (-0.211, 0.62, 20.715)
+    translate (0.0, 0.62, 20.715)
     rotate    (6.6, 3.6, 0)
   Shape:
     horizontalFilmAperture 1.417
@@ -24,7 +24,7 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 # Nombre y tag de la camara generada por RetroMecha
-CAMERA_XFORM = 'Camera_for_render'
+CAMERA_XFORM = 'Camara_for_render'
 CAMERA_TAG   = 'rmCamera'
 
 # ── Setup final (valores exactos del setup del usuario) ─────────────
@@ -40,7 +40,7 @@ SHUTTER_ANGLE             = 144.0
 CENTER_OF_INTEREST        = 5.0
 
 # Posicion y rotacion fijas (del Channel Box del usuario)
-CAM_TRANSLATE = (-0.211, 0.62, 20.715)
+CAM_TRANSLATE = (0.0, 0.62, 20.715)
 CAM_ROTATE    = (6.6, 3.6, 0.0)
 
 # Lift vertical aplicado al mecha (replica el ajuste manual en Maya)
@@ -52,7 +52,7 @@ MECHA_LIFT_Y = 6.0
 # ══════════════════════════════════════════════════════════════════════
 
 def create_default_camera(*, look_through=True, frame_mecha=False):
-    """Crea (o recrea) Camera_for_render con la config final.
+    """Crea (o recrea) Camara_for_render con la config final.
 
     - look_through: cambia el panel activo para mirar a traves de la camara.
     - frame_mecha:  False por defecto (posicion fija del usuario);
@@ -89,10 +89,8 @@ def create_default_camera(*, look_through=True, frame_mecha=False):
     xform = mc.rename(xform, CAMERA_XFORM)
     shape = mc.listRelatives(xform, shapes=True)[0]
 
-    # Depth of Field
-    mc.setAttr(f'{shape}.depthOfField', 1 if DEPTH_OF_FIELD else 0)
-    mc.setAttr(f'{shape}.fStop', F_STOP)
-    mc.setAttr(f'{shape}.focusDistance', FOCUS_DISTANCE)
+    # Asegurar atributos reales de la camara
+    _apply_camera_shape_settings(xform, shape)
 
     # Tag para limpieza
     if not mc.attributeQuery(CAMERA_TAG, node=xform, exists=True):
@@ -129,7 +127,7 @@ def remove_camera():
                 mc.delete(xform)
             except Exception:
                 pass
-    for name in (CAMERA_XFORM, 'rm_camera_compo'):  # incluye nombre legacy
+    for name in (CAMERA_XFORM, 'Camera_for_render', 'rm_camera_compo'):  # incluye nombre legacy
         if mc.objExists(name):
             try:
                 mc.delete(name)
@@ -149,10 +147,26 @@ def has_rm_camera() -> bool:
 
 
 def look_through_camera():
-    """Hace que el viewport activo mire a traves de Camera_for_render."""
+    """Hace que el viewport activo mire a traves de Camara_for_render."""
     if not MAYA_AVAILABLE or not mc.objExists(CAMERA_XFORM):
         return
     _look_through_in_active_panel(CAMERA_XFORM)
+
+
+def lock_camera(lock: bool = True) -> bool:
+    """Bloquea/desbloquea los canales de transform de Camara_for_render."""
+    if not MAYA_AVAILABLE or not mc.objExists(CAMERA_XFORM):
+        return False
+    for attr in (
+        'translateX', 'translateY', 'translateZ',
+        'rotateX', 'rotateY', 'rotateZ',
+        'scaleX', 'scaleY', 'scaleZ',
+    ):
+        try:
+            mc.setAttr(f'{CAMERA_XFORM}.{attr}', lock=lock)
+        except Exception:
+            pass
+    return True
 
 
 def lift_mecha_default(extra_y: float = MECHA_LIFT_Y) -> bool:
@@ -191,6 +205,38 @@ def _apply_fixed_transform(xform: str):
         mc.setAttr(f'{xform}.rotateZ',    CAM_ROTATE[2])
     except Exception as e:
         print(f'[RetroMecha][Camera] Transform error: {e}')
+
+
+def _apply_camera_shape_settings(xform: str, shape: str):
+    try:
+        mc.setAttr(f'{xform}.centerOfInterest', CENTER_OF_INTEREST)
+    except Exception:
+        pass
+
+    for attr, value in (
+        ('focalLength', FOCAL_LENGTH),
+        ('lensSqueezeRatio', 1.0),
+        ('cameraScale', 1.0),
+        ('horizontalFilmAperture', HORIZONTAL_FILM_APERTURE),
+        ('horizontalFilmOffset', 0.0),
+        ('verticalFilmAperture', VERTICAL_FILM_APERTURE),
+        ('verticalFilmOffset', 0.0),
+        ('overscan', 1.0),
+        ('nearClipPlane', NEAR_CLIP),
+        ('farClipPlane', FAR_CLIP),
+        ('shutterAngle', SHUTTER_ANGLE),
+        ('panZoomEnabled', 0),
+        ('horizontalPan', 0.0),
+        ('verticalPan', 0.0),
+        ('zoom', 1.0),
+        ('depthOfField', 1 if DEPTH_OF_FIELD else 0),
+        ('fStop', F_STOP),
+        ('focusDistance', FOCUS_DISTANCE),
+    ):
+        try:
+            mc.setAttr(f'{shape}.{attr}', value)
+        except Exception as e:
+            print(f'[RetroMecha][Camera] Attr {attr}: {e}')
 
 
 def _frame_on_mecha(xform: str, shape: str):
