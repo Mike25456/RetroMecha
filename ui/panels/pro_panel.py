@@ -8,17 +8,17 @@ except ImportError:
 
 from ui import state, widgets
 from ui.build_actions import (
-    rebuild_mecha, rebuild_terrain_only, random_mecha, random_terrain,
-    random_all, on_reset, on_generar, _safe_ctrl_exists,
+    random_mecha, random_terrain,
+    random_all, on_reset, _safe_ctrl_exists,
 )
-from ui.panels import terrain_panel, material_panel, animation_panel
+from ui.panels.animation_panel import apply_animation_quick
+from ui.panels import terrain_panel, material_panel
 from ui.panels.mecha_panel_v2 import build_with_tabs
 
 _TABS = [
     ('mecha', 'MECHA', [0.18, 0.42, 0.28]),
     ('terrain', 'TERRENO', [0.16, 0.32, 0.55]),
     ('materials', 'MAT', [0.55, 0.35, 0.12]),
-    ('animation', 'ANIM', [0.45, 0.20, 0.40]),
 ]
 
 _current_tab = ['mecha']
@@ -31,12 +31,28 @@ def build():
 
     mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 
-    mc.rowLayout(nc=3, cw3=[110, 110, 110],
-                 columnAttach3=['both', 'both', 'both'])
+    mc.rowLayout(nc=2, cw2=[165, 165],
+                 columnAttach2=['both', 'both'])
     widgets.secondary_button('Random Todo', [0.30, 0.15, 0.35], random_all, height=30)
-    widgets.secondary_button('Generar Todo', widgets.ACCENT_ACTION, on_generar, height=30)
     widgets.secondary_button('Reset', widgets.ACCENT_DANGER, on_reset, height=30)
     mc.setParent('..')
+    mc.separator(h=6, style='none')
+
+    mc.text(label='MOVIMIENTO', align='left', font='smallPlainLabelFont')
+    coll = mc.radioCollection()
+    mc.rowLayout(nc=3, cw3=[110, 110, 110])
+    rb_map = {}
+    try:
+        for key, label in [('idle', 'Idle'), ('flight', 'Vuelo'), ('spin', 'Spin')]:
+            rb = mc.radioButton(label=label,
+                                onCommand=lambda *_, k=key: apply_animation_quick(k))
+            rb_map[key] = rb
+    except Exception as e:
+        print(f'[RetroMecha][Pro] Error en MOVIMIENTO: {e}')
+    mc.setParent('..')
+    active = state._ACTIVE_ANIM[0]
+    if active in rb_map:
+        mc.radioCollection(coll, e=True, select=rb_map[active])
     mc.separator(h=6, style='none')
 
     _build_tab_bar()
@@ -107,16 +123,10 @@ def _render_tab(tab_id):
         _render_terrain()
     elif tab_id == 'materials':
         material_panel.build(wrapped=False)
-    elif tab_id == 'animation':
-        animation_panel.build(wrapped=False)
 
 
 def _render_mecha():
-    mc.rowLayout(nc=2, cw2=[170, 170],
-                 columnAttach2=['both', 'both'])
     widgets.secondary_button('Random Mecha', [0.20, 0.40, 0.28], random_mecha, height=30)
-    widgets.secondary_button('Reconstruir', [0.14, 0.36, 0.52], rebuild_mecha, height=30)
-    mc.setParent('..')
     mc.separator(h=6, style='none')
 
     build_with_tabs(
@@ -127,10 +137,6 @@ def _render_mecha():
 
 
 def _render_terrain():
-    mc.rowLayout(nc=2, cw2=[170, 170],
-                 columnAttach2=['both', 'both'])
     widgets.secondary_button('Random Terreno', [0.18, 0.32, 0.52], random_terrain, height=30)
-    widgets.secondary_button('Reconstruir', [0.14, 0.36, 0.52], rebuild_terrain_only, height=30)
-    mc.setParent('..')
     mc.separator(h=6, style='none')
     terrain_panel.build(wrapped=False)

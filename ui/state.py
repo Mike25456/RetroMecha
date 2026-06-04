@@ -3,6 +3,7 @@
 CTRLS = {}
 
 _SEED = [None]
+_ACTIVE_ANIM = ['idle']
 _APPLYING_MECHA_PRESET = [False]
 _APPLYING_TERRAIN_VALUES = [False]
 _UI_BUILDING = [False]

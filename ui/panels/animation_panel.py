@@ -6,7 +6,7 @@ try:
 except ImportError:
     MAYA_AVAILABLE = False
 
-from ui import scene_utils as sc
+from ui import scene_utils as sc, state
 from animations.registry import list_animations, get_animation
 
 
@@ -88,7 +88,8 @@ def _remove_animation(*_):
 
 
 def apply_animation_quick(name):
-    """Aplica animación por nombre directamente (modo Rápido)."""
+    """Aplica animación por nombre directamente (modo Rápido/Pro)."""
+    state._ACTIVE_ANIM[0] = name
     mecha_root = sc.find_mecha_group()
     if not mecha_root:
         print('[RetroMecha][Anim] No hay mecha en escena')

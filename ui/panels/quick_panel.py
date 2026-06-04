@@ -8,10 +8,10 @@ except ImportError:
 
 from ui import state, widgets
 from ui.build_actions import (
-    on_generar, random_all, on_reset, random_mecha, rebuild_terrain_only,
+    random_all, on_reset, random_mecha, rebuild_terrain_only,
 )
 from ui.panels.material_panel import apply_palette_quick
-from ui.panels.animation_panel import apply_animation_quick, remove_animation_quick
+from ui.panels.animation_panel import apply_animation_quick
 
 _PALETTES = {
     'Industrial': ([0.55, 0.54, 0.51], 'industrial'),
@@ -26,9 +26,8 @@ _ACTIVE_SWATCH = [None]
 def build():
     mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 
-    mc.rowLayout(nc=3, cw3=[110, 110, 110],
-                 columnAttach3=['both', 'both', 'both'])
-    widgets.secondary_button('Generar', widgets.ACCENT_ACTION, on_generar, height=32)
+    mc.rowLayout(nc=2, cw2=[165, 165],
+                 columnAttach2=['both', 'both'])
     widgets.secondary_button('Aleatorio', [0.35, 0.20, 0.40], random_all, height=32)
     widgets.secondary_button('Reset', widgets.ACCENT_DANGER, on_reset, height=32)
     mc.setParent('..')
@@ -50,15 +49,6 @@ def build():
         lambda *_: _random_terrain_and_build(),
         height=42,
     )
-    mc.rowLayout(nc=2, cw2=[90, 230],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[4, 4])
-    mc.text(label='Base', align='right', font='smallPlainLabelFont')
-    menu = mc.optionMenu(annotation='Preset de escenario base')
-    for label in ('Avanzada', 'Hangar', 'Campo de batalla', 'Centinela'):
-        mc.menuItem(label=label)
-    mc.setParent('..')
-    state.reg('t_preset_menu', menu)
     mc.separator(h=8, style='none')
 
     widgets.section_title('Estilo')
@@ -84,14 +74,16 @@ def build():
 
     mc.text(label='MOVIMIENTO', align='left', font='smallPlainLabelFont')
     coll = mc.radioCollection()
-    state.reg('quick_anim_radio', coll)
-    mc.rowLayout(nc=4, cw4=[80, 80, 80, 80])
-    mc.radioButton(label='Ninguna', select=True,
-                   onCommand=lambda *_: remove_animation_quick())
+    mc.rowLayout(nc=3, cw3=[105, 105, 105])
+    rb_map = {}
     for key, label in [('idle', 'Idle'), ('flight', 'Vuelo'), ('spin', 'Spin')]:
-        mc.radioButton(label=label,
-                       onCommand=lambda *_, k=key: apply_animation_quick(k))
+        rb = mc.radioButton(label=label,
+                            onCommand=lambda *_, k=key: apply_animation_quick(k))
+        rb_map[key] = rb
     mc.setParent('..')
+    active = state._ACTIVE_ANIM[0]
+    if active in rb_map:
+        mc.radioCollection(coll, e=True, select=rb_map[active])
 
     mc.separator(h=6, style='none')
     mc.setParent('..')

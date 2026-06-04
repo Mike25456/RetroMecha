@@ -8,7 +8,7 @@ except ImportError:
 
 from ui import state
 from ui.widgets import fsl, isl
-from ui.build_actions import rebuild_terrain_only, random_terrain
+from ui.build_actions import rebuild_terrain_only
 
 
 def build(wrapped=True):
@@ -78,16 +78,7 @@ def build(wrapped=True):
         step=1.0, on_cc=rebuild_terrain_only,
     ))
 
-    mc.separator(h=6)
-    mc.button(label='Aleatorio Terreno', h=28,
-              backgroundColor=[0.22, 0.36, 0.60],
-              command=lambda *_: _random_terrain())
-
     mc.separator(h=4, style='none')
     mc.setParent('..')
     if wrapped:
         mc.setParent('..')
-
-
-def _random_terrain(*_):
-    random_terrain()

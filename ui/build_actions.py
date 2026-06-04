@@ -312,6 +312,7 @@ def _apply_idle_to_mecha():
             anim.apply()
             mc.currentTime(0)
             mc.play(forward=True)
+            state._ACTIVE_ANIM[0] = 'idle'
     except Exception as e:
         print(f'[RetroMecha][Anim] No se pudo aplicar idle: {e}')
 
