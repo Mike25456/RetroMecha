@@ -324,7 +324,7 @@ def _on_atmosphere_density(val):
 def _apply_default_camera(*_):
     try:
         from utils.camera import create_default_camera
-        create_default_camera(frame_mecha=True, look_through=True)
+        create_default_camera(frame_mecha=False, look_through=True)
     except Exception as e:
         print(f'[RetroMecha][Render] Camara: {e}')
 

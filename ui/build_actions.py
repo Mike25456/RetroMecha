@@ -406,7 +406,7 @@ def on_generar(*_):
         # Camara default compo (se reposiciona contra el bbox actualizado)
         try:
             from utils.camera import create_default_camera
-            create_default_camera(frame_mecha=True, look_through=True)
+            create_default_camera(frame_mecha=False, look_through=True)
         except Exception as e:
             print(f'[RetroMecha][Generar] Camara: {e}')
 

@@ -78,6 +78,12 @@ VEAM_SCALE     = (1.0, 387.639, 1.0)
 VEAM_INTENSITY = 5.449
 VEAM_EXPOSURE  = 8.524
 
+# ── Specs factory (loop simétrico izq/der) ───────────────────────────
+VEAM_SPECS = [
+    {'name': VEAM_NAME_L, 'tx': VEAM_TX_L},
+    {'name': VEAM_NAME_R, 'tx': VEAM_TX_R},
+]
+
 # ── Estado: intensidad por luz (clampada a >= INTENSITY_MIN) ─────────
 _AMBIENT_I = [AMBIENT_INTENSITY]
 _FOCO_I    = [FOCO_INTENSITY]
@@ -303,7 +309,7 @@ def _create_meshlight_with_mtoa(cube_xform: str, cube_shape: str, light_xform_na
     try:
         mc.select(cube_xform, replace=True)
         mutils.createMeshLight()
-        lights = mc.listConnections(f'{cube_shape}.outMesh', type='aiMeshLight') or []
+        lights = mc.listConnections(f'{cube_shape}.worldMesh[0]', type='aiMeshLight') or []
         if lights:
             light_shape = lights[-1]
             parents = mc.listRelatives(light_shape, parent=True) or []
@@ -394,9 +400,26 @@ def _create_background(bg_z: float):
     _tag(xform)
 
 
-def _create_one_meshlight(cube_name: str, tx: float, bg_z: float,
+def _create_one_meshlight(spec: dict, bg_z: float,
                           mecha_color, use_mtoa: bool = True):
-    """Crea un aiMeshLight desde un cubo escalado. Parenteo el light bajo el cubo."""
+    """Crea un aiMeshLight desde un cubo escalado. Parenteo el light bajo el cubo.
+
+    spec = {'name': 'veam_light_izquierdo', 'tx': -20.564}
+    """
+    cube_name = spec['name']
+    tx = spec['tx']
+
+    # Purga cualquier nodo previo con estos nombres (intento previo fallido)
+    for orphan in (cube_name,
+                   f'{cube_name}{VEAM_LIGHT_SUF}',
+                   f'{cube_name}{VEAM_LIGHT_SUF}Shape',
+                   f'{cube_name}Shape'):
+        if mc.objExists(orphan):
+            try:
+                mc.delete(orphan)
+            except Exception:
+                pass
+
     cube_result = mc.polyCube(
         name=cube_name,
         width=1.0, height=1.0, depth=1.0,
@@ -429,7 +452,7 @@ def _create_one_meshlight(cube_name: str, tx: float, bg_z: float,
         light_shape = mc.listRelatives(light_xform, shapes=True)[0]
 
     try:
-        mc.connectAttr(f'{cube_shape}.outMesh',
+        mc.connectAttr(f'{cube_shape}.worldMesh[0]',
                        f'{light_shape}.inMesh', force=True)
     except Exception as e:
         print(f'[RetroMecha][Lighting] connect mesh→light: {e}')
@@ -463,24 +486,15 @@ def _create_one_meshlight(cube_name: str, tx: float, bg_z: float,
 
 
 def _create_veam_meshlights(mecha_color, bg_z: float):
-    created = []
-    created.append(_create_one_meshlight(VEAM_NAME_L, VEAM_TX_L, bg_z, mecha_color))
-    created.append(_create_one_meshlight(VEAM_NAME_R, VEAM_TX_R, bg_z, mecha_color))
+    for spec in VEAM_SPECS:
+        _create_one_meshlight(spec, bg_z, mecha_color)
 
-    for name, (cube_xform, light_xform) in zip((VEAM_NAME_L, VEAM_NAME_R), created):
-        expected_light = f'{name}{VEAM_LIGHT_SUF}'
-        if not light_xform or not mc.objExists(expected_light):
-            try:
-                if cube_xform and mc.objExists(cube_xform):
-                    mc.delete(cube_xform)
-                if mc.objExists(expected_light):
-                    mc.delete(expected_light)
-            except Exception:
-                pass
-            print(f'[RetroMecha][Lighting] Reintentando {expected_light} sin mtoa')
-            _create_one_meshlight(name,
-                                  VEAM_TX_L if name == VEAM_NAME_L else VEAM_TX_R,
-                                  bg_z, mecha_color, use_mtoa=False)
+    ok = sum(
+        1 for s in VEAM_SPECS
+        if mc.objExists(s['name'])
+        and mc.objExists(f"{s['name']}{VEAM_LIGHT_SUF}")
+    )
+    print(f'[RetroMecha][Lighting] veam_lights: {ok}/{len(VEAM_SPECS)} OK')
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -600,47 +614,6 @@ def get_intensities() -> dict:
         'background': _BG_I[0],
         'veam':       _VEAM_I[0],
     }
-
-
-def _set_intensity(name: str, value: float):
-    """Actualiza una intensidad individual en memoria + luz en escena si existe."""
-    if not MAYA_AVAILABLE:
-        return
-    _LIGHT_INTENSITIES[name] = float(value)
-    if mc.objExists(name):
-        shapes = mc.listRelatives(name, shapes=True) or []
-        if shapes:
-            try:
-                mc.setAttr(f'{shapes[0]}.aiIntensity', float(value))
-            except Exception:
-                pass
-
-
-def set_ambient_intensity(value: float):
-    _set_intensity(AMBIENT_NAME, value)
-
-
-def set_foco_intensity(value: float):
-    _set_intensity(FOCO_NAME, value)
-
-
-def set_background_intensity(value: float):
-    _set_intensity(BG_NAME, value)
-
-
-def set_veam_intensity(value: float):
-    if not MAYA_AVAILABLE:
-        return
-    _VEAM_INTENSITY[0] = float(value)
-    for veam_name in (VEAM_NAME_L, VEAM_NAME_R):
-        light_xform = f'{veam_name}{VEAM_LIGHT_SUF}'
-        if mc.objExists(light_xform):
-            shapes = mc.listRelatives(light_xform, shapes=True) or []
-            if shapes:
-                try:
-                    mc.setAttr(f'{shapes[0]}.aiIntensity', float(value))
-                except Exception:
-                    pass
 
 
 def set_palette(palette_label: str):
