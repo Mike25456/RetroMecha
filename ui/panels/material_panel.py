@@ -1,4 +1,4 @@
-"""Panel MATERIALES (pestaña Escena).
+"""Panel MATERIALES (pestaña Escena / panel Pro).
 
 Gestiona los shaders aiStandardSurface del mecha y terreno (requiere Arnold).
 
@@ -6,6 +6,9 @@ Estructura:
   - Paleta (preset de colores)
   - Selector de shader individual (Armadura, Estructura, ...) + sliders
   - Boton 'Aplicar materiales al mecha' al final (full width, estilo terreno)
+
+Tambien expone apply_palette_quick(palette_key) para que el modo Rapido
+aplique una paleta aiToon directamente sin tocar la UI.
 """
 
 try:
@@ -151,7 +154,6 @@ def _apply_materials(*_):
         from materials.materializer import materialize_mecha, materialize_terrain
         if mecha_grp:
             materialize_mecha(mecha_grp)
-        # Reasignar terreno si existe
         if scene_grp:
             for child in (mc.listRelatives(scene_grp, children=True, type='transform') or []):
                 if child.startswith('rm_terrain_'):
@@ -223,3 +225,43 @@ def _on_shader_sel(label):
     if sh:
         _current_shader[0] = sh
         _update_shader_sliders()
+
+
+# ══════════════════════════════════════════════════════════════
+#  API publica para Modo Rapido (quick_panel)
+# ══════════════════════════════════════════════════════════════
+
+def apply_palette_quick(palette_key):
+    """Aplica una paleta aiToon directamente por key (modo Rapido).
+
+    Usada por quick_panel para asignar paletas sin pasar por la UI del panel.
+    """
+    grp = _find_mecha_group()
+    if not grp:
+        print('[RetroMecha][aiToon] No hay mecha en escena')
+        return
+    try:
+        from utils.material_assigner import assign_palette_to_group, clear_material_cache
+        clear_material_cache()
+        assign_palette_to_group(grp, palette_key)
+        print(f'[RetroMecha][aiToon] Paleta {palette_key} aplicada')
+    except ImportError as e:
+        print(f'[RetroMecha][aiToon] material_assigner no disponible: {e}')
+    except Exception as e:
+        print(f'[RetroMecha][aiToon] Error aplicando paleta: {e}')
+
+
+def apply_color_preset_quick(preset_name):
+    """Aplica un preset de colores (Default/Atardecer/...) por nombre.
+
+    Usada por quick_panel/build_actions para sincronizar el preset
+    sin pasar por el menu de la UI.
+    """
+    apply_preset(preset_name)
+    preset_menu = state.get('materials_preset_menu')
+    if preset_menu and mc.optionMenu(preset_menu, exists=True):
+        try:
+            mc.optionMenu(preset_menu, e=True, value=preset_name)
+        except Exception:
+            pass
+    _update_shader_sliders()
