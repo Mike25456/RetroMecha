@@ -11,7 +11,7 @@ from ui.build_actions import (
     rebuild_mecha, rebuild_terrain_only, random_mecha, random_terrain,
     random_all, on_reset, on_generar
 )
-from ui.panels import terrain_panel, material_panel, animation_panel
+from ui.panels import terrain_panel, material_panel, animation_panel, rendering_panel
 from ui.panels.mecha_panel_v2 import build_with_tabs
 
 # Tabs principales: ID, Label, Color activo
@@ -20,6 +20,7 @@ _TABS = [
     ('terrain',   '■  TERRENO',   [0.16, 0.32, 0.55]),
     ('materials', '●  MAT',       [0.55, 0.35, 0.12]),
     ('animation', '▲  ANIM',      [0.45, 0.20, 0.40]),
+    ('render',    '◆  RENDER',    [0.55, 0.18, 0.18]),
 ]
 
 _current_tab = ['mecha']
@@ -114,6 +115,8 @@ def _render_tab(tab_id):
         _render_materials()
     elif tab_id == 'animation':
         _render_animation()
+    elif tab_id == 'render':
+        _render_rendering()
 
 
 def _render_mecha():
@@ -149,3 +152,7 @@ def _render_materials():
 
 def _render_animation():
     animation_panel.build()
+
+
+def _render_rendering():
+    rendering_panel.build()
