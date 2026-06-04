@@ -15,10 +15,9 @@ RENDER_HEIGHT = 1080
 
 
 def _has_arnold() -> bool:
-    if not MAYA_AVAILABLE:
-        return False
     try:
-        return 'mtoa' in (mc.pluginInfo(q=True, listPlugins=True) or [])
+        from utils.maya_materials import has_arnold
+        return has_arnold()
     except Exception:
         return False
 
@@ -65,11 +64,23 @@ def set_render_settings():
 
 
 def render_now() -> bool:
-    """Configura el render y lanza la Render View con Camara_for_render."""
+    """Configura el render y lanza la Render View con Camara_for_render.
+
+    Antes de renderizar, asegura que el setup completo este sincronizado
+    con la paleta activa: sky + sky_material + luces + sync centralizada.
+    Asi el render siempre refleja los cambios random de la ultima variacion.
+    """
     if not MAYA_AVAILABLE:
         return False
 
     from utils.camera import CAMERA_XFORM, create_default_camera, look_through_camera, lock_camera
+
+    # Paleta activa
+    try:
+        from ui.panels.material_panel import current_palette_label
+        palette = current_palette_label()
+    except Exception:
+        palette = 'Default'
 
     # Asegurar que la camara existe
     if not mc.objExists(CAMERA_XFORM):
@@ -83,6 +94,39 @@ def render_now() -> bool:
         lock_camera(True)
     except Exception as e:
         print(f'[RetroMecha][Render] Camara (look/lock): {e}')
+
+    # Asegurar sky geometry
+    try:
+        from utils.sky import create_sky, has_sky
+        if not has_sky():
+            create_sky()
+    except Exception as e:
+        print(f'[RetroMecha][Render] Sky: {e}')
+
+    # Asegurar sky material
+    try:
+        from materials.sky_material import create_sky_material, has_sky_material
+        if not has_sky_material():
+            create_sky_material(palette)
+    except Exception as e:
+        print(f'[RetroMecha][Render] SkyMat: {e}')
+
+    # Asegurar luces
+    try:
+        from utils import lighting
+        if not lighting.has_rm_lights():
+            lighting.apply_lighting(palette)
+        else:
+            lighting.set_palette(palette)
+    except Exception as e:
+        print(f'[RetroMecha][Render] Luces: {e}')
+
+    # Sync centralizada (idempotente: shaders + sky_ramp + luces)
+    try:
+        from materials.sync import apply_palette_full
+        apply_palette_full(palette)
+    except Exception as e:
+        print(f'[RetroMecha][Render] Sync: {e}')
 
     if not _has_arnold():
         print('[RetroMecha][Render] Arnold no cargado — abortando')

@@ -158,30 +158,15 @@ def clean_sky():
 
 
 def clean_lighting():
-    """Borra luces direccionales con tag rmLight y aiSkyDomeLight de RetroMecha."""
-    for shape in (mc.ls(type='directionalLight') or []):
-        parents = mc.listRelatives(shape, parent=True) or []
-        xform = parents[0] if parents else shape
-        try:
-            if mc.attributeQuery('rmLight', node=xform, exists=True):
-                mc.delete(xform)
-        except Exception:
-            pass
-
-    for shape in (mc.ls(type='aiSkyDomeLight') or []):
-        parents = mc.listRelatives(shape, parent=True) or []
-        target = parents[0] if parents else shape
-        try:
-            mc.delete(target)
-        except Exception:
-            pass
-
-    for name in ('aiSkyDomeLight1', 'aiSkyDomeLightShape1'):
-        if mc.objExists(name):
-            try:
-                mc.delete(name)
-            except Exception:
-                pass
+    """Borra TODAS las luces creadas por RetroMecha (nuevas + legacy).
+    Delega a utils.lighting.remove_lighting() que busca por tag rmLight
+    y por nombre (aiAreaLight, aiMeshLight, directionalLight, aiSkyDomeLight,
+    cubos de mesh light, nombres legacy)."""
+    try:
+        from utils.lighting import remove_lighting
+        remove_lighting()
+    except Exception:
+        pass
 
 
 def clean_scene():

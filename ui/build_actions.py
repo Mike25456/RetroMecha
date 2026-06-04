@@ -318,23 +318,40 @@ def _apply_idle_to_mecha():
 
 
 def _apply_terrain_visuals(palette: str):
-    """Crea sky + sky_material y recrea luces segun paleta."""
+    """Crea sky + sky_material + luces y sincroniza paleta completa.
+
+    Flujo automatico: cielo + materiales + luces, sin botones.
+    """
+    # 1. Sky geometry
     try:
         from utils.sky import create_sky
         create_sky()
     except Exception as e:
         print(f'[RetroMecha][Terrain] Cielo: {e}')
+
+    # 2. Sky material
     try:
         from materials.sky_material import create_sky_material
         create_sky_material(palette)
     except Exception as e:
         print(f'[RetroMecha][Terrain] Sky material: {e}')
 
+    # 3. Luces (crear si no existen, sino re-colorear)
     try:
         from utils import lighting
-        lighting.apply_lighting(palette)
+        if not lighting.has_rm_lights():
+            lighting.apply_lighting(palette)
+        else:
+            lighting.set_palette(palette)
     except Exception as e:
         print(f'[RetroMecha][Terrain] Luces: {e}')
+
+    # 4. Sync centralizada (shaders + sky_ramp + luces, idempotente)
+    try:
+        from materials.sync import apply_palette_full
+        apply_palette_full(palette)
+    except Exception as e:
+        print(f'[RetroMecha][Terrain] Sync: {e}')
 
 
 # ── rebuild ──────────────────────────────────────────────────
@@ -543,28 +560,28 @@ def random_all(*_):
     _safe_set_txt('seed_field', str(state._SEED[0]))
     on_generar()
 
-    # Apply random Lambert preset (Viewport 2.0) and sync UI
+    # Apply random color preset (aiStandardSurface) and sync UI
     from materials.presets import list_presets, apply_preset
     presets = list_presets()
     rand_preset = random.choice(presets) if presets else None
     if rand_preset:
         apply_preset(rand_preset)
-        lambert_menu = state.get('lambert_preset_menu')
-        if lambert_menu and _safe_ctrl_exists(lambert_menu):
+        preset_menu = state.get('materials_preset_menu')
+        if preset_menu and _safe_ctrl_exists(preset_menu):
             try:
-                mc.optionMenu(lambert_menu, e=True, value=rand_preset)
+                mc.optionMenu(preset_menu, e=True, value=rand_preset)
             except Exception:
                 pass
 
     mecha_grp = sc.find_mecha_group()
 
-    # Reasignar shaders Lambert al mecha
+    # Reasignar shaders aiStandardSurface al mecha
     if mecha_grp:
         try:
             from materials.materializer import materialize_mecha
             materialize_mecha(mecha_grp)
         except Exception as e:
-            print(f'[RetroMecha][Random] Lambert: {e}')
+            print(f'[RetroMecha][Random] Materials: {e}')
 
     # Apply random aiToon palette via rendering panel menu (si Arnold cargado)
     rand_palette_label = random.choice(list(_AITOON_PALETTE_LABELS.keys()))

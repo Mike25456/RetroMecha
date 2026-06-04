@@ -1,12 +1,13 @@
-"""Panel RENDERING — Render, iluminacion, cielo y camara.
+"""Panel RENDERING — Render, iluminacion, viewport.
 
   - Boton RENDER 1920x1080 (Arnold) desde Camara_for_render
-  - Iluminacion: 5 luces (luz_ambiente, foco_mecha, background,
-                 veam_light izquierdo/derecho) palette-aware
+  - Iluminacion: 5 luces palette-aware (auto-creadas en Generar/Render)
   - Sliders individuales de intensidad por luz
   - Slider de densidad de aiAtmosphereVolume
-  - Cielo: sky polyPlane + bends + sky_material
-  - Camara: crear/eliminar/look through/lift mecha
+  - Look through camara + Lift mecha +6 (viewport/transform)
+
+  Cielo, luces y camara se crean automaticamente en el flujo Generar/Render.
+  No hay botones de setup: el sync de paleta se aplica implicitamente.
 """
 
 try:
@@ -65,8 +66,7 @@ def build():
     mc.separator(h=4, style='none')
 
     mc.text(
-        label='  luz_ambiente: color terreno  |  veam: color mecha  |  '
-              'foco + bg: BLANCAS',
+        label='  luz_ambiente + veam: glow del mecha  |  foco + bg: BLANCAS',
         align='left', font='smallPlainLabelFont',
     )
 
@@ -75,7 +75,7 @@ def build():
         step=0.1, prec=2,
         on_cc=_on_ambient_intensity,
         annotation='Intensidad de luz_ambiente (aiAreaLight quad, '
-                   'color del terreno segun paleta)',
+                   'color = rm_cyan_glow_mat de la paleta)',
     ))
     state.reg('render_foco_i_sl', fsl(
         'Foco (foco_mecha)', INTENSITY_MIN, INTENSITY_MAX, FOCO_INTENSITY,
@@ -105,72 +105,6 @@ def build():
         annotation='Densidad del aiAtmosphereVolume (volumetrica Arnold). '
                    f'Rango: {DENSITY_MIN}-{DENSITY_MAX} (default {DEFAULT_DENSITY})',
     ))
-
-    mc.rowLayout(nc=2, cw2=[160, 160],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[0, 4])
-    mc.button(label='Crear / Recrear luces', h=26,
-              backgroundColor=T.CYAN,
-              command=lambda *_: _apply_lighting(),
-              annotation='Crea las 5 luces (ambient/foco/bg/2 mesh) + atmosfera. '
-                         'Colores segun la paleta activa.')
-    mc.button(label='Eliminar luces', h=26,
-              backgroundColor=T.SLATE,
-              command=lambda *_: _remove_lighting(),
-              annotation='Elimina luces y atmosfera creadas por RetroMecha')
-    mc.setParent('..')
-
-    # ── CIELO ──────────────────────────────────────────────────
-    mc.separator(h=8, style='none')
-    mc.text(
-        label='  CIELO',
-        align='left', font='boldLabelFont', h=22,
-        backgroundColor=T.PANEL,
-    )
-    mc.separator(h=4, style='none')
-
-    mc.rowLayout(nc=2, cw2=[160, 160],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[0, 4])
-    mc.button(label='Crear / Recrear cielo', h=26,
-              backgroundColor=T.CYAN,
-              command=lambda *_: _apply_sky(),
-              annotation='Crea sky (polyPlane 24x24 + bend1 envelope 2 + bend2) '
-                         '+ sky_material acorde a paleta')
-    mc.button(label='Eliminar cielo', h=26,
-              backgroundColor=T.SLATE,
-              command=lambda *_: _remove_sky_cb(),
-              annotation='Elimina el sky, sus deformadores y el sky_material')
-    mc.setParent('..')
-
-    # ── CAMARA ─────────────────────────────────────────────────
-    mc.separator(h=8, style='none')
-    mc.text(
-        label='  CAMARA',
-        align='left', font='boldLabelFont', h=22,
-        backgroundColor=T.PANEL,
-    )
-    mc.separator(h=4, style='none')
-
-    mc.text(
-        label='  Camara_for_render: focal 21.39  |  fStop 5.6  |  '
-              'pos fija del setup',
-        align='left', font='smallPlainLabelFont',
-    )
-
-    mc.rowLayout(nc=2, cw2=[160, 160],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[0, 4])
-    mc.button(label='Crear / Recrear camara', h=26,
-              backgroundColor=T.CYAN,
-              command=lambda *_: _apply_default_camera(),
-        annotation='Crea Camara_for_render con la config final del setup '
-                         '(posicion / rotacion fijas del usuario)')
-    mc.button(label='Eliminar camara', h=26,
-              backgroundColor=T.SLATE,
-              command=lambda *_: _remove_default_camera(),
-        annotation='Elimina Camara_for_render de la escena')
-    mc.setParent('..')
 
     mc.rowLayout(nc=2, cw2=[160, 160],
                  columnAttach2=['both', 'both'],
@@ -232,50 +166,8 @@ def _do_render(*_):
 
 
 # ══════════════════════════════════════════════════════════════
-#  CALLBACKS — Iluminacion
+#  CALLBACKS — Sliders
 # ══════════════════════════════════════════════════════════════
-
-def _apply_lighting(*_):
-    try:
-        from utils import lighting
-        for slider_key, setter in (
-            ('render_ambient_i_sl', lighting.set_ambient_intensity),
-            ('render_foco_i_sl',    lighting.set_foco_intensity),
-            ('render_bg_i_sl',      lighting.set_background_intensity),
-            ('render_veam_i_sl',    lighting.set_veam_intensity),
-        ):
-            sl = state.get(slider_key)
-            if sl and mc.floatSliderGrp(sl, exists=True):
-                try:
-                    setter(mc.floatSliderGrp(sl, q=True, value=True))
-                except Exception:
-                    pass
-        lighting.apply_lighting(_current_palette())
-    except Exception as e:
-        print(f'[RetroMecha][Render] Lighting: {e}')
-
-    try:
-        from utils import atmosphere
-        density = mc.floatSliderGrp(
-            state.get('render_atmosphere_density_sl'), q=True, value=True)
-        atmosphere.ensure_atmosphere(density, DEFAULT_ANISOTROPY)
-    except Exception as e:
-        print(f'[RetroMecha][Render] Atmosfera: {e}')
-
-
-def _remove_lighting(*_):
-    try:
-        from utils import lighting
-        lighting.remove_lighting()
-    except Exception as e:
-        print(f'[RetroMecha][Render] Lighting: {e}')
-    try:
-        from utils import atmosphere
-        atmosphere.remove_atmosphere()
-    except Exception as e:
-        print(f'[RetroMecha][Render] Atmosfera: {e}')
-    print('[RetroMecha][Render] Luces y atmosfera eliminadas')
-
 
 def _on_ambient_intensity(val):
     try:
@@ -318,25 +210,8 @@ def _on_atmosphere_density(val):
 
 
 # ══════════════════════════════════════════════════════════════
-#  CALLBACKS - Camara
+#  CALLBACKS - Viewport / Transform
 # ══════════════════════════════════════════════════════════════
-
-def _apply_default_camera(*_):
-    try:
-        from utils.camera import create_default_camera
-        create_default_camera(frame_mecha=False, look_through=True)
-    except Exception as e:
-        print(f'[RetroMecha][Render] Camara: {e}')
-
-
-def _remove_default_camera(*_):
-    try:
-        from utils.camera import remove_camera
-        remove_camera()
-        print('[RetroMecha][Render] Camara eliminada')
-    except Exception as e:
-        print(f'[RetroMecha][Render] Camara: {e}')
-
 
 def _look_through_camera(*_):
     try:
@@ -353,34 +228,3 @@ def _lift_mecha_default(*_):
             print('[RetroMecha][Render] No hay mecha en escena para desplazar')
     except Exception as e:
         print(f'[RetroMecha][Render] Lift: {e}')
-
-
-# ══════════════════════════════════════════════════════════════
-#  CALLBACKS - Cielo
-# ══════════════════════════════════════════════════════════════
-
-def _apply_sky(*_):
-    try:
-        from utils.sky import create_sky
-        create_sky()
-    except Exception as e:
-        print(f'[RetroMecha][Render] Cielo: {e}')
-    try:
-        from materials.sky_material import create_sky_material
-        create_sky_material(_current_palette())
-    except Exception as e:
-        print(f'[RetroMecha][Render] Sky material: {e}')
-
-
-def _remove_sky_cb(*_):
-    try:
-        from utils.sky import remove_sky
-        remove_sky()
-    except Exception as e:
-        print(f'[RetroMecha][Render] Cielo: {e}')
-    try:
-        from materials.sky_material import remove_sky_material
-        remove_sky_material()
-    except Exception as e:
-        print(f'[RetroMecha][Render] Sky material: {e}')
-    print('[RetroMecha][Render] Cielo eliminado')

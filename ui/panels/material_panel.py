@@ -226,17 +226,10 @@ def _on_preset_changed(*_):
     apply_preset(label)
     _update_shader_sliders()
     try:
-        from materials.sky_material import update_sky_ramp, has_sky_material
-        if has_sky_material():
-            update_sky_ramp(label)
-    except Exception:
-        pass
-    try:
-        from utils import lighting
-        if lighting.has_rm_lights():
-            lighting.set_palette(label)
-    except Exception:
-        pass
+        from materials.sync import apply_palette_full
+        apply_palette_full(label)
+    except Exception as e:
+        print(f'[RetroMecha][Mat] Sync: {e}')
 
 
 def _apply_materials(*_):
@@ -270,16 +263,10 @@ def _apply_materials(*_):
         print(f'[RetroMecha][Mat] Error: {e}')
 
     try:
-        from materials.sky_material import (
-            create_sky_material, update_sky_ramp, has_sky_material,
-        )
-        if mc.objExists('sky'):
-            if has_sky_material():
-                update_sky_ramp(palette_label)
-            else:
-                create_sky_material(palette_label)
+        from materials.sync import apply_palette_full
+        apply_palette_full(palette_label)
     except Exception as e:
-        print(f'[RetroMecha][Mat] Sky: {e}')
+        print(f'[RetroMecha][Mat] Sync: {e}')
 
 
 def current_palette_label() -> str:
@@ -310,11 +297,10 @@ def apply_palette_quick(palette_key):
         print(f'[RetroMecha][aiToon] Error aplicando paleta: {e}')
 
     try:
-        from utils import lighting
-        if lighting.has_rm_lights():
-            lighting.set_palette(palette_key)
+        from materials.sync import apply_palette_full
+        apply_palette_full(palette_key)
     except Exception as e:
-        print(f'[RetroMecha][aiToon] Luces: {e}')
+        print(f'[RetroMecha][aiToon] Sync: {e}')
 
 
 def apply_color_preset_quick(preset_name):
