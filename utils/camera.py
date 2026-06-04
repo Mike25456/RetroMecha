@@ -104,21 +104,34 @@ def create_default_camera(*, look_through=True, frame_mecha=False):
     if frame_mecha:
         _frame_on_mecha(xform, shape)
 
+    # Forzar X = 0 siempre (incluso si frame_mecha lo desplazo)
+    try:
+        mc.setAttr(f'{xform}.translateX', 0.0)
+    except Exception:
+        pass
+
     if look_through:
         _look_through_in_active_panel(xform)
+
+    # Lock de transforms — la camara no debe moverse accidentalmente
+    lock_camera(True)
 
     print(
         f'[RetroMecha][Camera] {CAMERA_XFORM} '
         f'(focal={FOCAL_LENGTH:.3f}, fStop={F_STOP:.2f}, '
-        f'pos={CAM_TRANSLATE}, rot={CAM_ROTATE})'
+        f'pos=(0.0, {CAM_TRANSLATE[1]}, {CAM_TRANSLATE[2]}), '
+        f'rot={CAM_ROTATE}, LOCKED)'
     )
     return xform
 
 
 def remove_camera():
-    """Elimina la camara RetroMecha si existe (por tag o por nombre)."""
+    """Elimina la camara RetroMecha si existe (por tag o por nombre).
+    Desbloquea los transforms primero por si estaba locked."""
     if not MAYA_AVAILABLE:
         return
+    # Unlock primero para que delete no falle con attrs locked
+    lock_camera(False)
     for shape in (mc.ls(type='camera') or []):
         parents = mc.listRelatives(shape, parent=True) or []
         xform = parents[0] if parents else shape
