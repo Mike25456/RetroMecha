@@ -136,6 +136,26 @@ def _render_module(module):
         mc.setParent('..')
         state.reg(f'{module}_style_menu', menu)
 
+        if module in ('arm', 'wing'):
+            row = mc.rowLayout(nc=2, cw2=[100, 220], visible=False)
+            state.reg(f'{module}_right_row', row)
+            mc.text(label=f'{module.capitalize()} der.', align='right',
+                    font='smallPlainLabelFont')
+            rmenu = mc.optionMenu(changeCommand=_on_mecha_cc,
+                                  backgroundColor=widgets.BG_HOVER)
+            src_labels = ARM_STYLE_LABELS if module == 'arm' else WING_STYLE_LABELS
+            for label in src_labels:
+                mc.menuItem(label=label)
+            current = _label_for(src_labels, params.get(f'{module}_style_right'))
+            if current:
+                mc.optionMenu(rmenu, e=True, value=current)
+            mc.setParent('..')
+            state.reg(f'{module}_style_right_menu', rmenu)
+
+            sym = params.get('symmetry', True)
+            mc.control(row, e=True, visible=not sym)
+            mc.setParent('..')
+
     for spec in get_slider_specs(module):
         key = spec['key']
         ctrl = fsl(
@@ -149,29 +169,6 @@ def _render_module(module):
         )
         mc.floatSliderGrp(ctrl, e=True, dragCommand=_on_mecha_cc)
         state.reg(f'{module}.{key}', ctrl)
-
-    if module in ('arm', 'wing'):
-        row = mc.rowLayout(nc=2, cw2=[100, 220], visible=False)
-        state.reg(f'{module}_right_row', row)
-        mc.text(label=f'{module.capitalize()} der.', align='right', font='smallPlainLabelFont')
-        menu = mc.optionMenu(changeCommand=_on_mecha_cc,
-                             backgroundColor=widgets.BG_HOVER)
-        src_labels = ARM_STYLE_LABELS if module == 'arm' else WING_STYLE_LABELS
-        for label in src_labels:
-            mc.menuItem(label=label)
-        current = _label_for(src_labels, params.get(f'{module}_style_right'))
-        if current:
-            mc.optionMenu(menu, e=True, value=current)
-        mc.setParent('..')
-        state.reg(f'{module}_style_right_menu', menu)
-
-        sym = state.get('sym_cb')
-        if _safe_ctrl_exists(sym):
-            try:
-                visible = not mc.checkBox(sym, q=True, value=True)
-                mc.control(row, e=True, visible=visible)
-            except Exception:
-                pass
 
     mc.setParent('..')
 
