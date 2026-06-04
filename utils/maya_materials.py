@@ -64,7 +64,9 @@ MATERIALS = {
     },
     'rm_terrain_accent_mat': {
         'color':            (0.42, 0.36, 0.28),
-        'incandescence':    (0.42, 0.36, 0.28),   # ← emisivo (mismo color)
+        # Familia del emisivo del mecha (cyan_glow.incandescence) × 0.5 → oscuro
+        'incandescence':    (0.0, 0.275, 0.425),
+        'emission':         0.5,                  # peso explicito (0.5, no 1)
         'diffuse':          0.64,
         'diffuseRoughness': DEFAULT_DIFFUSE_ROUGHNESS,
     },
@@ -102,7 +104,18 @@ def _ensure_arnold() -> bool:
 # ══════════════════════════════════════════════════════════════════════
 
 def set_semantic_attr(shader: str, semantic: str, value) -> bool:
-    """Aplica un valor 'semantico' al shader aiStandardSurface."""
+    """Aplica un valor 'semantico' al shader aiStandardSurface.
+
+    Semantics:
+      color            → baseColor
+      diffuse          → base (peso difuso 0-1)
+      diffuseRoughness → diffuseRoughness
+      incandescence    → emissionColor + emission=1.0 (auto si color != 0).
+                          Si quieres un peso especifico, usa 'emission'
+                          DESPUES de incandescence para sobreescribirlo.
+      emission         → emission (peso explicito 0-1)
+      ambientColor     → ignorado (aiSS no tiene ambient)
+    """
     if mc is None or not shader or not mc.objExists(shader):
         return False
     try:
@@ -113,12 +126,14 @@ def set_semantic_attr(shader: str, semantic: str, value) -> bool:
         elif semantic == 'diffuseRoughness':
             mc.setAttr(f'{shader}.diffuseRoughness', float(value))
         elif semantic == 'incandescence':
-            # Emission: peso = 1 si el color tiene algun canal > 0, sino 0
+            # Emission: peso auto = 1 si el color tiene algun canal > 0
             weight = 1.0 if any(v > 1e-4 for v in value) else 0.0
             mc.setAttr(f'{shader}.emissionColor', *value, type='double3')
             mc.setAttr(f'{shader}.emission', weight)
+        elif semantic == 'emission':
+            # Override explicito del peso de emision (despues de incandescence)
+            mc.setAttr(f'{shader}.emission', float(value))
         elif semantic == 'ambientColor':
-            # aiSS no tiene ambient — se ignora silenciosamente
             return True
         else:
             return False
@@ -141,6 +156,8 @@ def get_semantic_attr(shader: str, semantic: str):
             return mc.getAttr(f'{shader}.diffuseRoughness')
         if semantic == 'incandescence':
             return mc.getAttr(f'{shader}.emissionColor')[0]
+        if semantic == 'emission':
+            return mc.getAttr(f'{shader}.emission')
         if semantic == 'ambientColor':
             return None
     except Exception:
