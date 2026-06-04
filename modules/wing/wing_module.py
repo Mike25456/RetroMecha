@@ -15,11 +15,15 @@ from modules.wing._shared import build_root
 import modules.wing.style_needle  as needle_mod
 import modules.wing.style_compact as compact_mod
 import modules.wing.style_fan     as fan_mod
+import modules.wing.style_delta   as delta_mod
+import modules.wing.style_mantle  as mantle_mod
 
 _STYLES = {
     'needle':  needle_mod,
     'compact': compact_mod,
     'fan':     fan_mod,
+    'delta':   delta_mod,
+    'mantle':  mantle_mod,
 }
 
 
@@ -73,7 +77,7 @@ class WingModule(BaseModule):
 
         mc.parent(root, *blades, *extras, grp)
 
-        # Aplicar materiales aiToon si hay paleta activa
+        # Aplicar materiales si hay paleta activa
         self._assign_materials(grp)
 
         return self._finalize_group(grp, position, rotation, scale)

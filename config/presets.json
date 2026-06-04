@@ -60,7 +60,7 @@
   },
 
   "aerial": {
-    "_name": "Aereo",
+    "_name": "Aéreo",
     "height_scale":    1.18,
     "symmetry":        true,
     "use_head":        true,

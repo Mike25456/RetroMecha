@@ -1,6 +1,6 @@
 """
 RetroMecha — utils/maya_materials.py  v4
-Materiales aiStandardSurface (Arnold). Sin fallback a Lambert.
+Materiales aiStandardSurface (Arnold).
 
 Los presets y la UI hablan en terminos "semanticos" (color, diffuse,
 incandescence, ambientColor). Este modulo traduce esos nombres al atributo
@@ -11,25 +11,13 @@ real de aiStandardSurface:
   - incandescence → emissionColor + emission (peso)
   - ambientColor  → (ignorado: aiSS no tiene ambient)
 
-assign_material(node, role) respeta la paleta activa:
-  - Si hay paleta + Arnold → aiToon del tier correcto
-  - Si no                  → aiStandardSurface base
+assign_material(node, role) crea y asigna aiStandardSurface base.
 """
 
 try:
     import maya.cmds as mc
 except ImportError:
     mc = None
-
-# Mapa nombre-material → tier aiToon
-_ROLE_TO_TIER = {
-    'rm_white_armor_mat': 'ARMOR',
-    'rm_graphite_mat':    'JOINT',
-    'rm_cyan_glow_mat':   'GLOW',
-}
-
-# Paleta aiToon activa — None = usar aiStandardSurface base
-_ACTIVE_PALETTE = [None]
 
 # Default global de diffuseRoughness para reducir reflejos del lobulo difuso.
 DEFAULT_DIFFUSE_ROUGHNESS = 0.5
@@ -171,28 +159,6 @@ def get_semantic_attr(shader: str, semantic: str):
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  PALETA aiToon
-# ══════════════════════════════════════════════════════════════════════
-
-def set_active_palette(palette_name):
-    """
-    Activa una paleta aiToon. Llamar desde la UI al cambiar la seleccion.
-    Pasar None para desactivar (vuelve a aiStandardSurface base).
-    """
-    _ACTIVE_PALETTE[0] = palette_name
-    try:
-        from utils.material_assigner import clear_material_cache
-        clear_material_cache()
-    except ImportError:
-        pass
-    print(f'[RetroMecha][Materials] Paleta activa: {palette_name or "aiStandardSurface base"}')
-
-
-def get_active_palette():
-    return _ACTIVE_PALETTE[0]
-
-
-# ══════════════════════════════════════════════════════════════════════
 #  CREACION / ASIGNACION
 # ══════════════════════════════════════════════════════════════════════
 
@@ -228,25 +194,10 @@ def ensure_material(name: str) -> str | None:
 
 def assign_material(node: str, name: str) -> None:
     """
-    Asigna material a un nodo.
-    - Con paleta activa → aiToon del tier
-    - Sin paleta        → aiStandardSurface base
+    Asigna material aiStandardSurface base a un nodo.
     """
     if mc is None or not node or not mc.objExists(node):
         return
-
-    palette = _ACTIVE_PALETTE[0]
-    tier    = _ROLE_TO_TIER.get(name)
-
-    if palette and tier:
-        try:
-            from utils.material_assigner import _assign_aitoon, _load_palette
-            p = _load_palette(palette)
-            if p:
-                _assign_aitoon(node, tier, p, palette)
-                return
-        except Exception:
-            pass
 
     sg = ensure_material(name)
     if sg:

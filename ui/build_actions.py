@@ -17,15 +17,6 @@ from ui.constants import (
 )
 from ui.module_advanced import get_slider_specs
 
-# Paleta aiToon (no esta en ui.constants — uso local)
-_AITOON_PALETTE_LABELS = {
-    'Industrial': 'industrial',
-    'Oxidado':    'oxidado',
-    'Artico':     'artico',
-    'Carmesi':    'carmesi',
-}
-
-
 # ── safe control access (mode-agnostic) ──────────────────────
 
 def _safe_val(name, default=1.0):
@@ -315,6 +306,19 @@ def _apply_idle_to_mecha():
             state._ACTIVE_ANIM[0] = 'idle'
     except Exception as e:
         print(f'[RetroMecha][Anim] No se pudo aplicar idle: {e}')
+    _sync_anim_ui()
+
+
+def _sync_anim_ui():
+    coll = state.get('anim_rb_coll')
+    rb_map = state.get('anim_rb_map')
+    if coll and rb_map:
+        active = state._ACTIVE_ANIM[0]
+        if active in rb_map:
+            try:
+                mc.radioCollection(coll, e=True, select=rb_map[active])
+            except Exception:
+                pass
 
 
 def _apply_terrain_visuals(palette: str):
@@ -386,7 +390,7 @@ def rebuild_terrain_only(*_):
             from ui.panels.material_panel import current_palette_label
             palette = current_palette_label()
         except Exception:
-            palette = 'Default'
+            palette = 'Predeterminado'
 
         _apply_terrain_visuals(palette)
 
@@ -408,8 +412,8 @@ def on_generar(*_):
             mc.parent(terrain_grp, scene_grp)
         if state._QUICK_PALETTE[0]:
             try:
-                from ui.panels.material_panel import apply_palette_quick
-                apply_palette_quick(state._QUICK_PALETTE[0])
+                from ui.panels.material_panel import apply_color_preset_quick
+                apply_color_preset_quick(state._QUICK_PALETTE[0])
             except Exception as e:
                 print(f'[RetroMecha][Quick] No se pudo aplicar paleta: {e}')
 
@@ -582,16 +586,6 @@ def random_all(*_):
             materialize_mecha(mecha_grp)
         except Exception as e:
             print(f'[RetroMecha][Random] Materials: {e}')
-
-    # Apply random aiToon palette via rendering panel menu (si Arnold cargado)
-    rand_palette_label = random.choice(list(_AITOON_PALETTE_LABELS.keys()))
-    if mecha_grp:
-        try:
-            from utils.material_assigner import assign_palette_to_group, clear_material_cache
-            clear_material_cache()
-            assign_palette_to_group(mecha_grp, _AITOON_PALETTE_LABELS[rand_palette_label])
-        except Exception as e:
-            print(f'[RetroMecha][Random] aiToon: {e}')
 
     # Idle animation + playback
     if mecha_grp:

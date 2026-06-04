@@ -59,7 +59,7 @@ SKY_STOP_POS_BOTTOM = 0.548
 SKY_STOP_POS_TOP    = 1.000
 SKY_DARK_FACTOR     = 0.10   # 10% del top → base oscura azul-marino-style
 
-DEFAULT_PRESET = 'Default'
+DEFAULT_PRESET = 'Predeterminado'
 
 # Pesos base (el usuario indico emission 0.5 a 1.0; usamos 0.5 como default)
 BASE_WEIGHT      = 1.0

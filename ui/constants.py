@@ -1,21 +1,25 @@
 """Shared UI labels and value maps for RetroMecha."""
 
 HEAD_STYLE_LABELS = {
-    'Casco': 'helmet', 'Drone': 'drone', 'Centinela': 'sentinel',
+    'Casco': 'helmet', 'Dron': 'drone', 'Centinela': 'sentinel',
 }
 ARM_STYLE_LABELS = {
-    'Estandar': 'standard', 'Pesado': 'heavy',
-    'Cuchilla': 'blade', 'Cañon': 'cannon',
+    'Estándar': 'standard', 'Pesado': 'heavy',
+    'Cuchilla': 'blade', 'Cañón': 'cannon',
     'Escudo': 'shield',
 }
 WING_STYLE_LABELS = {
     'Agujas': 'needle', 'Compactas': 'compact', 'Abanico': 'fan',
+    'Delta': 'delta',
+    'Mantle': 'mantle',
 }
 TORSO_STYLE_LABELS = {
     'Base': 'core', 'Pesado': 'heavy', 'Delgado': 'slim', 'Compacto': 'compact',
+    'Samurái': 'samurai',
 }
 NUCLEUS_STYLE_LABELS = {
     'Anillo': 'ring', 'Columna': 'column', 'Orbe': 'orb',
+    'Cruz': 'cross',
 }
 TERRAIN_PRESET_MAP = {
     'Avanzada': 'avanzada', 'Hangar': 'hangar',

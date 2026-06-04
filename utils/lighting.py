@@ -106,7 +106,7 @@ def _clamp_intensity(v) -> float:
     return max(INTENSITY_MIN, float(v))
 
 
-def _palette_mecha_color(palette_label: str = 'Default'):
+def _palette_mecha_color(palette_label: str = 'Predeterminado'):
     """Color del glow accent del mecha (rm_cyan_glow_mat.color)."""
     try:
         from materials.presets import PRESETS
@@ -124,7 +124,7 @@ def _palette_mecha_color(palette_label: str = 'Default'):
     return (0.04, 0.75, 1.0)
 
 
-def _palette_terrain_color(palette_label: str = 'Default'):
+def _palette_terrain_color(palette_label: str = 'Predeterminado'):
     """Color del accent del terreno (rm_terrain_accent_mat.color)."""
     try:
         from materials.presets import PRESETS
@@ -224,20 +224,9 @@ def _ramp_mid_color(ramp):
 
 
 def _toon_palette_colors(palette_key: str):
-    """Colores aproximados para paletas aiToon (quick mode)."""
-    try:
-        from utils.material_assigner import _load_palette
-        palette = _load_palette(palette_key)
-        if not palette:
-            return None, None
-        mecha_col = palette.get('GLOW')
-        if mecha_col and len(mecha_col) >= 3:
-            mecha_col = (float(mecha_col[0]), float(mecha_col[1]), float(mecha_col[2]))
-        terrain_ramp = palette.get('DETAIL') or palette.get('ARMOR') or palette.get('JOINT')
-        terrain_col = _ramp_mid_color(terrain_ramp)
-        return mecha_col, terrain_col
-    except Exception:
-        return None, None
+    """Stub — aiToon palettes were removed. Always returns (None, None).
+    Kept as a safe fallback for _palette_mecha_color / _palette_terrain_color."""
+    return None, None
 
 
 def _set_light_attr(shape: str, candidates: tuple[str, ...], value) -> bool:
@@ -508,7 +497,7 @@ def _create_veam_meshlights(mecha_color, bg_z: float):
 #  API PUBLICA
 # ══════════════════════════════════════════════════════════════════════
 
-def apply_lighting(palette_label: str = 'Default'):
+def apply_lighting(palette_label: str = 'Predeterminado'):
     """Crea (o recrea) las 5 luces palette-aware con las intensidades stored."""
     if not MAYA_AVAILABLE:
         return

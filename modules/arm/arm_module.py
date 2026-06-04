@@ -71,7 +71,7 @@ class ArmModule(BaseModule):
         mod = _STYLES.get(style, standard_mod)
         mod.build(grp, w, l, d_mul, hm, side, aggr)
 
-        # Aplicar materiales aiToon si hay paleta activa
+        # Aplicar materiales si hay paleta activa
         self._assign_materials(grp)
 
         return self._finalize_group(grp, position, rotation, scale)

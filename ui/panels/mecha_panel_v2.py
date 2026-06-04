@@ -96,22 +96,22 @@ def _render_general():
 
     mc.separator(h=4)
     state.reg('sym_cb', mc.checkBox(
-        label='Simetria',
+        label='Simetría',
         value=params.get('symmetry', True),
         changeCommand=lambda *_: (_toggle_symmetry_ui(), _on_mecha_cc()),
     ))
     state.reg('arms_cb', mc.checkBox(
-        label='Modulo Brazos',
+        label='Brazos',
         value=params.get('use_arms', True),
         changeCommand=_on_mecha_cc,
     ))
     state.reg('wings_cb', mc.checkBox(
-        label='Modulo Alas',
+        label='Alas',
         value=params.get('use_wings', True),
         changeCommand=_on_mecha_cc,
     ))
     state.reg('energy_cb', mc.checkBox(
-        label='Anillos de energia',
+        label='Anillos de energía',
         value=params.get('use_energy_fields', True),
         changeCommand=_on_mecha_cc,
     ))
