@@ -15,11 +15,13 @@ from modules.wing._shared import build_root
 import modules.wing.style_needle  as needle_mod
 import modules.wing.style_compact as compact_mod
 import modules.wing.style_fan     as fan_mod
+import modules.wing.style_delta   as delta_mod
 
 _STYLES = {
     'needle':  needle_mod,
     'compact': compact_mod,
     'fan':     fan_mod,
+    'delta':   delta_mod,
 }
 
 

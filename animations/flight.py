@@ -49,22 +49,33 @@ class FlightAnimation(BaseAnimation):
                 except Exception:
                     pass
 
-        # ── Curva figura 8 ──────────────────────────────
+        # ── Curva figura 8 (escalada al tamaño del mecha) ──
+        bb = mc.exactWorldBoundingBox(ROOT)
+        mh = bb[4] - bb[1]   # alto del mecha
+        mw = bb[3] - bb[0]   # ancho
+        sz = max(mh, mw, bb[5] - bb[2])
+        sf = max(sz / 3.0, 0.7)   # escala proporcional, mínimo 0.7
+
+        X_AMP   = 7.0 * sf
+        Y_AMP   = 3.5 * sf
+        Y_OFF   = Y_AMP + mh * 0.5 + 0.5
+        Z_AMP   = 3.5 * sf
+
         points = []
         STEPS  = 64
         W      = (2 * math.pi) / DURATION
-        Z_TILT = 3.5
 
         for i in range(STEPS + 1):
             t  = (i / STEPS) * DURATION
-            px = math.sin(W * t) * 7.0
-            py = math.sin(W * 2 * t) * 3.5 + 3.0
-            pz = math.sin(W * 2 * t) * Z_TILT
+            px = math.sin(W * t) * X_AMP
+            py = math.sin(W * 2 * t) * Y_AMP + Y_OFF
+            pz = math.sin(W * 2 * t) * Z_AMP
             points.append((px, py, pz))
 
         points[-1] = points[0]
         curve = mc.curve(d=3, p=points, name='rm_flight_path')
         mc.closeCurve(curve, ch=False, replaceOriginal=True)
+        mc.hide(curve)
 
         mc.playbackOptions(min=1, max=FRAMES,
                            animationStartTime=1, animationEndTime=FRAMES)

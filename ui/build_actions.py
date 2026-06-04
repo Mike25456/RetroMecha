@@ -306,6 +306,19 @@ def _apply_idle_to_mecha():
             state._ACTIVE_ANIM[0] = 'idle'
     except Exception as e:
         print(f'[RetroMecha][Anim] No se pudo aplicar idle: {e}')
+    _sync_anim_ui()
+
+
+def _sync_anim_ui():
+    coll = state.get('anim_rb_coll')
+    rb_map = state.get('anim_rb_map')
+    if coll and rb_map:
+        active = state._ACTIVE_ANIM[0]
+        if active in rb_map:
+            try:
+                mc.radioCollection(coll, e=True, select=rb_map[active])
+            except Exception:
+                pass
 
 
 def _apply_terrain_visuals(palette: str):

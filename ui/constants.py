@@ -10,6 +10,7 @@ ARM_STYLE_LABELS = {
 }
 WING_STYLE_LABELS = {
     'Agujas': 'needle', 'Compactas': 'compact', 'Abanico': 'fan',
+    'Delta': 'delta',
 }
 TORSO_STYLE_LABELS = {
     'Base': 'core', 'Pesado': 'heavy', 'Delgado': 'slim', 'Compacto': 'compact',
