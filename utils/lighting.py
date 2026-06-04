@@ -84,6 +84,18 @@ _FOCO_I    = [FOCO_INTENSITY]
 _BG_I      = [BG_INTENSITY]
 _VEAM_I    = [VEAM_INTENSITY]
 
+# Rango sugerido para sliders individuales
+INTENSITY_MIN = 4.0
+INTENSITY_MAX = 20.0
+
+# Almacen individual de intensidad por luz (para sliders separados)
+_LIGHT_INTENSITIES = {
+    AMBIENT_NAME: AMBIENT_INTENSITY,
+    FOCO_NAME:    FOCO_INTENSITY,
+    BG_NAME:      BG_INTENSITY,
+}
+_VEAM_INTENSITY = [VEAM_INTENSITY]
+
 
 # ══════════════════════════════════════════════════════════════════════
 #  HELPERS
@@ -245,9 +257,6 @@ def _create_luz_ambiente(terrain_color):
     _set_color(shape, 'color', terrain_color)
     _set_attr(shape, 'aiIntensity', _clamp_intensity(_AMBIENT_I[0]))
     _set_attr(shape, 'aiExposure',  AMBIENT_EXPOSURE)
-    _apply_area_shadow_defaults(shape)
-    _apply_visibility_defaults(shape)
-    _tag(xform)
 
 
 def _create_foco_mecha():
@@ -256,14 +265,10 @@ def _create_foco_mecha():
     _set_color(shape, 'color', FOCO_COLOR)
     _set_attr(shape, 'aiIntensity', _clamp_intensity(_FOCO_I[0]))
     _set_attr(shape, 'aiExposure',  FOCO_EXPOSURE)
-    _apply_area_shadow_defaults(shape)
-    _apply_visibility_defaults(shape)
-    _tag(xform)
 
 
 def _create_background(bg_z: float):
     xform, shape = _create_area_light(BG_NAME, light_shape_enum=0)  # quad
-    bx, by = BG_TRANS_XY
     _set_xform(xform, (bx, by, bg_z), BG_ROTATE, BG_SCALE)
     _set_color(shape, 'color', BG_COLOR)
     _set_attr(shape, 'aiIntensity', _clamp_intensity(_BG_I[0]))
@@ -457,6 +462,47 @@ def get_intensities() -> dict:
         'background': _BG_I[0],
         'veam':       _VEAM_I[0],
     }
+
+
+def _set_intensity(name: str, value: float):
+    """Actualiza una intensidad individual en memoria + luz en escena si existe."""
+    if not MAYA_AVAILABLE:
+        return
+    _LIGHT_INTENSITIES[name] = float(value)
+    if mc.objExists(name):
+        shapes = mc.listRelatives(name, shapes=True) or []
+        if shapes:
+            try:
+                mc.setAttr(f'{shapes[0]}.aiIntensity', float(value))
+            except Exception:
+                pass
+
+
+def set_ambient_intensity(value: float):
+    _set_intensity(AMBIENT_NAME, value)
+
+
+def set_foco_intensity(value: float):
+    _set_intensity(FOCO_NAME, value)
+
+
+def set_background_intensity(value: float):
+    _set_intensity(BG_NAME, value)
+
+
+def set_veam_intensity(value: float):
+    if not MAYA_AVAILABLE:
+        return
+    _VEAM_INTENSITY[0] = float(value)
+    for veam_name in (VEAM_NAME_L, VEAM_NAME_R):
+        light_xform = f'{veam_name}{VEAM_LIGHT_SUF}'
+        if mc.objExists(light_xform):
+            shapes = mc.listRelatives(light_xform, shapes=True) or []
+            if shapes:
+                try:
+                    mc.setAttr(f'{shapes[0]}.aiIntensity', float(value))
+                except Exception:
+                    pass
 
 
 def set_palette(palette_label: str):

@@ -10,8 +10,10 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from ui import state
+from ui import theme as T
+from ui.build_actions import _safe_ctrl_exists
 from ui.scene_utils import on_delimitar
-from ui.widgets import mode_switch, BG_DARK
+from ui.widgets import mode_switch
 from ui.panels import quick_panel, pro_panel
 
 WIN_ID = 'RetroMechaWindow'
@@ -36,9 +38,11 @@ def build_ui(*, recreate: bool = True):
 
     win = mc.window(WIN_ID, title='RetroMecha',
                     sizeable=True, resizeToFitChildren=False,
-                    width=360, height=560)
+                    width=360, height=680,
+                    backgroundColor=T.BG)
 
-    mc.columnLayout(adjustableColumn=True, rowSpacing=0)
+    mc.columnLayout(adjustableColumn=True, rowSpacing=0,
+                    backgroundColor=T.BG)
 
     # ═══════════════════════════════════════════════════════
     # HEADER
@@ -46,9 +50,9 @@ def build_ui(*, recreate: bool = True):
     mc.rowLayout(nc=2, cw2=[140, 220],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[6, 4],
-                 backgroundColor=BG_DARK, height=36)
+                 backgroundColor=T.BG, height=36)
     mc.text(label='◈  RETROMECHA', font='boldLabelFont', align='left',
-            backgroundColor=BG_DARK)
+            backgroundColor=T.BG)
     
     mc.rowLayout(nc=2, cw2=[50, 100])
     mc.text(label='Semilla', align='right', font='smallPlainLabelFont')
@@ -60,14 +64,14 @@ def build_ui(*, recreate: bool = True):
     mc.setParent('..')
 
     # ── SWITCH RÁPIDO / PRO ────────────────────────────────
-    mc.separator(h=6, style='none', backgroundColor=BG_DARK)
+    mc.separator(h=6, style='none', backgroundColor=T.BG)
     mode_switch(_switch_mode, active_mode='quick')
-    mc.separator(h=6, style='none')
+    T.sep()
+    mc.separator(h=4, style='none')
 
     # ═══════════════════════════════════════════════════════
     # CONTENT
     # ═══════════════════════════════════════════════════════
-    mc.scrollLayout(childResizable=True)
     main_content = mc.columnLayout(adjustableColumn=True, rowSpacing=0)
     state.reg('main_content', main_content)
     quick_panel.build()
@@ -80,7 +84,7 @@ def build_ui(*, recreate: bool = True):
     mc.rowLayout(nc=2, cw2=[180, 180],
                  columnAttach2=['both', 'both'])
     mc.button(label='◈ Delimitar Escena', h=26,
-              backgroundColor=[0.16, 0.30, 0.38],
+              backgroundColor=T.CYAN,
               command=on_delimitar)
     _mode_hint[0] = mc.text(label='Modo Rápido · 3 decisiones',
                             align='right', font='smallPlainLabelFont')
@@ -98,21 +102,23 @@ def _switch_mode(mode):
 
     state._UI_BUILDING[0] = True
 
+    state._MODE[0] = mode
+
     try:
         # 🔥 LIMPIAR controles del modo anterior para no tener referencias stale
         state.clear_dynamic()
 
         # Actualizar hint
-        if _mode_hint[0] and mc.control(_mode_hint[0], exists=True):
+        if _safe_ctrl_exists(_mode_hint[0]):
             label = 'Modo Rápido · aleatorio inmediato' if mode == 'quick' else 'Modo Pro · control total'
             mc.text(_mode_hint[0], e=True, label=label)
 
         main = state.get('main_content')
-        if main and mc.control(main, exists=True):
+        if _safe_ctrl_exists(main):
             # Borrar todo lo que esté dentro de main
             children = mc.columnLayout(main, q=True, childArray=True) or []
             for c in children:
-                if c and mc.control(c, exists=True):
+                if _safe_ctrl_exists(c):
                     try:
                         mc.deleteUI(c)
                     except Exception:
@@ -125,8 +131,6 @@ def _switch_mode(mode):
             else:
                 pro_panel.build()
             mc.setParent('..')
-
-        state._MODE[0] = mode
 
     except Exception as e:
         print(f'[RetroMecha] Error cambiando a {mode}: {e}')

@@ -1,4 +1,5 @@
 """Reusable Maya UI widgets for RetroMecha — Modern Dark."""
+import ui.theme as T
 
 try:
     import maya.cmds as mc
@@ -6,16 +7,16 @@ try:
 except ImportError:
     MAYA_AVAILABLE = False
 
-# ── Paleta moderna oscura ───────────────────────────────────
-BG_DARK      = [0.07, 0.07, 0.08]
-BG_PANEL     = [0.10, 0.10, 0.11]
-BG_HOVER     = [0.14, 0.14, 0.16]
-ACCENT_QUICK = [0.90, 0.55, 0.15]   # ámbar/dorado
-ACCENT_PRO   = [0.25, 0.65, 0.90]   # cian eléctrico
-ACCENT_ACTION= [0.12, 0.52, 0.32]   # verde oscuro elegante
-ACCENT_RAND  = [0.22, 0.24, 0.28]   # gris azulado
-ACCENT_DANGER= [0.55, 0.16, 0.16]   # rojo oscuro
-TEXT_MUTED   = [0.55, 0.55, 0.60]
+# ── Paleta (alias a theme — backward compat) ─────────────
+BG_DARK      = T.BG
+BG_PANEL     = T.PANEL
+BG_HOVER     = T.LINE
+ACCENT_QUICK = T.CYAN
+ACCENT_PRO   = T.CYAN
+ACCENT_ACTION= T.CYAN
+ACCENT_RAND  = T.SLATE
+ACCENT_DANGER= T.SLATE
+TEXT_MUTED   = T.DIM
 
 
 def fsl(label, mn, mx, val, step=0.01, prec=2, on_cc=None, annotation=''):
@@ -75,11 +76,9 @@ def swatch_button(color, command, size=32, annotation=''):
 
 
 def section_title(text):
-    """Título de sección moderno: texto + línea sutil."""
-    mc.text(label=text.upper(), align='left', font='smallBoldLabelFont')
-    mc.separator(h=4, style='none')
-    mc.separator(h=1, style='single')
-    mc.separator(h=6, style='none')
+    """Título de sección: texto + separador LINE."""
+    mc.text(label=f'  {text.upper()}', align='left', font='smallBoldLabelFont')
+    T.sep()
 
 
 def tab_bar(tab_ids, labels, colors, change_command, width=320, height=24):
@@ -95,14 +94,14 @@ def tab_bar(tab_ids, labels, colors, change_command, width=320, height=24):
     def _make_callback(idx):
         def _cb(*_):
             for j, tid in enumerate(tab_ids):
-                mc.button(btns[tid], e=True, backgroundColor=[0.12, 0.12, 0.14] if j != idx else colors[j])
+                mc.button(btns[tid], e=True, backgroundColor=T.PANEL if j != idx else colors[j])
             change_command(tab_ids[idx])
         return _cb
 
     for i, (tid, lbl, col) in enumerate(zip(tab_ids, labels, colors)):
         btns[tid] = mc.button(
             label=lbl, height=height,
-            backgroundColor=col if i == 0 else [0.12, 0.12, 0.14],
+            backgroundColor=col if i == 0 else T.PANEL,
             command=_make_callback(i)
         )
     mc.setParent('..')
@@ -111,25 +110,25 @@ def tab_bar(tab_ids, labels, colors, change_command, width=320, height=24):
 
 def mode_switch(change_command, active_mode='quick'):
     """
-    Switch grande Rápido / Pro. Es imposible de no ver.
-    Ocupa todo el ancho disponible.
+    Switch grande Rápido / Pro.
+    Activo en CYAN, inactivo en PANEL.
     """
     mc.rowLayout(nc=2, cw2=[172, 172],
                  columnAttach2=['both', 'both'],
                  columnOffset2=[4, 4])
 
     q_active = active_mode == 'quick'
-    q_bg = ACCENT_QUICK if q_active else BG_HOVER
-    p_bg = ACCENT_PRO if not q_active else BG_HOVER
+    q_bg = T.CYAN if q_active else T.PANEL
+    p_bg = T.CYAN if not q_active else T.PANEL
 
     def _quick(*_):
-        mc.button(q_btn, e=True, backgroundColor=ACCENT_QUICK)
-        mc.button(p_btn, e=True, backgroundColor=BG_HOVER)
+        mc.button(q_btn, e=True, backgroundColor=T.CYAN)
+        mc.button(p_btn, e=True, backgroundColor=T.PANEL)
         change_command('quick')
 
     def _pro(*_):
-        mc.button(p_btn, e=True, backgroundColor=ACCENT_PRO)
-        mc.button(q_btn, e=True, backgroundColor=BG_HOVER)
+        mc.button(p_btn, e=True, backgroundColor=T.CYAN)
+        mc.button(q_btn, e=True, backgroundColor=T.PANEL)
         change_command('pro')
 
     q_btn = mc.button(
