@@ -1,22 +1,28 @@
 """
-RetroMecha - utils/lighting.py  v4
-Iluminacion completa con 5 luces aiArea/aiMesh basadas en paleta:
+RetroMecha - utils/lighting.py  v5
+Iluminacion con 5 luces aiArea/aiMesh palette-aware:
 
-  luz_ambiente            - aiAreaLight quad  (suelo, color paleta)
-  foco_mecha              - aiAreaLight disk  (foco del mecha, BLANCA)
-  background              - aiAreaLight quad  (fondo, BLANCA)
-  veam_light_izquierdo    - aiMeshLight cubo  (rayo izq, color paleta)
-  veam_light_derecho      - aiMeshLight cubo  (rayo der simetrico, color paleta)
+  luz_ambiente            - aiAreaLight quad  → color de rm_terrain_accent_mat
+  foco_mecha              - aiAreaLight disk  → BLANCA
+  background              - aiAreaLight quad  → BLANCA
+  veam_light_izquierdo    - aiMeshLight cubo  → color de rm_cyan_glow_mat
+  veam_light_derecho      - aiMeshLight cubo  → simetrico en X, mismo color
 
-Reglas:
-  - luz_ambiente y veam_light_* toman color del cyan_glow de la paleta activa
-    (acento del mecha → composicion armonica con el resto de materiales).
-  - background y foco_mecha son BLANCAS por especificacion.
-  - background.translateZ y veam_light_*.translateZ se calculan como
-    (skyline_back_z + 4)  →  4 unidades delante de los elementos de fondo.
-  - veam_light_izquierdo / veam_light_derecho son simetricos en X.
+Cada luz tiene su intensidad propia (slider individual en el panel Pro).
+Floor minimo INTENSITY_MIN = 4 en todas las intensidades.
 
-Todas las luces llevan el tag rmLight para limpieza segura.
+luz_ambiente toma el color del accent del TERRENO (rm_terrain_accent_mat.color)
+para integrarse con el suelo. Los veam_lights toman el color del glow del
+MECHA (rm_cyan_glow_mat.color) para acompañar al sujeto. Así se ve la
+naturaleza de la paleta aplicada tanto al mecha como al terreno.
+
+background y foco_mecha quedan SIEMPRE blancos por especificacion.
+
+background y los 2 veam_lights se posicionan a (skyline_back_z + 4) en Z
+→ 4 unidades delante de los elementos de fondo (rm_skyline_*).
+
+veam_lights llevan el aiMeshLight parenteado bajo el cubo → icono visual
+de la luz queda pegado a la geometria real.
 """
 
 try:
@@ -28,10 +34,14 @@ except ImportError:
 _LIGHT_TAG = 'rmLight'
 
 # ── Z offset respecto al fondo ───────────────────────────────────────
-BACKGROUND_Z_OFFSET = 4.0      # 4 unidades delante del skyline
-DEFAULT_BACK_Z      = -55.0    # fallback si no hay rm_skyline_* en escena
+BACKGROUND_Z_OFFSET = 4.0
+DEFAULT_BACK_Z      = -55.0
 
-# ── luz_ambiente (aiAreaLight quad — color paleta) ───────────────────
+# ── Intensidad minima global ─────────────────────────────────────────
+INTENSITY_MIN = 4.0
+INTENSITY_MAX = 20.0   # tope sugerido para sliders
+
+# ── luz_ambiente (aiAreaLight quad — color terrain_accent) ───────────
 AMBIENT_NAME      = 'luz_ambiente'
 AMBIENT_TRANSLATE = (0.0, 0.189, 0.0)
 AMBIENT_ROTATE    = (90.0, 0.0, 0.0)
@@ -50,17 +60,17 @@ FOCO_COLOR     = (1.0, 1.0, 1.0)
 
 # ── background (aiAreaLight quad — BLANCA, Z dinamico) ──────────────
 BG_NAME      = 'background'
-BG_TRANS_XY  = (0.0, 0.0)   # X, Y; Z se calcula
+BG_TRANS_XY  = (0.0, 0.0)
 BG_ROTATE    = (90.0, 0.0, 0.0)
 BG_SCALE     = (81.476, 1.007, 43.871)
 BG_INTENSITY = 10.000
 BG_EXPOSURE  = 6.591
 BG_COLOR     = (1.0, 1.0, 1.0)
 
-# ── veam_light_* (aiMeshLight cubo simetrico — color paleta) ─────────
+# ── veam_light_* (aiMeshLight cubo simetrico — color cyan_glow) ──────
 VEAM_NAME_L    = 'veam_light_izquierdo'
 VEAM_NAME_R    = 'veam_light_derecho'
-VEAM_LIGHT_SUF = '_light'        # nombre del aiMeshLight: <name>_light
+VEAM_LIGHT_SUF = '_light'
 VEAM_TX_L      = -20.564
 VEAM_TX_R      = +20.564
 VEAM_TY        = 8.144
@@ -68,8 +78,11 @@ VEAM_SCALE     = (1.0, 387.639, 1.0)
 VEAM_INTENSITY = 5.449
 VEAM_EXPOSURE  = 8.524
 
-# Multiplicador global de intensidad (slider de la UI)
-_INTENSITY_MULT = [1.0]
+# ── Estado: intensidad por luz (clampada a >= INTENSITY_MIN) ─────────
+_AMBIENT_I = [AMBIENT_INTENSITY]
+_FOCO_I    = [FOCO_INTENSITY]
+_BG_I      = [BG_INTENSITY]
+_VEAM_I    = [VEAM_INTENSITY]
 
 # Rango sugerido para sliders individuales
 INTENSITY_MIN = 4.0
@@ -97,8 +110,12 @@ def _has_arnold() -> bool:
         return False
 
 
-def _palette_accent_color(palette_label: str = 'Default'):
-    """Color de acento del mecha (cyan_glow) para tenir las luces palette-aware."""
+def _clamp_intensity(v) -> float:
+    return max(INTENSITY_MIN, float(v))
+
+
+def _palette_mecha_color(palette_label: str = 'Default'):
+    """Color del glow accent del mecha (rm_cyan_glow_mat.color)."""
     try:
         from materials.presets import PRESETS
         return PRESETS.get(palette_label, {}) \
@@ -106,6 +123,17 @@ def _palette_accent_color(palette_label: str = 'Default'):
                       .get('color', (0.04, 0.75, 1.0))
     except Exception:
         return (0.04, 0.75, 1.0)
+
+
+def _palette_terrain_color(palette_label: str = 'Default'):
+    """Color del accent del terreno (rm_terrain_accent_mat.color)."""
+    try:
+        from materials.presets import PRESETS
+        return PRESETS.get(palette_label, {}) \
+                      .get('rm_terrain_accent_mat', {}) \
+                      .get('color', (0.42, 0.36, 0.28))
+    except Exception:
+        return (0.42, 0.36, 0.28)
 
 
 def _compute_background_z() -> float:
@@ -164,7 +192,6 @@ def _tag(xform: str):
 
 
 def _apply_visibility_defaults(shape: str):
-    """Visibility contributions standard: camera/transmission 0, resto 1."""
     _set_attr(shape, 'aiCamera',        0.0)
     _set_attr(shape, 'aiTransmission',  0.0)
     _set_attr(shape, 'aiDiffuse',       1.0)
@@ -187,24 +214,36 @@ def _apply_area_shadow_defaults(shape: str):
     _set_attr(shape, 'aiSoftEdge',              0.0)
 
 
+def _shape_of(xform: str, type_filter: str | None = None):
+    """Primer shape del transform, opcionalmente filtrado por tipo."""
+    if not mc.objExists(xform):
+        return None
+    if type_filter:
+        shapes = mc.listRelatives(xform, shapes=True, type=type_filter) or []
+    else:
+        shapes = mc.listRelatives(xform, shapes=True) or []
+    return shapes[0] if shapes else None
+
+
 # ══════════════════════════════════════════════════════════════════════
 #  CREADORES
 # ══════════════════════════════════════════════════════════════════════
 
+_LIGHT_SHAPE_NAME = {0: 'quad', 1: 'disk', 2: 'cylinder'}
+
+
 def _create_area_light(name: str, light_shape_enum: int) -> tuple[str, str]:
-    """Crea aiAreaLight con nombre y light shape (0=quad, 1=disk, ...).
-    Retorna (transform, shape)."""
     shape = mc.shadingNode('aiAreaLight', asLight=True, name=f'{name}Shape')
     parents = mc.listRelatives(shape, parent=True) or []
     xform = parents[0] if parents else shape
     xform = mc.rename(xform, name)
     shape = mc.listRelatives(xform, shapes=True)[0]
-    # Light shape (0=quad, 1=disk, 2=cylinder)
+
+    shape_str = _LIGHT_SHAPE_NAME.get(light_shape_enum, 'quad')
     try:
-        mc.setAttr(f'{shape}.aiTranslator', 'quad', type='string')
+        mc.setAttr(f'{shape}.aiTranslator', shape_str, type='string')
     except Exception:
         pass
-    # Algunos MtoA usan aiLightShape (enum)
     try:
         mc.setAttr(f'{shape}.aiLightShape', light_shape_enum)
     except Exception:
@@ -212,43 +251,41 @@ def _create_area_light(name: str, light_shape_enum: int) -> tuple[str, str]:
     return xform, shape
 
 
-def _create_luz_ambiente(accent_rgb, mult: float, intensity: float | None = None):
+def _create_luz_ambiente(terrain_color):
     xform, shape = _create_area_light(AMBIENT_NAME, light_shape_enum=0)  # quad
     _set_xform(xform, AMBIENT_TRANSLATE, AMBIENT_ROTATE, AMBIENT_SCALE)
-    _set_color(shape, 'color', accent_rgb)
-    _set_attr(shape, 'aiIntensity', intensity if intensity is not None else AMBIENT_INTENSITY * mult)
+    _set_color(shape, 'color', terrain_color)
+    _set_attr(shape, 'aiIntensity', _clamp_intensity(_AMBIENT_I[0]))
     _set_attr(shape, 'aiExposure',  AMBIENT_EXPOSURE)
 
 
-def _create_foco_mecha(mult: float, intensity: float | None = None):
+def _create_foco_mecha():
     xform, shape = _create_area_light(FOCO_NAME, light_shape_enum=1)  # disk
     _set_xform(xform, FOCO_TRANSLATE, FOCO_ROTATE, FOCO_SCALE)
     _set_color(shape, 'color', FOCO_COLOR)
-    _set_attr(shape, 'aiIntensity', intensity if intensity is not None else FOCO_INTENSITY * mult)
+    _set_attr(shape, 'aiIntensity', _clamp_intensity(_FOCO_I[0]))
     _set_attr(shape, 'aiExposure',  FOCO_EXPOSURE)
 
 
-def _create_background(bg_z: float, mult: float, intensity: float | None = None):
+def _create_background(bg_z: float):
     xform, shape = _create_area_light(BG_NAME, light_shape_enum=0)  # quad
     _set_xform(xform, (bx, by, bg_z), BG_ROTATE, BG_SCALE)
     _set_color(shape, 'color', BG_COLOR)
-    _set_attr(shape, 'aiIntensity', intensity if intensity is not None else BG_INTENSITY * mult)
+    _set_attr(shape, 'aiIntensity', _clamp_intensity(_BG_I[0]))
     _set_attr(shape, 'aiExposure',  BG_EXPOSURE)
     _apply_area_shadow_defaults(shape)
     _apply_visibility_defaults(shape)
     _tag(xform)
 
 
-def _create_one_meshlight(cube_name: str, tx: float, bg_z: float,
-                          accent_rgb, mult: float, intensity: float | None = None):
-    """Crea un aiMeshLight a partir de un cubo escalado, simetrico en X."""
-    # 1. Cubo base
+def _create_one_meshlight(cube_name: str, tx: float, bg_z: float, mecha_color):
+    """Crea un aiMeshLight desde un cubo escalado. Parenteo el light bajo el cubo."""
     cube_result = mc.polyCube(
         name=cube_name,
         width=1.0, height=1.0, depth=1.0,
         subdivisionsX=1, subdivisionsY=1, subdivisionsZ=1,
         axis=(0, 1, 0),
-        createUVs=3,           # Normalize
+        createUVs=3,
         constructionHistory=False,
     )
     cube_xform = cube_result[0]
@@ -258,7 +295,6 @@ def _create_one_meshlight(cube_name: str, tx: float, bg_z: float,
 
     cube_shape = mc.listRelatives(cube_xform, shapes=True)[0]
 
-    # 2. aiMeshLight
     light_xform_name = f'{cube_name}{VEAM_LIGHT_SUF}'
     light_shape_name = f'{light_xform_name}Shape'
     light_shape = mc.shadingNode('aiMeshLight', asLight=True, name=light_shape_name)
@@ -267,55 +303,50 @@ def _create_one_meshlight(cube_name: str, tx: float, bg_z: float,
     light_xform = mc.rename(light_xform, light_xform_name)
     light_shape = mc.listRelatives(light_xform, shapes=True)[0]
 
-    # 3. Conexion mesh → light
     try:
         mc.connectAttr(f'{cube_shape}.outMesh',
                        f'{light_shape}.inMesh', force=True)
     except Exception as e:
         print(f'[RetroMecha][Lighting] connect mesh→light: {e}')
 
-    # 4. Atributos de la luz (color paleta)
-    _set_color(light_shape, 'color', accent_rgb)
-    _set_attr(light_shape, 'aiIntensity',           intensity if intensity is not None else VEAM_INTENSITY * mult)
-    _set_attr(light_shape, 'aiExposure',            VEAM_EXPOSURE)
-    _set_attr(light_shape, 'aiLightVisible',        0)
-    _set_attr(light_shape, 'aiSamples',             1)
-    _set_attr(light_shape, 'aiNormalize',           1)
-    _set_attr(light_shape, 'aiCastShadows',         1)
-    _set_attr(light_shape, 'aiShadowDensity',       1.0)
-    _set_attr(light_shape, 'aiCastVolumetricShadows', 1)
-    _set_attr(light_shape, 'aiVolumeSamples',       2)
-    _set_attr(light_shape, 'aiMaxBounces',          999)
-    _set_attr(light_shape, 'aiDiffuse',             1.0)
-    _set_attr(light_shape, 'aiSpecular',            1.0)
-    _set_attr(light_shape, 'aiSss',                 1.0)
-    _set_attr(light_shape, 'aiIndirect',            1.0)
-    _set_attr(light_shape, 'aiVolume',              1.0)
+    # Parentear bajo el cubo (relative=True para mantener local identidad)
+    try:
+        mc.parent(light_xform, cube_xform, relative=True)
+    except Exception as e:
+        print(f'[RetroMecha][Lighting] parent light→cube: {e}')
 
-    # Tag tanto la geometria como la luz
+    _set_color(light_shape, 'color', mecha_color)
+    _set_attr(light_shape, 'aiIntensity',             _clamp_intensity(_VEAM_I[0]))
+    _set_attr(light_shape, 'aiExposure',              VEAM_EXPOSURE)
+    _set_attr(light_shape, 'aiLightVisible',          0)
+    _set_attr(light_shape, 'aiSamples',               1)
+    _set_attr(light_shape, 'aiNormalize',             1)
+    _set_attr(light_shape, 'aiCastShadows',           1)
+    _set_attr(light_shape, 'aiShadowDensity',         1.0)
+    _set_attr(light_shape, 'aiCastVolumetricShadows', 1)
+    _set_attr(light_shape, 'aiVolumeSamples',         2)
+    _set_attr(light_shape, 'aiMaxBounces',            999)
+    _set_attr(light_shape, 'aiDiffuse',               1.0)
+    _set_attr(light_shape, 'aiSpecular',              1.0)
+    _set_attr(light_shape, 'aiSss',                   1.0)
+    _set_attr(light_shape, 'aiIndirect',              1.0)
+    _set_attr(light_shape, 'aiVolume',                1.0)
+
     _tag(cube_xform)
     _tag(light_xform)
 
 
-def _create_veam_meshlights(accent_rgb, bg_z: float, mult: float, intensity: float | None = None):
-    _create_one_meshlight(VEAM_NAME_L, VEAM_TX_L, bg_z, accent_rgb, mult, intensity=intensity)
-    _create_one_meshlight(VEAM_NAME_R, VEAM_TX_R, bg_z, accent_rgb, mult, intensity=intensity)
+def _create_veam_meshlights(mecha_color, bg_z: float):
+    _create_one_meshlight(VEAM_NAME_L, VEAM_TX_L, bg_z, mecha_color)
+    _create_one_meshlight(VEAM_NAME_R, VEAM_TX_R, bg_z, mecha_color)
 
 
 # ══════════════════════════════════════════════════════════════════════
 #  API PUBLICA
 # ══════════════════════════════════════════════════════════════════════
 
-def apply_lighting(palette_label: str = 'Default', intensity_mult: float | None = None):
-    """Crea (o recrea) las 5 luces palette-aware.
-
-    Los sliders individuales (ambient/foco/bg/veam) se toman de
-    _LIGHT_INTENSITIES / _VEAM_INTENSITY si fueron seteados.
-
-    Args:
-        palette_label:   nombre del preset (Default/Atardecer/Frio/Oxidado/Neon)
-        intensity_mult:  multiplicador global (None = mantiene el actual)
-    """
+def apply_lighting(palette_label: str = 'Default'):
+    """Crea (o recrea) las 5 luces palette-aware con las intensidades stored."""
     if not MAYA_AVAILABLE:
         return
 
@@ -325,21 +356,22 @@ def apply_lighting(palette_label: str = 'Default', intensity_mult: float | None 
         print('[RetroMecha][Lighting] Arnold no cargado — abortando')
         return
 
-    if intensity_mult is not None:
-        _INTENSITY_MULT[0] = float(intensity_mult)
-    mult = _INTENSITY_MULT[0]
+    mecha_col   = _palette_mecha_color(palette_label)
+    terrain_col = _palette_terrain_color(palette_label)
+    bg_z        = _compute_background_z()
 
-    accent = _palette_accent_color(palette_label)
-    bg_z   = _compute_background_z()
-
-    _create_luz_ambiente(accent, mult, intensity=_LIGHT_INTENSITIES.get(AMBIENT_NAME))
-    _create_foco_mecha(mult, intensity=_LIGHT_INTENSITIES.get(FOCO_NAME))
-    _create_background(bg_z, mult, intensity=_LIGHT_INTENSITIES.get(BG_NAME))
-    _create_veam_meshlights(accent, bg_z, mult, intensity=_VEAM_INTENSITY[0])
+    _create_luz_ambiente(terrain_col)
+    _create_foco_mecha()
+    _create_background(bg_z)
+    _create_veam_meshlights(mecha_col, bg_z)
 
     print(
         f'[RetroMecha][Lighting] palette={palette_label} '
-        f'accent={tuple(round(v,3) for v in accent)} bg_z={bg_z:.2f} mult={mult}'
+        f'terrain={tuple(round(v,3) for v in terrain_col)} '
+        f'mecha={tuple(round(v,3) for v in mecha_col)} '
+        f'bg_z={bg_z:.2f} | '
+        f'I(amb={_AMBIENT_I[0]:.1f} foco={_FOCO_I[0]:.1f} '
+        f'bg={_BG_I[0]:.1f} veam={_VEAM_I[0]:.1f})'
     )
 
 
@@ -365,7 +397,6 @@ def remove_lighting():
         except Exception:
             pass
 
-    # Por nombre — el cubo del mesh light no es light type, hay que buscarlo aparte
     for name in (
         VEAM_NAME_L, VEAM_NAME_R,
         f'{VEAM_NAME_L}{VEAM_LIGHT_SUF}', f'{VEAM_NAME_R}{VEAM_LIGHT_SUF}',
@@ -387,37 +418,50 @@ def has_rm_lights() -> bool:
     return any(mc.objExists(n) for n in (AMBIENT_NAME, FOCO_NAME, BG_NAME))
 
 
-def set_lights_intensity(value: float):
-    """Multiplicador global de intensidad para todas las luces RetroMecha."""
-    if not MAYA_AVAILABLE:
-        return
-    _INTENSITY_MULT[0] = float(value)
-    mult = _INTENSITY_MULT[0]
+# ── Setters individuales (clampados a INTENSITY_MIN) ────────────────
 
-    for name, base in (
-        (AMBIENT_NAME, AMBIENT_INTENSITY),
-        (FOCO_NAME,    FOCO_INTENSITY),
-        (BG_NAME,      BG_INTENSITY),
-    ):
-        if not mc.objExists(name):
-            continue
-        shapes = mc.listRelatives(name, shapes=True) or []
-        if shapes:
-            try:
-                mc.setAttr(f'{shapes[0]}.aiIntensity', base * mult)
-            except Exception:
-                pass
+def set_ambient_intensity(value: float):
+    _AMBIENT_I[0] = _clamp_intensity(value)
+    shape = _shape_of(AMBIENT_NAME, type_filter='aiAreaLight')
+    if shape:
+        try: mc.setAttr(f'{shape}.aiIntensity', _AMBIENT_I[0])
+        except Exception: pass
 
+
+def set_foco_intensity(value: float):
+    _FOCO_I[0] = _clamp_intensity(value)
+    shape = _shape_of(FOCO_NAME, type_filter='aiAreaLight')
+    if shape:
+        try: mc.setAttr(f'{shape}.aiIntensity', _FOCO_I[0])
+        except Exception: pass
+
+
+def set_background_intensity(value: float):
+    _BG_I[0] = _clamp_intensity(value)
+    shape = _shape_of(BG_NAME, type_filter='aiAreaLight')
+    if shape:
+        try: mc.setAttr(f'{shape}.aiIntensity', _BG_I[0])
+        except Exception: pass
+
+
+def set_veam_intensity(value: float):
+    _VEAM_I[0] = _clamp_intensity(value)
     for veam_name in (VEAM_NAME_L, VEAM_NAME_R):
         light_xform = f'{veam_name}{VEAM_LIGHT_SUF}'
-        if not mc.objExists(light_xform):
-            continue
-        shapes = mc.listRelatives(light_xform, shapes=True) or []
-        if shapes:
-            try:
-                mc.setAttr(f'{shapes[0]}.aiIntensity', VEAM_INTENSITY * mult)
-            except Exception:
-                pass
+        shape = _shape_of(light_xform, type_filter='aiMeshLight')
+        if shape:
+            try: mc.setAttr(f'{shape}.aiIntensity', _VEAM_I[0])
+            except Exception: pass
+
+
+def get_intensities() -> dict:
+    """Retorna las intensidades actuales por luz (clampadas)."""
+    return {
+        'ambient':    _AMBIENT_I[0],
+        'foco':       _FOCO_I[0],
+        'background': _BG_I[0],
+        'veam':       _VEAM_I[0],
+    }
 
 
 def _set_intensity(name: str, value: float):
@@ -462,27 +506,32 @@ def set_veam_intensity(value: float):
 
 
 def set_palette(palette_label: str):
-    """Recolorea luz_ambiente y veam_light_* con el accent de otra paleta."""
+    """Recolorea luz_ambiente (terrain) y veam_lights (mecha) con otra paleta."""
     if not MAYA_AVAILABLE:
         return
-    accent = _palette_accent_color(palette_label)
-    # luz_ambiente
-    if mc.objExists(AMBIENT_NAME):
-        shapes = mc.listRelatives(AMBIENT_NAME, shapes=True) or []
-        if shapes:
-            _set_color(shapes[0], 'color', accent)
-    # veam_lights
+    terrain_col = _palette_terrain_color(palette_label)
+    mecha_col   = _palette_mecha_color(palette_label)
+
+    # luz_ambiente → terrain accent
+    shape = _shape_of(AMBIENT_NAME, type_filter='aiAreaLight')
+    if shape:
+        _set_color(shape, 'color', terrain_col)
+
+    # veam_lights → mecha cyan_glow accent
     for veam_name in (VEAM_NAME_L, VEAM_NAME_R):
         light_xform = f'{veam_name}{VEAM_LIGHT_SUF}'
-        if mc.objExists(light_xform):
-            shapes = mc.listRelatives(light_xform, shapes=True) or []
-            if shapes:
-                _set_color(shapes[0], 'color', accent)
-    print(f'[RetroMecha][Lighting] palette recoloreada → {palette_label}')
+        shape = _shape_of(light_xform, type_filter='aiMeshLight')
+        if shape:
+            _set_color(shape, 'color', mecha_col)
+
+    print(
+        f'[RetroMecha][Lighting] palette recoloreada → {palette_label} '
+        f'terrain={tuple(round(v,3) for v in terrain_col)} '
+        f'mecha={tuple(round(v,3) for v in mecha_col)}'
+    )
 
 
 def list_rm_lights() -> list:
-    """Lista xforms con tag rmLight."""
     if not MAYA_AVAILABLE:
         return []
     result = []

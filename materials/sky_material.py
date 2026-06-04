@@ -46,21 +46,18 @@ SHADER_TAG  = 'rmSkyShader'
 RAMP_TYPE_V              = 0
 RAMP_INTERPOLATION_SPIKE = 6
 
-# ── Paletas armonicas (stop_bottom, stop_top) ─────────────────────────
-# Cada entrada: ((pos_oscura, rgb_oscura), (pos_clara, rgb_clara))
-# Posiciones del usuario: 0.548 (base oscura) y 1.000 (extremo claro).
-SKY_RAMP_BY_PRESET = {
-    'Default':   ((0.548, (0.000, 0.050, 0.150)),
-                  (1.000, (0.000, 0.750, 0.900))),
-    'Atardecer': ((0.548, (0.180, 0.060, 0.040)),
-                  (1.000, (1.000, 0.560, 0.220))),
-    'Frio':      ((0.548, (0.020, 0.060, 0.180)),
-                  (1.000, (0.560, 0.860, 1.000))),
-    'Oxidado':   ((0.548, (0.110, 0.050, 0.020)),
-                  (1.000, (0.900, 0.450, 0.150))),
-    'Neon':      ((0.548, (0.100, 0.000, 0.180)),
-                  (1.000, (0.900, 0.050, 0.850))),
-}
+# ── Stops del ramp (palette-aware, derivados en runtime) ──────────────
+# Las posiciones son fijas del setup MEL del usuario:
+#   - 0.548 : base oscura  (stop_bottom)
+#   - 1.000 : extremo claro (stop_top)
+# Los COLORES se derivan de la paleta:
+#   - top    = rm_cyan_glow_mat.color de la paleta (acento brillante del mecha)
+#   - bottom = top * SKY_DARK_FACTOR   (misma familia, mas oscuro)
+# Asi cualquier paleta nueva agregada en materials.presets.PRESETS se refleja
+# en el sky automaticamente sin tocar este modulo.
+SKY_STOP_POS_BOTTOM = 0.548
+SKY_STOP_POS_TOP    = 1.000
+SKY_DARK_FACTOR     = 0.10   # 10% del top → base oscura azul-marino-style
 
 DEFAULT_PRESET = 'Default'
 
@@ -156,7 +153,12 @@ def has_sky_material() -> bool:
 
 
 def list_palettes() -> list[str]:
-    return list(SKY_RAMP_BY_PRESET.keys())
+    """Las paletas soportadas son las de materials.presets.PRESETS."""
+    try:
+        from materials.presets import PRESETS
+        return list(PRESETS.keys())
+    except Exception:
+        return [DEFAULT_PRESET]
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -172,9 +174,29 @@ def _has_arnold() -> bool:
         return False
 
 
+def _stops_for_palette(palette: str):
+    """Deriva los 2 stops del ramp del sky desde la paleta:
+      - top    = rm_cyan_glow_mat.color (acento brillante del mecha)
+      - bottom = top * SKY_DARK_FACTOR (misma familia, oscuro)
+    """
+    try:
+        from materials.presets import PRESETS
+        top_rgb = (PRESETS.get(palette, {})
+                          .get('rm_cyan_glow_mat', {})
+                          .get('color', (0.04, 0.75, 1.0)))
+    except Exception:
+        top_rgb = (0.04, 0.75, 1.0)
+
+    bottom_rgb = tuple(round(c * SKY_DARK_FACTOR, 4) for c in top_rgb)
+    return (
+        (SKY_STOP_POS_BOTTOM, bottom_rgb),
+        (SKY_STOP_POS_TOP,    top_rgb),
+    )
+
+
 def _configure_ramp(ramp: str, palette: str):
-    """Limpia el ramp y aplica las 2 paradas de la paleta indicada."""
-    stops = SKY_RAMP_BY_PRESET.get(palette) or SKY_RAMP_BY_PRESET[DEFAULT_PRESET]
+    """Limpia el ramp y aplica las 2 paradas derivadas de la paleta."""
+    stops = _stops_for_palette(palette)
 
     # Atributos generales del ramp
     try:

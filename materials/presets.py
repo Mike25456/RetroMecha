@@ -46,7 +46,9 @@ PRESETS = {
         },
         "rm_terrain_accent_mat": {
             "color": (0.42, 0.36, 0.28),
-            "incandescence": (0.42, 0.36, 0.28),
+            # Familia del emisivo del mecha (cyan_glow (0.0,0.55,0.85)) x 0.5
+            "incandescence": (0.0, 0.275, 0.425),
+            "emission": 0.5,
             "ambientColor": (0.07, 0.055, 0.04),
             "diffuse": 0.64,
         },
@@ -80,7 +82,9 @@ PRESETS = {
         },
         "rm_terrain_accent_mat": {
             "color": (0.42, 0.30, 0.20),
-            "incandescence": (0.42, 0.30, 0.20),
+            # cyan_glow Atardecer (0.85,0.30,0.0) x 0.5
+            "incandescence": (0.425, 0.15, 0.0),
+            "emission": 0.5,
             "ambientColor": (0.09, 0.045, 0.025),
             "diffuse": 0.60,
         },
@@ -114,7 +118,9 @@ PRESETS = {
         },
         "rm_terrain_accent_mat": {
             "color": (0.31, 0.35, 0.39),
-            "incandescence": (0.31, 0.35, 0.39),
+            # cyan_glow Frio (0.10,0.70,0.95) x 0.5
+            "incandescence": (0.05, 0.35, 0.475),
+            "emission": 0.5,
             "ambientColor": (0.055, 0.07, 0.09),
             "diffuse": 0.60,
         },
@@ -148,7 +154,9 @@ PRESETS = {
         },
         "rm_terrain_accent_mat": {
             "color": (0.40, 0.26, 0.14),
-            "incandescence": (0.40, 0.26, 0.14),
+            # cyan_glow Oxidado (0.70,0.35,0.0) x 0.5
+            "incandescence": (0.35, 0.175, 0.0),
+            "emission": 0.5,
             "ambientColor": (0.085, 0.045, 0.02),
             "diffuse": 0.58,
         },
@@ -182,7 +190,9 @@ PRESETS = {
         },
         "rm_terrain_accent_mat": {
             "color": (0.26, 0.22, 0.34),
-            "incandescence": (0.26, 0.22, 0.34),
+            # cyan_glow Neon (0.90,0.0,0.65) x 0.5
+            "incandescence": (0.45, 0.0, 0.325),
+            "emission": 0.5,
             "ambientColor": (0.055, 0.04, 0.09),
             "diffuse": 0.58,
         },

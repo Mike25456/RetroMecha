@@ -343,6 +343,33 @@ def rebuild_terrain_only(*_):
             sc.parent_to_scene(grp)
             sc.mark_undelimited(sc.find_scene_group() or grp)
             mc.select(grp)
+
+        # Paleta actual (para sky_material y lights)
+        try:
+            from ui.panels.material_panel import current_palette_label
+            palette = current_palette_label()
+        except Exception:
+            palette = 'Default'
+
+        # Regenerar cielo con la familia de color de la paleta actual
+        try:
+            from utils.sky import create_sky
+            create_sky()
+        except Exception as e:
+            print(f'[RetroMecha][Terrain] Cielo: {e}')
+        try:
+            from materials.sky_material import create_sky_material
+            create_sky_material(palette)
+        except Exception as e:
+            print(f'[RetroMecha][Terrain] Sky material: {e}')
+
+        # Recrear luces — bg_z depende del skyline (que acaba de cambiar)
+        try:
+            from utils import lighting
+            lighting.apply_lighting(palette)
+        except Exception as e:
+            print(f'[RetroMecha][Terrain] Luces: {e}')
+
     return sc.scene_update(_work)
 
 
