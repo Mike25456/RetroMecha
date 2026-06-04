@@ -19,6 +19,17 @@ Requires `retromecha.local.json` (copy from `.example` and set `maya_executable`
 | `ui/panels/pro_panel.py` | Modo Pro (tabs: Mecha/Terrain/Materials/Anim) |
 | `ui/build_actions.py` | All build/random/reset/preset logic |
 
+## Charge animation (`animations/charge.py`)
+
+Cycle de 5s con vibración creciente (`$tremor` con 3 frecuencias: 18, 27.3, 41.7 Hz). Efectos:
+- **Root**: se eleva (`$charge * 1.20`), se inclina hacia adelante (`rotateX -14°`), tiembla.
+- **Cabeza**: mira hacia abajo (`rotateX -22°`), tremola.
+- **Brazos**: se elevan (`rotateZ ±28°`), se pliegan (`rotateX -18°`).
+- **Alas**: se abren (`rotateZ ±35°`), se inclinan (`rotateX -12°`).
+- **Idle overlay**: `$breathe` mantiene respiración suave entre ciclos de carga.
+
+Registrada como `'charge'`, label español `'Carga'` en ambos modos.
+
 ## Architecture
 
 ```

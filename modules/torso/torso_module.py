@@ -11,6 +11,7 @@ from core.base_module import BaseModule
 from core.module_registry import register
 from modules.torso import style_base
 from modules.torso import style_samurai
+from modules.torso import style_insect
 
 _STYLE_MODS = {
     'core':    style_base,
@@ -18,6 +19,7 @@ _STYLE_MODS = {
     'slim':    style_base,
     'compact': style_base,
     'samurai': style_samurai,
+    'insect':  style_insect,
 }
 
 

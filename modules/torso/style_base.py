@@ -353,6 +353,59 @@ def build_reactor(aggr: float, body: str, style: str,
         mc.move(cx, cy, lz, grp, absolute=True)
         return grp
 
+    if style == "orb_cluster":
+        cluster_z = cz + 0.04
+        orb_configs = [
+            ( 0.00, 0.00, 0.096),
+            ( 0.13, 0.10, 0.058),
+            (-0.13, 0.10, 0.058),
+            ( 0.10, -0.12, 0.048),
+            (-0.10, -0.12, 0.048),
+        ]
+        oc_parts = []
+        for i, (ox, oy, r) in enumerate(orb_configs):
+            ring = mc.polyTorus(r=r * s * 1.35, sr=r * s * 0.18 * g_mul,
+                                sa=16, sh=4,
+                                name=f'rm_reactor_orb_cluster_glow_ring_{i}_#')[0]
+            mc.rotate(90, i * 22, 0, ring)
+            mc.move(ox * s, oy * s, 0, ring, relative=True)
+            assign_material(ring, 'rm_cyan_glow_mat')
+            finish_bevel(ring, 0.0, hard=True)
+            oc_parts.append(ring)
+
+            core = mc.polySphere(r=r * s * 0.72, sa=10, sh=6,
+                                 name=f'rm_reactor_orb_cluster_core_{i}_#')[0]
+            mc.scale(1.0, 1.0, 0.55, core)
+            mc.move(ox * s, oy * s, 0.012 * s, core, relative=True)
+            assign_material(core, 'rm_cyan_glow_mat')
+            finish_bevel(core, 0.0)
+            oc_parts.append(core)
+
+        mount = mc.polyCube(w=0.44 * s, h=0.44 * s, d=0.04 * s,
+                            name='rm_reactor_orb_cluster_mount_#')[0]
+        mc.move(0, 0, -0.032 * s, mount, relative=True)
+        assign_material(mount, 'rm_graphite_mat')
+        finish_bevel(mount, 0.016, hard=True)
+        oc_parts.append(mount)
+
+        for a, b in [(0,1),(0,2),(0,3),(0,4)]:
+            ax, ay = orb_configs[a][0], orb_configs[a][1]
+            bx, by = orb_configs[b][0], orb_configs[b][1]
+            dx, dy = (bx - ax) * s, (by - ay) * s
+            dist = math.sqrt(dx*dx + dy*dy) or 0.01
+            angle = math.degrees(math.atan2(dy, dx))
+            conn = mc.polyCube(w=dist, h=0.018 * s, d=0.014 * s,
+                               name=f'rm_reactor_orb_cluster_conn_{a}_{b}_#')[0]
+            mc.move((ax+bx)*0.5*s, (ay+by)*0.5*s, -0.010 * s, conn, relative=True)
+            mc.rotate(0, 0, angle, conn)
+            assign_material(conn, 'rm_graphite_mat')
+            finish_bevel(conn, 0.004, hard=True)
+            oc_parts.append(conn)
+
+        mc.parent(oc_parts, grp)
+        mc.move(cx, cy, cluster_z, grp, absolute=True)
+        return grp
+
     # ring style (default)
     outer = mc.polyTorus(r=0.40 * s, sr=0.045 * s, sa=18, sh=8,
                          name="rm_reactor_outer_#")[0]

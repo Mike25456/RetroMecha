@@ -259,7 +259,11 @@ class BaseAnimation(ABC):
                      'rm_idle_wing_L', 'rm_idle_wing_R', 'rm_idle_reactor',
                      'rm_spin_root', 'rm_spin_torso', 'rm_spin_head',
                      'rm_spin_arm_L', 'rm_spin_arm_R',
-                     'rm_spin_wing_L', 'rm_spin_wing_R', 'rm_spin_reactor'):
+                     'rm_spin_wing_L', 'rm_spin_wing_R', 'rm_spin_reactor',
+                     'rm_charge_root', 'rm_charge_head',
+                     'rm_charge_arm_L', 'rm_charge_arm_R',
+                     'rm_charge_wing_L', 'rm_charge_wing_R',
+                     'rm_charge_reactor'):
             _delete_node(expr)
 
         # 6) El root siempre vuelve a pose base.

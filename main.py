@@ -38,6 +38,7 @@ def _import_modules() -> None:
     import animations.flight      # noqa: F401  → registra 'flight'
     import animations.idle        # noqa: F401  → registra 'idle'
     import animations.spin        # noqa: F401  → registra 'spin'
+    import animations.charge      # noqa: F401  → registra 'charge'
 
     import materials.presets      # noqa: F401  → expone list_presets / apply_preset
     import materials.materializer  # noqa: F401 → expone materialize_mecha / materialize_terrain
