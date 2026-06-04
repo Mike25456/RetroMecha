@@ -1,9 +1,12 @@
-"""Panel RENDERING — Arnold materials + lighting con controles avanzados.
+"""Panel RENDERING — Render, iluminacion, cielo y camara.
 
-Esta pestaña agrupa todo lo relacionado con el render final:
-  - Asignación de materiales (Lambert VP2.0 o Arnold aiToon)
-  - Preset de iluminación (3 opciones)
-  - Sliders de intensidad por luz, intensidad skydome y temperatura
+  - Boton RENDER 1920x1080 (Arnold) desde Camera_for_render
+  - Iluminacion: 5 luces (luz_ambiente, foco_mecha, background,
+                 veam_light izquierdo/derecho) palette-aware
+  - Sliders individuales de intensidad por luz
+  - Slider de densidad de aiAtmosphereVolume
+  - Cielo: sky polyPlane + bends + sky_material
+  - Camara: crear/eliminar/look through/lift mecha
 """
 
 try:
@@ -13,92 +16,46 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from ui import state
-from ui.build_actions import _safe_ctrl_exists
 from ui.widgets import fsl
 import ui.theme as T
 
-# Materiales que el usuario puede asignar al mecha desde rendering
-_MATERIAL_MODES = {
-    'Lambert (VP 2.0)':  'lambert',
-    'Arnold (aiToon)':   'aitoon',
-}
+from utils.lighting import (
+    AMBIENT_INTENSITY, FOCO_INTENSITY, BG_INTENSITY, VEAM_INTENSITY,
+    INTENSITY_MIN, INTENSITY_MAX,
+)
 
-_AITOON_PALETTE_LABELS = {
-    'Industrial': 'industrial',
-    'Oxidado':    'oxidado',
-    'Artico':     'artico',
-    'Carmesi':    'carmesi',
-}
-
-_LAMBERT_PRESET_LABELS = ['Default', 'Atardecer', 'Frio', 'Oxidado', 'Neon']
-
-_LIGHTING_PRESET_LABELS = {
-    'Estudio':   'studio',
-    'Dramatico': 'dramatic',
-    'Retro':     'retro',
-}
-
-DEFAULT_LIGHT_INTENSITY = 1.5
-DEFAULT_SKYDOME_INTENSITY = 0.35
-DEFAULT_TEMPERATURE = 6500
+DEFAULT_DENSITY    = 0.034
+DENSITY_MIN        = 0.02
+DENSITY_MAX        = 0.08
+DEFAULT_ANISOTROPY = 0.666
 
 
 def build():
-    """Construye el panel completo de rendering."""
     mc.columnLayout(adjustableColumn=True, rowSpacing=4,
                     columnAttach=('both', 4))
 
     mc.separator(h=8, style='none')
 
-    # ── MATERIALES ─────────────────────────────────────────────
+    # ── RENDER ─────────────────────────────────────────────────
     mc.text(
-        label='  MATERIALES',
+        label='  RENDER',
         align='left', font='boldLabelFont', h=22,
         backgroundColor=T.PANEL,
     )
     mc.separator(h=4, style='none')
-
-    # Selector: tipo de material
-    mc.rowLayout(nc=2, cw2=[120, 200],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[0, 4])
-    mc.text(label='Tipo', align='right', font='smallPlainLabelFont')
-    mode_menu = mc.optionMenu(
-        changeCommand=_on_mode_changed,
-        backgroundColor=T.LINE,
-        annotation='Lambert: Viewport 2.0 — Arnold: aiToon con silhouette')
-    for lbl in _MATERIAL_MODES:
-        mc.menuItem(label=lbl)
-    state.reg('render_mode_menu', mode_menu)
-    mc.setParent('..')
-
-    # Estado Arnold
-    state.reg('render_arnold_status', mc.text(
-        label=_arnold_status_label(),
+    mc.text(
+        label='  1920 x 1080  |  Camera_for_render  |  Arnold',
         align='left', font='smallPlainLabelFont',
-    ))
-
-    # Paleta (cambia según modo)
-    mc.rowLayout(nc=2, cw2=[120, 200],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[0, 4])
-    mc.text(label='Paleta', align='right', font='smallPlainLabelFont')
-    palette_menu = mc.optionMenu(
-        backgroundColor=T.LINE,
-        annotation='Paleta de colores a aplicar')
-    for lbl in _LAMBERT_PRESET_LABELS:
-        mc.menuItem(label=lbl)
-    state.reg('render_palette_menu', palette_menu)
-    mc.setParent('..')
-
+    )
     mc.button(
-        label='Aplicar materiales al mecha', h=28,
+        label='Render', h=34,
         backgroundColor=T.CYAN,
-        command=lambda *_: _apply_materials(),
-        annotation='Aplica los materiales del modo seleccionado al mecha en escena',
+        command=lambda *_: _do_render(),
+        annotation='Configura Arnold + resolucion 1920x1080 y lanza el render '
+                   'desde Camera_for_render en la Render View',
     )
 
-    # ── ILUMINACIÓN ────────────────────────────────────────────
+    # ── ILUMINACION ────────────────────────────────────────────
     mc.separator(h=8, style='none')
     mc.text(
         label='  ILUMINACION',
@@ -107,36 +64,46 @@ def build():
     )
     mc.separator(h=4, style='none')
 
-    # Preset
-    mc.rowLayout(nc=2, cw2=[120, 200],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[0, 4])
-    mc.text(label='Preset', align='right', font='smallPlainLabelFont')
-    light_preset_menu = mc.optionMenu(
-        changeCommand=_on_lighting_preset_changed,
-        backgroundColor=T.LINE,
-        annotation='Preset de iluminación: 3 luces direccionales + skydome')
-    for lbl in _LIGHTING_PRESET_LABELS:
-        mc.menuItem(label=lbl)
-    state.reg('render_light_preset_menu', light_preset_menu)
-    mc.setParent('..')
+    mc.text(
+        label='  luz_ambiente: color terreno  |  veam: color mecha  |  '
+              'foco + bg: BLANCAS',
+        align='left', font='smallPlainLabelFont',
+    )
 
-    # Sliders
-    state.reg('render_lights_intensity_sl', fsl(
-        'Intensidad luces', 0.0, 5.0, DEFAULT_LIGHT_INTENSITY,
-        on_cc=_on_lights_intensity,
-        annotation='Intensidad de las luces direccionales (key/fill/back)',
+    state.reg('render_ambient_i_sl', fsl(
+        'Ambient (luz_ambiente)', INTENSITY_MIN, INTENSITY_MAX, AMBIENT_INTENSITY,
+        step=0.1, prec=2,
+        on_cc=_on_ambient_intensity,
+        annotation='Intensidad de luz_ambiente (aiAreaLight quad, '
+                   'color del terreno segun paleta)',
     ))
-    state.reg('render_skydome_intensity_sl', fsl(
-        'Intensidad skydome', 0.0, 3.0, DEFAULT_SKYDOME_INTENSITY,
-        on_cc=_on_skydome_intensity,
-        annotation='Intensidad del aiSkyDomeLight (requiere Arnold)',
+    state.reg('render_foco_i_sl', fsl(
+        'Foco (foco_mecha)', INTENSITY_MIN, INTENSITY_MAX, FOCO_INTENSITY,
+        step=0.1, prec=2,
+        on_cc=_on_foco_intensity,
+        annotation='Intensidad de foco_mecha (aiAreaLight disk, BLANCA)',
     ))
-    state.reg('render_temperature_sl', fsl(
-        'Temperatura (K)', 1500.0, 12000.0, DEFAULT_TEMPERATURE,
-        step=100, prec=0,
-        on_cc=_on_temperature,
-        annotation='Temperatura de color en Kelvin (3200K=cálida, 6500K=neutra, 9000K=fría)',
+    state.reg('render_bg_i_sl', fsl(
+        'Background', INTENSITY_MIN, INTENSITY_MAX, BG_INTENSITY,
+        step=0.1, prec=2,
+        on_cc=_on_bg_intensity,
+        annotation='Intensidad de background (aiAreaLight quad, BLANCA, '
+                   'Z = skyline + 4)',
+    ))
+    state.reg('render_veam_i_sl', fsl(
+        'Mesh (veam izq/der)', INTENSITY_MIN, INTENSITY_MAX, VEAM_INTENSITY,
+        step=0.1, prec=2,
+        on_cc=_on_veam_intensity,
+        annotation='Intensidad de veam_light_izquierdo y veam_light_derecho '
+                   '(aiMeshLight, color glow del mecha)',
+    ))
+
+    state.reg('render_atmosphere_density_sl', fsl(
+        'Densidad atmosfera', DENSITY_MIN, DENSITY_MAX, DEFAULT_DENSITY,
+        step=0.001, prec=3,
+        on_cc=_on_atmosphere_density,
+        annotation='Densidad del aiAtmosphereVolume (volumetrica Arnold). '
+                   f'Rango: {DENSITY_MIN}-{DENSITY_MAX} (default {DEFAULT_DENSITY})',
     ))
 
     mc.rowLayout(nc=2, cw2=[160, 160],
@@ -144,12 +111,36 @@ def build():
                  columnOffset2=[0, 4])
     mc.button(label='Crear / Recrear luces', h=26,
               backgroundColor=T.CYAN,
-              command=lambda *_: _apply_lighting_preset(),
-              annotation='Crea luces direccionales + aiSkyDomeLight')
+              command=lambda *_: _apply_lighting(),
+              annotation='Crea las 5 luces (ambient/foco/bg/2 mesh) + atmosfera. '
+                         'Colores segun la paleta activa.')
     mc.button(label='Eliminar luces', h=26,
               backgroundColor=T.SLATE,
               command=lambda *_: _remove_lighting(),
-              annotation='Elimina luces y sky dome creados por RetroMecha')
+              annotation='Elimina luces y atmosfera creadas por RetroMecha')
+    mc.setParent('..')
+
+    # ── CIELO ──────────────────────────────────────────────────
+    mc.separator(h=8, style='none')
+    mc.text(
+        label='  CIELO',
+        align='left', font='boldLabelFont', h=22,
+        backgroundColor=T.PANEL,
+    )
+    mc.separator(h=4, style='none')
+
+    mc.rowLayout(nc=2, cw2=[160, 160],
+                 columnAttach2=['both', 'both'],
+                 columnOffset2=[0, 4])
+    mc.button(label='Crear / Recrear cielo', h=26,
+              backgroundColor=T.CYAN,
+              command=lambda *_: _apply_sky(),
+              annotation='Crea sky (polyPlane 24x24 + bend1 envelope 2 + bend2) '
+                         '+ sky_material acorde a paleta')
+    mc.button(label='Eliminar cielo', h=26,
+              backgroundColor=T.SLATE,
+              command=lambda *_: _remove_sky_cb(),
+              annotation='Elimina el sky, sus deformadores y el sky_material')
     mc.setParent('..')
 
     # ── CAMARA ─────────────────────────────────────────────────
@@ -162,7 +153,8 @@ def build():
     mc.separator(h=4, style='none')
 
     mc.text(
-        label='  Setup compo: focal 24.92  |  fStop 11.9  |  focus 30  |  DOF on',
+        label='  Camera_for_render: focal 21.39  |  fStop 5.6  |  '
+              'pos fija del setup',
         align='left', font='smallPlainLabelFont',
     )
 
@@ -172,12 +164,12 @@ def build():
     mc.button(label='Crear / Recrear camara', h=26,
               backgroundColor=T.CYAN,
               command=lambda *_: _apply_default_camera(),
-              annotation='Crea rm_camera_compo con la config del setup MEL '
-                         'y la apunta al mecha actual')
+              annotation='Crea Camera_for_render con la config final del setup '
+                         '(posicion / rotacion fijas del usuario)')
     mc.button(label='Eliminar camara', h=26,
               backgroundColor=T.SLATE,
               command=lambda *_: _remove_default_camera(),
-              annotation='Elimina rm_camera_compo de la escena')
+              annotation='Elimina Camera_for_render de la escena')
     mc.setParent('..')
 
     mc.rowLayout(nc=2, cw2=[160, 160],
@@ -186,18 +178,17 @@ def build():
     mc.button(label='Look through', h=26,
               backgroundColor=T.CYAN,
               command=lambda *_: _look_through_camera(),
-              annotation='Mira a traves de rm_camera_compo en el panel activo')
+              annotation='Mira a traves de Camera_for_render en el panel activo')
     mc.button(label='Lift mecha +6', h=26,
               backgroundColor=T.CYAN,
               command=lambda *_: _lift_mecha_default(),
               annotation='Desplaza el grupo del mecha +6 en Y '
-                         '(replica el ajuste manual del setup compo)')
+                         '(replica el ajuste manual del setup)')
     mc.setParent('..')
 
     mc.separator(h=6, style='none')
     mc.setParent('..')
 
-    # Auto-generar luces al abrir si no hay
     _ensure_default_lighting()
 
 
@@ -205,186 +196,125 @@ def build():
 #  HELPERS
 # ══════════════════════════════════════════════════════════════
 
-def _find_mecha_group():
-    from ui import scene_utils as sc
-    return sc.find_mecha_group()
-
-
-def _arnold_status_label() -> str:
+def _current_palette():
     try:
-        from utils.material_assigner import _has_arnold
-        available = _has_arnold()
+        from ui.panels.material_panel import current_palette_label
+        return current_palette_label()
     except Exception:
-        available = False
-    if available:
-        return '  Arnold disponible — se usará aiToon'
-    return '  Arnold no detectado — fallback a Lambert'
-
-
-def _current_mode() -> str:
-    if not _safe_ctrl_exists(state.get('render_mode_menu')):
-        return 'lambert'
-    try:
-        return _MATERIAL_MODES.get(mc.optionMenu(state.get('render_mode_menu'), q=True, value=True), 'lambert')
-    except Exception:
-        return 'lambert'
-
-
-def _refresh_palette_menu():
-    """Cambia las entradas del menú Paleta según el modo seleccionado."""
-    menu = state.get('render_palette_menu')
-    if not _safe_ctrl_exists(menu):
-        return
-    try:
-        for item in mc.optionMenu(menu, q=True, itemListLong=True) or []:
-            mc.deleteUI(item)
-        mode = _current_mode()
-        labels = _LAMBERT_PRESET_LABELS if mode == 'lambert' else list(_AITOON_PALETTE_LABELS.keys())
-        for lbl in labels:
-            mc.menuItem(label=lbl, parent=menu)
-    except Exception:
-        pass
+        return 'Default'
 
 
 def _ensure_default_lighting():
-    """Si no hay luces RetroMecha en escena, crea el preset 'studio' por defecto."""
     try:
         from utils import lighting
         if not lighting.has_rm_lights():
-            lighting.apply_lighting('studio', sky_dome=True)
-            # Aplicar valores actuales de los sliders
-            _on_lights_intensity(DEFAULT_LIGHT_INTENSITY)
-            _on_skydome_intensity(DEFAULT_SKYDOME_INTENSITY)
-            _on_temperature(DEFAULT_TEMPERATURE)
+            lighting.apply_lighting(_current_palette())
     except Exception as e:
         print(f'[RetroMecha][Render] Auto-luces: {e}')
-
-
-# ══════════════════════════════════════════════════════════════
-#  CALLBACKS — Materiales
-# ══════════════════════════════════════════════════════════════
-
-def _on_mode_changed(*_):
-    _refresh_palette_menu()
-
-
-def _apply_materials(*_):
-    mode = _current_mode()
-    palette_menu = state.get('render_palette_menu')
-    if not _safe_ctrl_exists(palette_menu):
-        return
     try:
-        label = mc.optionMenu(palette_menu, q=True, value=True)
-    except Exception:
-        return
-
-    mecha_grp = _find_mecha_group()
-    if not mecha_grp:
-        print('[RetroMecha][Render] No hay mecha en escena')
-        return
-
-    if mode == 'lambert':
-        try:
-            from materials.presets import apply_preset
-            from materials.materializer import materialize_mecha
-            apply_preset(label)
-            materialize_mecha(mecha_grp)
-            lambert_menu = state.get('lambert_preset_menu')
-            if _safe_ctrl_exists(lambert_menu):
-                mc.optionMenu(lambert_menu, e=True, value=label)
-            print(f'[RetroMecha][Render] Lambert "{label}" aplicado')
-        except Exception as e:
-            print(f'[RetroMecha][Render] Error VP2.0: {e}')
-    else:  # aitoon
-        palette = _AITOON_PALETTE_LABELS.get(label)
-        if not palette:
-            print('[RetroMecha][Render] Paleta aiToon no válida')
-            return
-        try:
-            from utils.material_assigner import assign_palette_to_group, clear_material_cache
-            clear_material_cache()
-            assign_palette_to_group(mecha_grp, palette)
-            aitoon_menu = state.get('aitoon_menu')
-            if _safe_ctrl_exists(aitoon_menu):
-                mc.optionMenu(aitoon_menu, e=True, value=label)
-            status = state.get('render_arnold_status')
-            if _safe_ctrl_exists(status):
-                mc.text(status, e=True, label=_arnold_status_label())
-        except Exception as e:
-            print(f'[RetroMecha][Render] Error Arnold: {e}')
+        from utils import atmosphere
+        if not atmosphere.has_atmosphere():
+            atmosphere.ensure_atmosphere(DEFAULT_DENSITY, DEFAULT_ANISOTROPY)
+    except Exception as e:
+        print(f'[RetroMecha][Render] Auto-atmosfera: {e}')
 
 
 # ══════════════════════════════════════════════════════════════
-#  CALLBACKS — Iluminación
+#  CALLBACKS — Render
 # ══════════════════════════════════════════════════════════════
 
-def _on_lighting_preset_changed(*_):
-    """Al cambiar el preset, recrear las luces si ya existen."""
+def _do_render(*_):
+    try:
+        from utils.render import render_now
+        render_now()
+    except Exception as e:
+        print(f'[RetroMecha][Render] {e}')
+
+
+# ══════════════════════════════════════════════════════════════
+#  CALLBACKS — Iluminacion
+# ══════════════════════════════════════════════════════════════
+
+def _apply_lighting(*_):
     try:
         from utils import lighting
-        if lighting.has_rm_lights():
-            _apply_lighting_preset()
-    except Exception:
-        pass
-
-
-def _apply_lighting_preset(*_):
-    """Crea/recrea las luces con el preset seleccionado y aplica los sliders."""
-    menu = state.get('render_light_preset_menu')
-    if not _safe_ctrl_exists(menu):
-        return
-    try:
-        label = mc.optionMenu(menu, q=True, value=True)
-    except Exception:
-        return
-    preset = _LIGHTING_PRESET_LABELS.get(label, 'studio')
-
-    try:
-        from utils import lighting
-        lighting.apply_lighting(preset, sky_dome=True)
-        # Re-aplicar valores actuales de los sliders
-        _on_lights_intensity(mc.floatSliderGrp(state.get('render_lights_intensity_sl'),
-                                                q=True, value=True))
-        _on_skydome_intensity(mc.floatSliderGrp(state.get('render_skydome_intensity_sl'),
-                                                 q=True, value=True))
-        _on_temperature(mc.floatSliderGrp(state.get('render_temperature_sl'),
-                                          q=True, value=True))
+        for slider_key, setter in (
+            ('render_ambient_i_sl', lighting.set_ambient_intensity),
+            ('render_foco_i_sl',    lighting.set_foco_intensity),
+            ('render_bg_i_sl',      lighting.set_background_intensity),
+            ('render_veam_i_sl',    lighting.set_veam_intensity),
+        ):
+            sl = state.get(slider_key)
+            if sl and mc.floatSliderGrp(sl, exists=True):
+                try:
+                    setter(mc.floatSliderGrp(sl, q=True, value=True))
+                except Exception:
+                    pass
+        lighting.apply_lighting(_current_palette())
     except Exception as e:
         print(f'[RetroMecha][Render] Lighting: {e}')
+
+    try:
+        from utils import atmosphere
+        density = mc.floatSliderGrp(
+            state.get('render_atmosphere_density_sl'), q=True, value=True)
+        atmosphere.ensure_atmosphere(density, DEFAULT_ANISOTROPY)
+    except Exception as e:
+        print(f'[RetroMecha][Render] Atmosfera: {e}')
 
 
 def _remove_lighting(*_):
     try:
         from utils import lighting
         lighting.remove_lighting()
-        print('[RetroMecha][Render] Luces eliminadas')
     except Exception as e:
         print(f'[RetroMecha][Render] Lighting: {e}')
+    try:
+        from utils import atmosphere
+        atmosphere.remove_atmosphere()
+    except Exception as e:
+        print(f'[RetroMecha][Render] Atmosfera: {e}')
+    print('[RetroMecha][Render] Luces y atmosfera eliminadas')
 
 
-def _on_lights_intensity(val):
+def _on_ambient_intensity(val):
     try:
         from utils import lighting
-        lighting.set_lights_intensity(float(val))
+        lighting.set_ambient_intensity(float(val))
     except Exception as e:
-        print(f'[RetroMecha][Render] Lights intensity: {e}')
+        print(f'[RetroMecha][Render] Ambient I: {e}')
 
 
-def _on_skydome_intensity(val):
+def _on_foco_intensity(val):
     try:
         from utils import lighting
-        lighting.set_skydome_intensity(float(val))
+        lighting.set_foco_intensity(float(val))
     except Exception as e:
-        print(f'[RetroMecha][Render] Skydome intensity: {e}')
+        print(f'[RetroMecha][Render] Foco I: {e}')
 
 
-def _on_temperature(val):
+def _on_bg_intensity(val):
     try:
         from utils import lighting
-        lighting.set_lights_temperature(float(val))
-        lighting.set_skydome_temperature(float(val))
+        lighting.set_background_intensity(float(val))
     except Exception as e:
-        print(f'[RetroMecha][Render] Temperature: {e}')
+        print(f'[RetroMecha][Render] BG I: {e}')
+
+
+def _on_veam_intensity(val):
+    try:
+        from utils import lighting
+        lighting.set_veam_intensity(float(val))
+    except Exception as e:
+        print(f'[RetroMecha][Render] Veam I: {e}')
+
+
+def _on_atmosphere_density(val):
+    try:
+        from utils import atmosphere
+        atmosphere.set_density(float(val))
+    except Exception as e:
+        print(f'[RetroMecha][Render] Atmosfera density: {e}')
 
 
 # ══════════════════════════════════════════════════════════════
@@ -413,7 +343,7 @@ def _look_through_camera(*_):
         from utils.camera import look_through_camera
         look_through_camera()
     except Exception as e:
-        print(f'[RetroMecha][Render] Look through: {e}')
+        print('[RetroMecha][Render] Look through: {e}')
 
 
 def _lift_mecha_default(*_):
@@ -423,3 +353,34 @@ def _lift_mecha_default(*_):
             print('[RetroMecha][Render] No hay mecha en escena para desplazar')
     except Exception as e:
         print(f'[RetroMecha][Render] Lift: {e}')
+
+
+# ══════════════════════════════════════════════════════════════
+#  CALLBACKS - Cielo
+# ══════════════════════════════════════════════════════════════
+
+def _apply_sky(*_):
+    try:
+        from utils.sky import create_sky
+        create_sky()
+    except Exception as e:
+        print(f'[RetroMecha][Render] Cielo: {e}')
+    try:
+        from materials.sky_material import create_sky_material
+        create_sky_material(_current_palette())
+    except Exception as e:
+        print(f'[RetroMecha][Render] Sky material: {e}')
+
+
+def _remove_sky_cb(*_):
+    try:
+        from utils.sky import remove_sky
+        remove_sky()
+    except Exception as e:
+        print(f'[RetroMecha][Render] Cielo: {e}')
+    try:
+        from materials.sky_material import remove_sky_material
+        remove_sky_material()
+    except Exception as e:
+        print(f'[RetroMecha][Render] Sky material: {e}')
+    print('[RetroMecha][Render] Cielo eliminado')

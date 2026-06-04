@@ -12,13 +12,14 @@ from ui.build_actions import (
     random_all, on_reset, _safe_ctrl_exists,
 )
 from ui.panels.animation_panel import apply_animation_quick
-from ui.panels import terrain_panel, material_panel
+from ui.panels import terrain_panel, material_panel, rendering_panel
 from ui.panels.mecha_panel_v2 import build_with_tabs
 
 _TABS = [
     ('mecha', 'MECHA', widgets.ACCENT_ACTION),
     ('terrain', 'TERRENO', widgets.ACCENT_ACTION),
     ('materials', 'MAT', widgets.ACCENT_ACTION),
+    ('render', 'RENDER', widgets.ACCENT_ACTION),
 ]
 
 _current_tab = ['mecha']
@@ -123,6 +124,8 @@ def _render_tab(tab_id):
         _render_terrain()
     elif tab_id == 'materials':
         material_panel.build(wrapped=False)
+    elif tab_id == 'render':
+        rendering_panel.build()
 
 
 def _render_mecha():
