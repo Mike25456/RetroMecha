@@ -10,6 +10,7 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from ui import state
+from ui.build_actions import _safe_ctrl_exists
 from ui.scene_utils import on_delimitar
 from ui.widgets import mode_switch, BG_DARK
 from ui.panels import quick_panel, pro_panel
@@ -36,7 +37,7 @@ def build_ui(*, recreate: bool = True):
 
     win = mc.window(WIN_ID, title='RetroMecha',
                     sizeable=True, resizeToFitChildren=False,
-                    width=360, height=560)
+                    width=360, height=680)
 
     mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 
@@ -67,7 +68,6 @@ def build_ui(*, recreate: bool = True):
     # ═══════════════════════════════════════════════════════
     # CONTENT
     # ═══════════════════════════════════════════════════════
-    mc.scrollLayout(childResizable=True)
     main_content = mc.columnLayout(adjustableColumn=True, rowSpacing=0)
     state.reg('main_content', main_content)
     quick_panel.build()
@@ -103,16 +103,16 @@ def _switch_mode(mode):
         state.clear_dynamic()
 
         # Actualizar hint
-        if _mode_hint[0] and mc.control(_mode_hint[0], exists=True):
+        if _safe_ctrl_exists(_mode_hint[0]):
             label = 'Modo Rápido · aleatorio inmediato' if mode == 'quick' else 'Modo Pro · control total'
             mc.text(_mode_hint[0], e=True, label=label)
 
         main = state.get('main_content')
-        if main and mc.control(main, exists=True):
+        if _safe_ctrl_exists(main):
             # Borrar todo lo que esté dentro de main
             children = mc.columnLayout(main, q=True, childArray=True) or []
             for c in children:
-                if c and mc.control(c, exists=True):
+                if _safe_ctrl_exists(c):
                     try:
                         mc.deleteUI(c)
                     except Exception:

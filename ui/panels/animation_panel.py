@@ -13,14 +13,15 @@ from animations.registry import list_animations, get_animation
 _current_anim = [None]
 
 
-def build():
-    mc.frameLayout(
-        label='  >  ANIMACIONES',
-        collapsable=True, collapse=True,
-        borderStyle='etchedIn',
-        backgroundColor=[0.44, 0.18, 0.10],
-        marginHeight=6, marginWidth=6,
-    )
+def build(wrapped=True):
+    if wrapped:
+        mc.frameLayout(
+            label='  >  ANIMACIONES',
+            collapsable=True, collapse=True,
+            borderStyle='etchedIn',
+            backgroundColor=[0.44, 0.18, 0.10],
+            marginHeight=6, marginWidth=6,
+        )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
 
     anims = list_animations()
@@ -57,7 +58,8 @@ def build():
 
     mc.separator(h=4, style='none')
     mc.setParent('..')
-    mc.setParent('..')
+    if wrapped:
+        mc.setParent('..')
 
 
 def _apply_animation(*_):

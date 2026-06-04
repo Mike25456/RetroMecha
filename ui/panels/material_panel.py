@@ -44,14 +44,15 @@ _current_shader = ['rm_white_armor_mat']
 _APPLYING_SHADER = [False]
 
 
-def build():
-    mc.frameLayout(
-        label='  >  MATERIALES',
-        collapsable=True, collapse=True,
-        borderStyle='etchedIn',
-        backgroundColor=[0.40, 0.24, 0.06],
-        marginHeight=8, marginWidth=6,
-    )
+def build(wrapped=True):
+    if wrapped:
+        mc.frameLayout(
+            label='  >  MATERIALES',
+            collapsable=True, collapse=True,
+            borderStyle='etchedIn',
+            backgroundColor=[0.40, 0.24, 0.06],
+            marginHeight=8, marginWidth=6,
+        )
     mc.columnLayout(adjustableColumn=True, rowSpacing=4)
 
     for shader_name in SHADER_NAMES:
@@ -143,7 +144,8 @@ def build():
     mc.setParent('..')
 
     mc.setParent('..')
-    mc.setParent('..')
+    if wrapped:
+        mc.setParent('..')
 
 
 def _set_shader_color(*_):

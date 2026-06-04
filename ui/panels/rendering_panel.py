@@ -13,6 +13,7 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from ui import state
+from ui.build_actions import _safe_ctrl_exists
 from ui.widgets import fsl
 
 # Materiales que el usuario puede asignar al mecha desde rendering
@@ -217,23 +218,28 @@ def _arnold_status_label() -> str:
 
 
 def _current_mode() -> str:
-    menu = state.get('render_mode_menu')
-    if menu and mc.optionMenu(menu, exists=True):
-        return _MATERIAL_MODES.get(mc.optionMenu(menu, q=True, value=True), 'lambert')
-    return 'lambert'
+    if not _safe_ctrl_exists(state.get('render_mode_menu')):
+        return 'lambert'
+    try:
+        return _MATERIAL_MODES.get(mc.optionMenu(state.get('render_mode_menu'), q=True, value=True), 'lambert')
+    except Exception:
+        return 'lambert'
 
 
 def _refresh_palette_menu():
     """Cambia las entradas del menú Paleta según el modo seleccionado."""
     menu = state.get('render_palette_menu')
-    if not menu or not mc.optionMenu(menu, exists=True):
+    if not _safe_ctrl_exists(menu):
         return
-    for item in mc.optionMenu(menu, q=True, itemListLong=True) or []:
-        mc.deleteUI(item)
-    mode = _current_mode()
-    labels = _LAMBERT_PRESET_LABELS if mode == 'lambert' else list(_AITOON_PALETTE_LABELS.keys())
-    for lbl in labels:
-        mc.menuItem(label=lbl, parent=menu)
+    try:
+        for item in mc.optionMenu(menu, q=True, itemListLong=True) or []:
+            mc.deleteUI(item)
+        mode = _current_mode()
+        labels = _LAMBERT_PRESET_LABELS if mode == 'lambert' else list(_AITOON_PALETTE_LABELS.keys())
+        for lbl in labels:
+            mc.menuItem(label=lbl, parent=menu)
+    except Exception:
+        pass
 
 
 def _ensure_default_lighting():
@@ -261,9 +267,12 @@ def _on_mode_changed(*_):
 def _apply_materials(*_):
     mode = _current_mode()
     palette_menu = state.get('render_palette_menu')
-    if not palette_menu or not mc.optionMenu(palette_menu, exists=True):
+    if not _safe_ctrl_exists(palette_menu):
         return
-    label = mc.optionMenu(palette_menu, q=True, value=True)
+    try:
+        label = mc.optionMenu(palette_menu, q=True, value=True)
+    except Exception:
+        return
 
     mecha_grp = _find_mecha_group()
     if not mecha_grp:
@@ -276,9 +285,8 @@ def _apply_materials(*_):
             from materials.materializer import materialize_mecha
             apply_preset(label)
             materialize_mecha(mecha_grp)
-            # Sincronizar con el menú de la pestaña Escena
             lambert_menu = state.get('lambert_preset_menu')
-            if lambert_menu and mc.optionMenu(lambert_menu, exists=True):
+            if _safe_ctrl_exists(lambert_menu):
                 mc.optionMenu(lambert_menu, e=True, value=label)
             print(f'[RetroMecha][Render] Lambert "{label}" aplicado')
         except Exception as e:
@@ -292,13 +300,11 @@ def _apply_materials(*_):
             from utils.material_assigner import assign_palette_to_group, clear_material_cache
             clear_material_cache()
             assign_palette_to_group(mecha_grp, palette)
-            # Sincronizar con menú legacy
             aitoon_menu = state.get('aitoon_menu')
-            if aitoon_menu and mc.optionMenu(aitoon_menu, exists=True):
+            if _safe_ctrl_exists(aitoon_menu):
                 mc.optionMenu(aitoon_menu, e=True, value=label)
-            # Refrescar estado Arnold
             status = state.get('render_arnold_status')
-            if status and mc.text(status, exists=True):
+            if _safe_ctrl_exists(status):
                 mc.text(status, e=True, label=_arnold_status_label())
         except Exception as e:
             print(f'[RetroMecha][Render] Error Arnold: {e}')
@@ -321,9 +327,12 @@ def _on_lighting_preset_changed(*_):
 def _apply_lighting_preset(*_):
     """Crea/recrea las luces con el preset seleccionado y aplica los sliders."""
     menu = state.get('render_light_preset_menu')
-    if not menu or not mc.optionMenu(menu, exists=True):
+    if not _safe_ctrl_exists(menu):
         return
-    label = mc.optionMenu(menu, q=True, value=True)
+    try:
+        label = mc.optionMenu(menu, q=True, value=True)
+    except Exception:
+        return
     preset = _LIGHTING_PRESET_LABELS.get(label, 'studio')
 
     try:
