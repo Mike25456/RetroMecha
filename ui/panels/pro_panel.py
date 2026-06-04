@@ -44,9 +44,9 @@ def build():
 
     content = mc.columnLayout(adjustableColumn=True, rowSpacing=4)
     state.reg('pro_content', content)
-    mc.setParent('..')
 
     _render_tab('mecha')
+    mc.setParent('..')
     mc.setParent('..')
 
 

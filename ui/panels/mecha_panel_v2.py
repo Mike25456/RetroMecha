@@ -32,9 +32,8 @@ def build_with_tabs(tab_ids, labels, colors):
     mc.separator(h=4, style='none')
     content = mc.columnLayout(adjustableColumn=True, rowSpacing=2)
     state.reg('mecha_sub_content', content)
-    mc.setParent('..')
-
     _render_general()
+    mc.setParent('..')
 
 
 def _clear_content(content):
