@@ -34,10 +34,9 @@ DENSITY_MAX = 0.08
 # ══════════════════════════════════════════════════════════════════════
 
 def _has_arnold() -> bool:
-    if not MAYA_AVAILABLE:
-        return False
     try:
-        return 'mtoa' in (mc.pluginInfo(q=True, listPlugins=True) or [])
+        from utils.maya_materials import has_arnold
+        return has_arnold()
     except Exception:
         return False
 

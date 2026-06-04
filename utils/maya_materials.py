@@ -65,13 +65,18 @@ MATERIALS = {
 #  ARNOLD DETECTION
 # ══════════════════════════════════════════════════════════════════════
 
-def _has_arnold() -> bool:
+def has_arnold() -> bool:
+    """Verifica si Arnold (mtoa) esta cargado. Funcion canonica — importar desde aqui."""
     if mc is None:
         return False
     try:
         return 'mtoa' in (mc.pluginInfo(q=True, listPlugins=True) or [])
     except Exception:
         return False
+
+
+# Alias interno para compatibilidad
+_has_arnold = has_arnold
 
 
 def _ensure_arnold() -> bool:
