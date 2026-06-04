@@ -161,6 +161,76 @@ PRESETS = {
             "diffuse": 0.58,
         },
     },
+    "Magma": {
+        "rm_white_armor_mat": {
+            "color": (0.95, 0.70, 0.50),
+            "ambientColor": (0.18, 0.08, 0.02),
+            "diffuse": 0.82,
+        },
+        "rm_graphite_mat": {
+            "color": (0.15, 0.06, 0.04),
+            "ambientColor": (0.06, 0.02, 0.01),
+            "diffuse": 0.72,
+        },
+        "rm_cyan_glow_mat": {
+            "color": (1.0, 0.30, 0.0),
+            "ambientColor": (0.40, 0.05, 0.0),
+            "incandescence": (0.95, 0.15, 0.0),
+            "diffuse": 0.45,
+        },
+        "rm_terrain_base_mat": {
+            "color": (0.32, 0.22, 0.18),
+            "ambientColor": (0.08, 0.04, 0.025),
+            "diffuse": 0.62,
+        },
+        "rm_terrain_dark_mat": {
+            "color": (0.12, 0.08, 0.06),
+            "ambientColor": (0.03, 0.02, 0.015),
+            "diffuse": 0.54,
+        },
+        "rm_terrain_accent_mat": {
+            "color": (0.35, 0.24, 0.18),
+            "incandescence": (0.475, 0.075, 0.0),
+            "emission": 0.5,
+            "ambientColor": (0.08, 0.035, 0.02),
+            "diffuse": 0.58,
+        },
+    },
+    "Veneno": {
+        "rm_white_armor_mat": {
+            "color": (0.78, 0.92, 0.72),
+            "ambientColor": (0.08, 0.14, 0.06),
+            "diffuse": 0.82,
+        },
+        "rm_graphite_mat": {
+            "color": (0.06, 0.12, 0.06),
+            "ambientColor": (0.02, 0.05, 0.02),
+            "diffuse": 0.72,
+        },
+        "rm_cyan_glow_mat": {
+            "color": (0.0, 1.0, 0.20),
+            "ambientColor": (0.0, 0.35, 0.05),
+            "incandescence": (0.0, 0.85, 0.10),
+            "diffuse": 0.45,
+        },
+        "rm_terrain_base_mat": {
+            "color": (0.24, 0.30, 0.24),
+            "ambientColor": (0.04, 0.07, 0.04),
+            "diffuse": 0.62,
+        },
+        "rm_terrain_dark_mat": {
+            "color": (0.08, 0.12, 0.08),
+            "ambientColor": (0.02, 0.04, 0.02),
+            "diffuse": 0.54,
+        },
+        "rm_terrain_accent_mat": {
+            "color": (0.22, 0.32, 0.24),
+            "incandescence": (0.0, 0.425, 0.05),
+            "emission": 0.5,
+            "ambientColor": (0.04, 0.08, 0.04),
+            "diffuse": 0.58,
+        },
+    },
     "Neon": {
         "rm_white_armor_mat": {
             "color": (0.92, 0.92, 0.95),

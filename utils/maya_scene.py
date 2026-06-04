@@ -6,8 +6,8 @@ except ImportError:
     mc = None
 
 
-def force_preview_one(root: str) -> int:
-    """Force all mesh transforms under root to Maya smooth preview level 1."""
+def _force_preview_level(root: str, level: int) -> int:
+    """Force all mesh transforms under root to Maya smooth preview level (0-3)."""
     if mc is None or not root or not mc.objExists(root):
         return 0
 
@@ -33,9 +33,19 @@ def force_preview_one(root: str) -> int:
                 divisionsV=0,
                 pointsWire=4,
                 pointsShaded=1,
-                polygonObject=1,
+                polygonObject=level,
             )
         except Exception:
             pass
 
     return len(transforms)
+
+
+def force_preview_one(root: str) -> int:
+    """Force all mesh transforms under root to Maya smooth preview level 1."""
+    return _force_preview_level(root, 1)
+
+
+def force_preview_three(root: str) -> int:
+    """Force all mesh transforms under root to Maya smooth preview level 3."""
+    return _force_preview_level(root, 3)

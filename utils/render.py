@@ -134,11 +134,23 @@ def render_now() -> bool:
 
     set_render_settings()
 
-    # Abrir Render View y lanzar render
+    # Abrir/restaurar Arnold Render View
     try:
-        mel.eval('RenderViewWindow')
+        mel.eval('arnoldRenderView')
     except Exception:
-        pass
+        try:
+            mel.eval('RenderViewWindow')
+        except Exception:
+            pass
+    for win in (mc.lsUI(type='window') or []):
+        name = mc.window(win, q=True, title=True) or ''
+        if 'arnold' in name.lower() and 'render' in name.lower():
+            try:
+                mc.window(win, e=True, minimize=False)
+                mc.showWindow(win)
+            except Exception:
+                pass
+            break
 
     try:
         mel.eval(
