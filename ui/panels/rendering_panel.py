@@ -22,7 +22,11 @@ except ImportError:
 from ui import state
 from ui.widgets import fsl
 
-DEFAULT_LIGHT_INTENSITY = 1.0   # multiplicador global
+# Intensidades base por luz (defaults absolutos, no multiplicador)
+from utils.lighting import (
+    AMBIENT_INTENSITY, FOCO_INTENSITY, BG_INTENSITY, VEAM_INTENSITY,
+    INTENSITY_MIN, INTENSITY_MAX,
+)
 
 # Atmosfera (aiAtmosphereVolume)
 DEFAULT_DENSITY    = 0.034
@@ -67,16 +71,38 @@ def build():
     mc.separator(h=4, style='none')
 
     mc.text(
-        label='  luz_ambiente + veam_light: color de paleta  |  '
-              'background + foco_mecha: BLANCAS',
+        label='  luz_ambiente: color terreno  |  veam: color mecha  |  '
+              'foco + bg: BLANCAS',
         align='left', font='smallPlainLabelFont',
     )
 
-    # Slider intensidad (multiplicador global)
-    state.reg('render_lights_intensity_sl', fsl(
-        'Intensidad luces', 0.0, 3.0, DEFAULT_LIGHT_INTENSITY,
-        on_cc=_on_lights_intensity,
-        annotation='Multiplicador global aplicado a las 5 luces RetroMecha',
+    # Sliders individuales por luz (min INTENSITY_MIN, default = spec base)
+    state.reg('render_ambient_i_sl', fsl(
+        'Ambient (luz_ambiente)', INTENSITY_MIN, INTENSITY_MAX, AMBIENT_INTENSITY,
+        step=0.1, prec=2,
+        on_cc=_on_ambient_intensity,
+        annotation='Intensidad de luz_ambiente (aiAreaLight quad, '
+                   'color del terreno segun paleta)',
+    ))
+    state.reg('render_foco_i_sl', fsl(
+        'Foco (foco_mecha)', INTENSITY_MIN, INTENSITY_MAX, FOCO_INTENSITY,
+        step=0.1, prec=2,
+        on_cc=_on_foco_intensity,
+        annotation='Intensidad de foco_mecha (aiAreaLight disk, BLANCA)',
+    ))
+    state.reg('render_bg_i_sl', fsl(
+        'Background', INTENSITY_MIN, INTENSITY_MAX, BG_INTENSITY,
+        step=0.1, prec=2,
+        on_cc=_on_bg_intensity,
+        annotation='Intensidad de background (aiAreaLight quad, BLANCA, '
+                   'Z = skyline + 4)',
+    ))
+    state.reg('render_veam_i_sl', fsl(
+        'Mesh (veam izq/der)', INTENSITY_MIN, INTENSITY_MAX, VEAM_INTENSITY,
+        step=0.1, prec=2,
+        on_cc=_on_veam_intensity,
+        annotation='Intensidad de veam_light_izquierdo y veam_light_derecho '
+                   '(aiMeshLight, color glow del mecha)',
     ))
 
     # Slider densidad aiAtmosphereVolume
@@ -185,8 +211,7 @@ def _ensure_default_lighting():
     try:
         from utils import lighting
         if not lighting.has_rm_lights():
-            lighting.apply_lighting(_current_palette(),
-                                    intensity_mult=DEFAULT_LIGHT_INTENSITY)
+            lighting.apply_lighting(_current_palette())
     except Exception as e:
         print(f'[RetroMecha][Render] Auto-luces: {e}')
     try:
@@ -214,18 +239,26 @@ def _do_render(*_):
 # ══════════════════════════════════════════════════════════════
 
 def _apply_lighting(*_):
-    """Crea/recrea las 5 luces con la paleta activa + intensidad del slider."""
-    intensity = DEFAULT_LIGHT_INTENSITY
-    sl = state.get('render_lights_intensity_sl')
-    if sl and mc.floatSliderGrp(sl, exists=True):
-        try:
-            intensity = mc.floatSliderGrp(sl, q=True, value=True)
-        except Exception:
-            pass
-
+    """Crea/recrea las 5 luces con la paleta activa.
+    Las intensidades vienen de los 4 sliders, que pueblan los setters
+    individuales de lighting (almacenados a nivel de modulo)."""
+    # Sincronizar sliders → setters (que actualizan storage interno)
     try:
         from utils import lighting
-        lighting.apply_lighting(_current_palette(), intensity_mult=intensity)
+        for slider_key, setter in (
+            ('render_ambient_i_sl', lighting.set_ambient_intensity),
+            ('render_foco_i_sl',    lighting.set_foco_intensity),
+            ('render_bg_i_sl',      lighting.set_background_intensity),
+            ('render_veam_i_sl',    lighting.set_veam_intensity),
+        ):
+            sl = state.get(slider_key)
+            if sl and mc.floatSliderGrp(sl, exists=True):
+                try:
+                    setter(mc.floatSliderGrp(sl, q=True, value=True))
+                except Exception:
+                    pass
+        # Recrear con la paleta actual
+        lighting.apply_lighting(_current_palette())
     except Exception as e:
         print(f'[RetroMecha][Render] Lighting: {e}')
 
@@ -253,12 +286,36 @@ def _remove_lighting(*_):
     print('[RetroMecha][Render] Luces y atmosfera eliminadas')
 
 
-def _on_lights_intensity(val):
+def _on_ambient_intensity(val):
     try:
         from utils import lighting
-        lighting.set_lights_intensity(float(val))
+        lighting.set_ambient_intensity(float(val))
     except Exception as e:
-        print(f'[RetroMecha][Render] Lights intensity: {e}')
+        print(f'[RetroMecha][Render] Ambient I: {e}')
+
+
+def _on_foco_intensity(val):
+    try:
+        from utils import lighting
+        lighting.set_foco_intensity(float(val))
+    except Exception as e:
+        print(f'[RetroMecha][Render] Foco I: {e}')
+
+
+def _on_bg_intensity(val):
+    try:
+        from utils import lighting
+        lighting.set_background_intensity(float(val))
+    except Exception as e:
+        print(f'[RetroMecha][Render] BG I: {e}')
+
+
+def _on_veam_intensity(val):
+    try:
+        from utils import lighting
+        lighting.set_veam_intensity(float(val))
+    except Exception as e:
+        print(f'[RetroMecha][Render] Veam I: {e}')
 
 
 def _on_atmosphere_density(val):
