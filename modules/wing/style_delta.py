@@ -52,7 +52,7 @@ def build(side, scale, l_mul, w_mul, s_mul, d_mul):
     # ── Borde de ataque ──────────────────────────────────────────────────────
     edge = mc.polyCube(w=wing_span * 0.88, h=0.06 * scale * d_mul,
                        d=wing_thick * 1.8, sx=4, sy=1, sz=1,
-                       name='rm_wing_delta_edge_#')[0]
+                       name='rm_wing_delta_glow_edge_#')[0]
     mc.move(p_cx, p_cy + wing_chord * 0.46, p_cz, edge, relative=True)
     mc.rotate(0, 0, -side * 4, edge)
     assign_material(edge, 'rm_cyan_glow_mat')
@@ -87,12 +87,12 @@ def build(side, scale, l_mul, w_mul, s_mul, d_mul):
     strut = mc.polyCube(w=0.06 * scale * d_mul,
                         h=wing_chord * 0.55,
                         d=0.10 * scale * d_mul,
-                        name='rm_wing_delta_strut_#')[0]
+                        name='rm_wing_delta_glow_strut_#')[0]
     mc.move(side * (0.32 * scale + wing_span * 0.22),
             p_cy - wing_chord * 0.24, p_cz - 0.06 * scale,
             strut, relative=True)
     mc.rotate(0, 0, side * 12, strut)
-    assign_material(strut, 'rm_graphite_mat')
+    assign_material(strut, 'rm_cyan_glow_mat')
     finish(strut, 0.014, hard=True)
 
     # ── Anillo de energía raíz ───────────────────────────────────────────────
