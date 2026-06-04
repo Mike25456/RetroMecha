@@ -126,21 +126,28 @@ def _find_scene_group():
 # ── callbacks ─────────────────────────────────────────────────
 
 def _on_preset_changed(*_):
-    """Al cambiar la paleta, actualizar los shaders en memoria + sliders."""
+    """Al cambiar la paleta, actualizar los shaders en memoria + sliders + sky."""
     preset_menu = state.get('materials_preset_menu')
     if not preset_menu or not mc.optionMenu(preset_menu, exists=True):
         return
     label = mc.optionMenu(preset_menu, q=True, value=True)
     apply_preset(label)
     _update_shader_sliders()
+    # Recolorear el sky si existe (composicion armonica con la paleta)
+    try:
+        from materials.sky_material import update_sky_ramp, has_sky_material
+        if has_sky_material():
+            update_sky_ramp(label)
+    except Exception:
+        pass
 
 
 def _apply_materials(*_):
-    """Aplica la paleta + reasigna shaders al mecha (y terreno si existe)."""
+    """Aplica la paleta + reasigna shaders al mecha, terreno y sky."""
+    palette_label = current_palette_label()
     preset_menu = state.get('materials_preset_menu')
     if preset_menu and mc.optionMenu(preset_menu, exists=True):
-        label = mc.optionMenu(preset_menu, q=True, value=True)
-        apply_preset(label)
+        apply_preset(palette_label)
         _update_shader_sliders()
 
     mecha_grp = _find_mecha_group()
@@ -161,6 +168,30 @@ def _apply_materials(*_):
         print('[RetroMecha][Mat] Materiales aplicados')
     except Exception as e:
         print(f'[RetroMecha][Mat] Error: {e}')
+
+    # Sky material acorde a la paleta (composicion armonica)
+    try:
+        from materials.sky_material import (
+            create_sky_material, update_sky_ramp, has_sky_material,
+        )
+        if mc.objExists('sky'):
+            if has_sky_material():
+                update_sky_ramp(palette_label)
+            else:
+                create_sky_material(palette_label)
+    except Exception as e:
+        print(f'[RetroMecha][Mat] Sky: {e}')
+
+
+def current_palette_label() -> str:
+    """Devuelve el label del preset seleccionado en el menu (Default si no hay)."""
+    preset_menu = state.get('materials_preset_menu')
+    if preset_menu and mc.optionMenu(preset_menu, exists=True):
+        try:
+            return mc.optionMenu(preset_menu, q=True, value=True) or 'Default'
+        except Exception:
+            pass
+    return 'Default'
 
 
 def _set_shader_color(*_):

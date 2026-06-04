@@ -317,12 +317,18 @@ def on_generar(*_):
         except Exception as e:
             print(f'[RetroMecha][Generar] Camara: {e}')
 
-        # Cielo (polyPlane + 2 bend deformers)
+        # Cielo (polyPlane + 2 bend deformers) + sky_material acorde a paleta
         try:
             from utils.sky import create_sky
             create_sky()
         except Exception as e:
             print(f'[RetroMecha][Generar] Cielo: {e}')
+        try:
+            from materials.sky_material import create_sky_material
+            from ui.panels.material_panel import current_palette_label
+            create_sky_material(current_palette_label())
+        except Exception as e:
+            print(f'[RetroMecha][Generar] Sky material: {e}')
 
         # Animacion idle + auto-play
         _apply_idle_to_mecha()

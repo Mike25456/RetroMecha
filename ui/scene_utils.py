@@ -144,10 +144,15 @@ def clean_atmosphere():
 
 
 def clean_sky():
-    """Borra el cielo (polyPlane + 2 bend deformers) creado por RetroMecha."""
+    """Borra el cielo (polyPlane + 2 bend deformers) + sky_material asociado."""
     try:
         from utils.sky import remove_sky
         remove_sky()
+    except Exception:
+        pass
+    try:
+        from materials.sky_material import remove_sky_material
+        remove_sky_material()
     except Exception:
         pass
 
