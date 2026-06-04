@@ -17,14 +17,6 @@ from ui.constants import (
 )
 from ui.module_advanced import get_slider_specs
 
-# Paleta aiToon (no esta en ui.constants — uso local)
-_AITOON_PALETTE_LABELS = {
-    'Industrial': 'industrial',
-    'Oxidado':    'oxidado',
-    'Artico':     'artico',
-    'Carmesi':    'carmesi',
-}
-
 
 # ── safe control access (mode-agnostic) ──────────────────────
 
@@ -448,35 +440,25 @@ def random_all(*_):
     _safe_set_txt('seed_field', str(state._SEED[0]))
     on_generar()
 
-    # Apply random Lambert preset (Viewport 2.0) and sync UI
+    # Apply random color preset (aiStandardSurface) and sync UI
     from materials.presets import list_presets, apply_preset
     presets = list_presets()
     rand_preset = random.choice(presets) if presets else None
     if rand_preset:
         apply_preset(rand_preset)
-        lambert_menu = state.get('lambert_preset_menu')
-        if lambert_menu and mc.optionMenu(lambert_menu, exists=True):
-            mc.optionMenu(lambert_menu, e=True, value=rand_preset)
+        preset_menu = state.get('materials_preset_menu')
+        if preset_menu and mc.optionMenu(preset_menu, exists=True):
+            mc.optionMenu(preset_menu, e=True, value=rand_preset)
 
     mecha_grp = sc.find_mecha_group()
 
-    # Reasignar shaders Lambert al mecha
+    # Reasignar shaders aiStandardSurface al mecha
     if mecha_grp:
         try:
             from materials.materializer import materialize_mecha
             materialize_mecha(mecha_grp)
         except Exception as e:
-            print(f'[RetroMecha][Random] Lambert: {e}')
-
-    # Apply random aiToon palette via rendering panel menu (si Arnold cargado)
-    rand_palette_label = random.choice(list(_AITOON_PALETTE_LABELS.keys()))
-    if mecha_grp:
-        try:
-            from utils.material_assigner import assign_palette_to_group, clear_material_cache
-            clear_material_cache()
-            assign_palette_to_group(mecha_grp, _AITOON_PALETTE_LABELS[rand_palette_label])
-        except Exception as e:
-            print(f'[RetroMecha][Random] aiToon: {e}')
+            print(f'[RetroMecha][Random] Materials: {e}')
 
     # Idle animation + playback
     if mecha_grp:

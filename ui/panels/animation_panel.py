@@ -17,7 +17,6 @@ def build():
     mc.frameLayout(
         label='  >  ANIMACIONES',
         collapsable=True, collapse=True,
-        borderStyle='etchedIn',
         backgroundColor=[0.44, 0.18, 0.10],
         marginHeight=6, marginWidth=6,
     )

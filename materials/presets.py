@@ -3,7 +3,7 @@ try:
 except ImportError:
     mc = None
 
-from utils.maya_materials import ensure_material
+from utils.maya_materials import ensure_material, set_semantic_attr
 
 SHADER_NAMES = [
     "rm_white_armor_mat",
@@ -200,13 +200,7 @@ def apply_preset(name: str) -> bool:
         if not mc.objExists(shader):
             print(f"[RetroMecha][Material] Shader {shader} no existe")
             continue
-        for attr, value in attrs.items():
-            try:
-                if isinstance(value, tuple):
-                    mc.setAttr(f"{shader}.{attr}", *value, type="double3")
-                else:
-                    mc.setAttr(f"{shader}.{attr}", value)
-            except Exception as e:
-                print(f"[RetroMecha][Material] Error setAttr {shader}.{attr}: {e}")
+        for semantic, value in attrs.items():
+            set_semantic_attr(shader, semantic, value)
     print(f"[RetroMecha][Material] Preset '{name}' aplicado")
     return True
