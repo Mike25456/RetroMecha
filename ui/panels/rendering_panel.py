@@ -182,8 +182,6 @@ def build():
     mc.separator(h=6, style='none')
     mc.setParent('..')
 
-    _ensure_default_lighting()
-
 
 # ══════════════════════════════════════════════════════════════
 #  HELPERS
@@ -217,6 +215,10 @@ def _ensure_default_lighting():
 # ══════════════════════════════════════════════════════════════
 
 def _do_render(*_):
+    try:
+        mc.play(state=False)
+    except Exception:
+        pass
     try:
         from utils.render import render_now
         render_now()

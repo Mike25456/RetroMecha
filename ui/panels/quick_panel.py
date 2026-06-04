@@ -19,6 +19,8 @@ _PALETTES = {
     'Frio': ([0.30, 0.55, 0.75], 'Frio'),
     'Atardecer': ([0.65, 0.22, 0.35], 'Atardecer'),
     'Neon': ([0.85, 0.20, 0.85], 'Neon'),
+    'Magma': ([0.95, 0.30, 0.05], 'Magma'),
+    'Veneno': ([0.10, 0.90, 0.25], 'Veneno'),
 }
 
 _ACTIVE_SWATCH = [None]
@@ -53,27 +55,31 @@ def build():
     mc.separator(h=8, style='none')
 
     widgets.section_title('Estilo')
-    counts = len(_PALETTES)
-    row_kw = {'nc': counts, f'cw{counts}': [80] * counts,
-              f'columnAttach{counts}': ['both'] * counts,
-              f'columnOffset{counts}': [2] * counts}
-    mc.rowLayout(**row_kw)
     swatch_btns = {}
-    for name, (color, key) in _PALETTES.items():
-        btn = widgets.swatch_button(
-            color,
-            lambda *_, k=key, n=name: _select_swatch(n, k, swatch_btns),
-            size=30,
-        )
-        swatch_btns[name] = (btn, color)
-    mc.setParent('..')
+    items = list(_PALETTES.items())
 
-    row_kw2 = {'nc': counts, f'cw{counts}': [80] * counts,
-               f'columnAttach{counts}': ['both'] * counts}
-    mc.rowLayout(**row_kw2)
-    for name in _PALETTES:
-        mc.text(label=name, align='center', font='smallPlainLabelFont')
-    mc.setParent('..')
+    def _swatch_row(chunk):
+        n = len(chunk)
+        mc.rowLayout(nc=n, columnWidth=[(i + 1, 80) for i in range(n)],
+                     columnAttach=[(i + 1, 'both', 2) for i in range(n)])
+        for name, (color, key) in chunk:
+            btn = widgets.swatch_button(
+                color,
+                lambda *_, k=key, n=name: _select_swatch(n, k, swatch_btns),
+                size=30,
+            )
+            swatch_btns[name] = (btn, color)
+        mc.setParent('..')
+
+        mc.rowLayout(nc=n, columnWidth=[(i + 1, 80) for i in range(n)],
+                     columnAttach=[(i + 1, 'both', 2) for i in range(n)])
+        for name, _ in chunk:
+            mc.text(label=name, align='center', font='smallPlainLabelFont')
+        mc.setParent('..')
+
+    for i in range(0, len(items), 4):
+        _swatch_row(items[i:i + 4])
+
     mc.separator(h=8, style='none')
 
     mc.text(label='Movimiento', align='left', font='smallPlainLabelFont')
@@ -94,7 +100,7 @@ def build():
 
     widgets.section_title('Renderizar')
     widgets.big_button(
-        'Render 1920x1080',
+        'Ensamblar Render',
         widgets.ACCENT_ACTION,
         lambda *_: _quick_render(),
         height=42,
@@ -121,6 +127,10 @@ def _random_terrain_and_build(*_):
 
 
 def _quick_render(*_):
+    try:
+        mc.play(state=False)
+    except Exception:
+        pass
     from ui.panels.material_panel import current_palette_label
     palette = current_palette_label()
     try:

@@ -300,15 +300,21 @@ def on_delimitar(*_):
             print('[RetroMecha] No hay escena nueva por delimitar')
             return
         from utils.hard_surface import apply_support_edges
-        from utils.maya_scene import force_preview_one
+        from utils.maya_scene import force_preview_three
         total = 0
         for root in roots:
             total += apply_support_edges(
                 root, offset=0.018, fraction=0.045,
                 segments=2, max_faces=500,
             )
-            force_preview_one(root)
+            force_preview_three(root)
             mark_delimited(root)
         mc.select(roots)
+        try:
+            panel = mc.getPanel(withFocus=True)
+            if panel and mc.getPanel(typeOf=panel) == 'modelPanel':
+                mc.modelEditor(panel, e=True, displayAppearance='smoothShaded')
+        except Exception:
+            pass
         print(f'[RetroMecha] Delimitacion aplicada: {total} pieza(s)')
     return scene_update(_work)

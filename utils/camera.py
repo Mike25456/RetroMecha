@@ -41,7 +41,7 @@ CENTER_OF_INTEREST        = 5.0
 
 # Posicion y rotacion fijas (del Channel Box del usuario)
 CAM_TRANSLATE = (0.0, 0.62, 20.715)
-CAM_ROTATE    = (6.6, 3.6, 0.0)
+CAM_ROTATE    = (6.6, 0.0, 0.0)
 
 # Lift vertical aplicado al mecha (replica el ajuste manual en Maya)
 MECHA_LIFT_Y = 6.0
@@ -103,6 +103,8 @@ def create_default_camera(*, look_through=True, frame_mecha=False):
 
     if frame_mecha:
         _frame_on_mecha(xform, shape)
+    else:
+        _set_focus_distance(shape)
 
     # Forzar X = 0 siempre (incluso si frame_mecha lo desplazo)
     try:
@@ -250,6 +252,33 @@ def _apply_camera_shape_settings(xform: str, shape: str):
             mc.setAttr(f'{shape}.{attr}', value)
         except Exception as e:
             print(f'[RetroMecha][Camera] Attr {attr}: {e}')
+
+
+def _set_focus_distance(shape: str):
+    import math
+    try:
+        tx = mc.getAttr(f'{CAMERA_XFORM}.translateX')
+        ty = mc.getAttr(f'{CAMERA_XFORM}.translateY')
+        tz = mc.getAttr(f'{CAMERA_XFORM}.translateZ')
+    except Exception:
+        tx, ty, tz = CAM_TRANSLATE
+    try:
+        from ui.scene_utils import find_mecha_group
+        mecha = find_mecha_group()
+        if mecha and mc.objExists(mecha):
+            bb = mc.exactWorldBoundingBox(mecha)
+            cx = (bb[0] + bb[3]) * 0.5
+            cy = (bb[1] + bb[4]) * 0.5
+            cz = (bb[2] + bb[5]) * 0.5
+        else:
+            cx, cy, cz = 0.0, MECHA_LIFT_Y, 0.0
+    except Exception:
+        cx, cy, cz = 0.0, MECHA_LIFT_Y, 0.0
+    dist = math.sqrt((tx - cx) ** 2 + (ty - cy) ** 2 + (tz - cz) ** 2)
+    try:
+        mc.setAttr(f'{shape}.focusDistance', dist)
+    except Exception:
+        pass
 
 
 def _frame_on_mecha(xform: str, shape: str):

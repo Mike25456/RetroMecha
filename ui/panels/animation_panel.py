@@ -101,6 +101,10 @@ def apply_animation_quick(name):
         return
     anim = anim_cls(mecha_root)
     anim.apply()
+    try:
+        mc.play(forward=True)
+    except Exception:
+        pass
 
 
 def remove_animation_quick():
