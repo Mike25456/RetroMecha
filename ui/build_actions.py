@@ -317,6 +317,13 @@ def on_generar(*_):
         except Exception as e:
             print(f'[RetroMecha][Generar] Camara: {e}')
 
+        # Cielo (polyPlane + 2 bend deformers)
+        try:
+            from utils.sky import create_sky
+            create_sky()
+        except Exception as e:
+            print(f'[RetroMecha][Generar] Cielo: {e}')
+
         # Animacion idle + auto-play
         _apply_idle_to_mecha()
         mc.select(scene_grp)

@@ -122,6 +122,20 @@ def build():
               annotation='Elimina luces, sky dome y atmosfera creados por RetroMecha')
     mc.setParent('..')
 
+    # Cielo (polyPlane + 2 bends)
+    mc.rowLayout(nc=2, cw2=[160, 160],
+                 columnAttach2=['both', 'both'],
+                 columnOffset2=[0, 4])
+    mc.button(label='Crear / Recrear cielo', h=26,
+              backgroundColor=[0.20, 0.36, 0.50],
+              command=lambda *_: _apply_sky(),
+              annotation='Crea sky (polyPlane 24x24 + bend1 envelope 2 + bend2)')
+    mc.button(label='Eliminar cielo', h=26,
+              backgroundColor=[0.46, 0.16, 0.12],
+              command=lambda *_: _remove_sky_cb(),
+              annotation='Elimina el sky y sus deformadores creados por RetroMecha')
+    mc.setParent('..')
+
     # ── CAMARA ─────────────────────────────────────────────────
     mc.separator(h=8, style='none')
     mc.text(
@@ -334,3 +348,24 @@ def _lift_mecha_default(*_):
             print('[RetroMecha][Render] No hay mecha en escena para desplazar')
     except Exception as e:
         print(f'[RetroMecha][Render] Lift: {e}')
+
+
+# ══════════════════════════════════════════════════════════════
+#  CALLBACKS - Cielo
+# ══════════════════════════════════════════════════════════════
+
+def _apply_sky(*_):
+    try:
+        from utils.sky import create_sky
+        create_sky()
+    except Exception as e:
+        print(f'[RetroMecha][Render] Cielo: {e}')
+
+
+def _remove_sky_cb(*_):
+    try:
+        from utils.sky import remove_sky
+        remove_sky()
+        print('[RetroMecha][Render] Cielo eliminado')
+    except Exception as e:
+        print(f'[RetroMecha][Render] Cielo: {e}')

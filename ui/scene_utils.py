@@ -143,6 +143,15 @@ def clean_atmosphere():
         pass
 
 
+def clean_sky():
+    """Borra el cielo (polyPlane + 2 bend deformers) creado por RetroMecha."""
+    try:
+        from utils.sky import remove_sky
+        remove_sky()
+    except Exception:
+        pass
+
+
 def clean_lighting():
     """Borra luces direccionales con tag rmLight y aiSkyDomeLight de RetroMecha."""
     for shape in (mc.ls(type='directionalLight') or []):
@@ -188,6 +197,7 @@ def clean_scene():
 
     clean_lighting()
     clean_atmosphere()
+    clean_sky()
     clean_camera()
 
 
