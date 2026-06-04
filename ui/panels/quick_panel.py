@@ -28,7 +28,7 @@ def build():
 
     mc.rowLayout(nc=2, cw2=[165, 165],
                  columnAttach2=['both', 'both'])
-    widgets.secondary_button('Aleatorio', [0.35, 0.20, 0.40], random_all, height=32)
+    widgets.secondary_button('Aleatorio', widgets.ACCENT_ACTION, random_all, height=32)
     widgets.secondary_button('Reset', widgets.ACCENT_DANGER, on_reset, height=32)
     mc.setParent('..')
     mc.separator(h=8, style='none')

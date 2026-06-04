@@ -16,9 +16,9 @@ from ui.panels import terrain_panel, material_panel
 from ui.panels.mecha_panel_v2 import build_with_tabs
 
 _TABS = [
-    ('mecha', 'MECHA', [0.18, 0.42, 0.28]),
-    ('terrain', 'TERRENO', [0.16, 0.32, 0.55]),
-    ('materials', 'MAT', [0.55, 0.35, 0.12]),
+    ('mecha', 'MECHA', widgets.ACCENT_ACTION),
+    ('terrain', 'TERRENO', widgets.ACCENT_ACTION),
+    ('materials', 'MAT', widgets.ACCENT_ACTION),
 ]
 
 _current_tab = ['mecha']
@@ -33,7 +33,7 @@ def build():
 
     mc.rowLayout(nc=2, cw2=[165, 165],
                  columnAttach2=['both', 'both'])
-    widgets.secondary_button('Random Todo', [0.30, 0.15, 0.35], random_all, height=30)
+    widgets.secondary_button('Random Todo', widgets.ACCENT_ACTION, random_all, height=30)
     widgets.secondary_button('Reset', widgets.ACCENT_DANGER, on_reset, height=30)
     mc.setParent('..')
     mc.separator(h=6, style='none')
@@ -126,7 +126,7 @@ def _render_tab(tab_id):
 
 
 def _render_mecha():
-    widgets.secondary_button('Random Mecha', [0.20, 0.40, 0.28], random_mecha, height=30)
+    widgets.secondary_button('Random Mecha', widgets.ACCENT_ACTION, random_mecha, height=30)
     mc.separator(h=6, style='none')
 
     build_with_tabs(
@@ -137,6 +137,6 @@ def _render_mecha():
 
 
 def _render_terrain():
-    widgets.secondary_button('Random Terreno', [0.18, 0.32, 0.52], random_terrain, height=30)
+    widgets.secondary_button('Random Terreno', widgets.ACCENT_ACTION, random_terrain, height=30)
     mc.separator(h=6, style='none')
     terrain_panel.build(wrapped=False)

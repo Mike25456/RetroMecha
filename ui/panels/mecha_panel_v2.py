@@ -17,7 +17,6 @@ from ui.build_actions import rebuild_mecha, _toggle_symmetry_ui, _safe_ctrl_exis
 
 _current_sub = ['general']
 
-
 def _label_for(mapping, value, default=None):
     for label, mapped in mapping.items():
         if mapped == value:
@@ -77,7 +76,7 @@ def _render_general():
     labels = _load_preset_labels()
     mc.rowLayout(nc=2, cw2=[100, 220])
     mc.text(label='Preset', align='right', font='smallPlainLabelFont')
-    menu = mc.optionMenu()
+    menu = mc.optionMenu(backgroundColor=widgets.BG_HOVER)
     mc.menuItem(label='Custom')
     for label in labels:
         mc.menuItem(label=label)
@@ -127,7 +126,8 @@ def _render_module(module):
     if labels:
         mc.rowLayout(nc=2, cw2=[100, 220])
         mc.text(label='Estilo', align='right', font='smallPlainLabelFont')
-        menu = mc.optionMenu(changeCommand=_on_mecha_cc)
+        menu = mc.optionMenu(changeCommand=_on_mecha_cc,
+                             backgroundColor=widgets.BG_HOVER)
         for label in labels:
             mc.menuItem(label=label)
         current = _label_for(labels, params.get(f'{module}_style'))
@@ -154,7 +154,8 @@ def _render_module(module):
         row = mc.rowLayout(nc=2, cw2=[100, 220], visible=False)
         state.reg(f'{module}_right_row', row)
         mc.text(label=f'{module.capitalize()} der.', align='right', font='smallPlainLabelFont')
-        menu = mc.optionMenu(changeCommand=_on_mecha_cc)
+        menu = mc.optionMenu(changeCommand=_on_mecha_cc,
+                             backgroundColor=widgets.BG_HOVER)
         src_labels = ARM_STYLE_LABELS if module == 'arm' else WING_STYLE_LABELS
         for label in src_labels:
             mc.menuItem(label=label)

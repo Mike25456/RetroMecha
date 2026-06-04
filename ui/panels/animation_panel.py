@@ -6,6 +6,7 @@ try:
 except ImportError:
     MAYA_AVAILABLE = False
 
+import ui.theme as T
 from ui import scene_utils as sc, state
 from animations.registry import list_animations, get_animation
 
@@ -19,7 +20,7 @@ def build(wrapped=True):
             label='  >  ANIMACIONES',
             collapsable=True, collapse=True,
             borderStyle='etchedIn',
-            backgroundColor=[0.44, 0.18, 0.10],
+            backgroundColor=T.PANEL,
             marginHeight=6, marginWidth=6,
         )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
@@ -44,11 +45,11 @@ def build(wrapped=True):
                      columnAttach2=['both', 'both'],
                      columnOffset2=[3, 3])
         mc.button(label='Aplicar', h=28,
-                  backgroundColor=[0.62, 0.30, 0.14],
+                  backgroundColor=T.CYAN,
                   command=_apply_animation,
                   annotation='Aplica la animación seleccionada al mecha')
         mc.button(label='Remover', h=28,
-                  backgroundColor=[0.42, 0.14, 0.10],
+                  backgroundColor=T.SLATE,
                   command=_remove_animation,
                   annotation='Elimina la animación actual del mecha')
         mc.setParent('..')

@@ -6,6 +6,7 @@ try:
 except ImportError:
     MAYA_AVAILABLE = False
 
+import ui.theme as T
 from ui import state
 from ui.widgets import fsl, isl
 from ui.build_actions import rebuild_terrain_only
@@ -17,7 +18,7 @@ def build(wrapped=True):
             label='  >  TERRENO',
             collapsable=True, collapse=True,
             borderStyle='etchedIn',
-            backgroundColor=[0.12, 0.22, 0.48],
+            backgroundColor=T.PANEL,
             marginHeight=6, marginWidth=6,
         )
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
@@ -27,7 +28,8 @@ def build(wrapped=True):
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.text(label='Preset escena', align='right', font='smallPlainLabelFont')
-    menu = mc.optionMenu(changeCommand=lambda *_: rebuild_terrain_only())
+    menu = mc.optionMenu(changeCommand=lambda *_: rebuild_terrain_only(),
+                         backgroundColor=T.LINE)
     for label in ('Avanzada', 'Hangar', 'Campo de batalla', 'Centinela'):
         mc.menuItem(label=label)
     mc.setParent('..')

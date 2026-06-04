@@ -15,6 +15,7 @@ except ImportError:
 from ui import state
 from ui.build_actions import _safe_ctrl_exists
 from ui.widgets import fsl
+import ui.theme as T
 
 # Materiales que el usuario puede asignar al mecha desde rendering
 _MATERIAL_MODES = {
@@ -53,7 +54,7 @@ def build():
     mc.text(
         label='  MATERIALES',
         align='left', font='boldLabelFont', h=22,
-        backgroundColor=[0.22, 0.18, 0.10],
+        backgroundColor=T.PANEL,
     )
     mc.separator(h=4, style='none')
 
@@ -64,6 +65,7 @@ def build():
     mc.text(label='Tipo', align='right', font='smallPlainLabelFont')
     mode_menu = mc.optionMenu(
         changeCommand=_on_mode_changed,
+        backgroundColor=T.LINE,
         annotation='Lambert: Viewport 2.0 — Arnold: aiToon con silhouette')
     for lbl in _MATERIAL_MODES:
         mc.menuItem(label=lbl)
@@ -82,6 +84,7 @@ def build():
                  columnOffset2=[0, 4])
     mc.text(label='Paleta', align='right', font='smallPlainLabelFont')
     palette_menu = mc.optionMenu(
+        backgroundColor=T.LINE,
         annotation='Paleta de colores a aplicar')
     for lbl in _LAMBERT_PRESET_LABELS:
         mc.menuItem(label=lbl)
@@ -90,7 +93,7 @@ def build():
 
     mc.button(
         label='Aplicar materiales al mecha', h=28,
-        backgroundColor=[0.58, 0.38, 0.12],
+        backgroundColor=T.CYAN,
         command=lambda *_: _apply_materials(),
         annotation='Aplica los materiales del modo seleccionado al mecha en escena',
     )
@@ -100,7 +103,7 @@ def build():
     mc.text(
         label='  ILUMINACION',
         align='left', font='boldLabelFont', h=22,
-        backgroundColor=[0.18, 0.18, 0.28],
+        backgroundColor=T.PANEL,
     )
     mc.separator(h=4, style='none')
 
@@ -111,6 +114,7 @@ def build():
     mc.text(label='Preset', align='right', font='smallPlainLabelFont')
     light_preset_menu = mc.optionMenu(
         changeCommand=_on_lighting_preset_changed,
+        backgroundColor=T.LINE,
         annotation='Preset de iluminación: 3 luces direccionales + skydome')
     for lbl in _LIGHTING_PRESET_LABELS:
         mc.menuItem(label=lbl)
@@ -139,11 +143,11 @@ def build():
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.button(label='Crear / Recrear luces', h=26,
-              backgroundColor=[0.60, 0.40, 0.14],
+              backgroundColor=T.CYAN,
               command=lambda *_: _apply_lighting_preset(),
               annotation='Crea luces direccionales + aiSkyDomeLight')
     mc.button(label='Eliminar luces', h=26,
-              backgroundColor=[0.46, 0.16, 0.12],
+              backgroundColor=T.SLATE,
               command=lambda *_: _remove_lighting(),
               annotation='Elimina luces y sky dome creados por RetroMecha')
     mc.setParent('..')
@@ -153,7 +157,7 @@ def build():
     mc.text(
         label='  CAMARA',
         align='left', font='boldLabelFont', h=22,
-        backgroundColor=[0.12, 0.24, 0.20],
+        backgroundColor=T.PANEL,
     )
     mc.separator(h=4, style='none')
 
@@ -166,12 +170,12 @@ def build():
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.button(label='Crear / Recrear camara', h=26,
-              backgroundColor=[0.18, 0.46, 0.36],
+              backgroundColor=T.CYAN,
               command=lambda *_: _apply_default_camera(),
               annotation='Crea rm_camera_compo con la config del setup MEL '
                          'y la apunta al mecha actual')
     mc.button(label='Eliminar camara', h=26,
-              backgroundColor=[0.46, 0.16, 0.12],
+              backgroundColor=T.SLATE,
               command=lambda *_: _remove_default_camera(),
               annotation='Elimina rm_camera_compo de la escena')
     mc.setParent('..')
@@ -180,11 +184,11 @@ def build():
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.button(label='Look through', h=26,
-              backgroundColor=[0.20, 0.34, 0.44],
+              backgroundColor=T.CYAN,
               command=lambda *_: _look_through_camera(),
               annotation='Mira a traves de rm_camera_compo en el panel activo')
     mc.button(label='Lift mecha +6', h=26,
-              backgroundColor=[0.38, 0.30, 0.46],
+              backgroundColor=T.CYAN,
               command=lambda *_: _lift_mecha_default(),
               annotation='Desplaza el grupo del mecha +6 en Y '
                          '(replica el ajuste manual del setup compo)')

@@ -14,6 +14,7 @@ except ImportError:
 
 from ui import state
 from ui.widgets import fsl
+import ui.theme as T
 
 from materials.presets import SHADER_NAMES, list_presets, apply_preset
 from utils.maya_materials import ensure_material
@@ -50,7 +51,7 @@ def build(wrapped=True):
             label='  >  MATERIALES',
             collapsable=True, collapse=True,
             borderStyle='etchedIn',
-            backgroundColor=[0.40, 0.24, 0.06],
+            backgroundColor=T.PANEL,
             marginHeight=8, marginWidth=6,
         )
     mc.columnLayout(adjustableColumn=True, rowSpacing=4)
@@ -68,7 +69,8 @@ def build(wrapped=True):
                      columnOffset2=[0, 4])
         mc.text(label='Paleta Lambert', align='right', font='smallPlainLabelFont',
                 annotation='Aplica una paleta Lambert predefinida')
-        mc.optionMenu(changeCommand=lambda label: _apply_material_preset(label, _preset_labels))
+        mc.optionMenu(changeCommand=lambda label: _apply_material_preset(label, _preset_labels),
+                      backgroundColor=T.LINE)
         for p in presets_list:
             mc.menuItem(label=p)
         mc.setParent('..')
@@ -76,16 +78,7 @@ def build(wrapped=True):
         mc.text(label='(sin presets Lambert)', align='left', font='smallPlainLabelFont')
 
     mc.separator(h=4)
-    mc.rowLayout(nc=2, cw2=[128, 140],
-                 columnAttach2=['both', 'both'],
-                 columnOffset2=[0, 4])
-    mc.text(label='Shader', align='right', font='smallPlainLabelFont',
-            annotation='Selecciona un material para editar sus propiedades')
-    mc.optionMenu(changeCommand=_on_shader_sel,
-                  annotation='Cada shader se aplica a multiples piezas del mecha')
-    for label in _SHADER_LABELS:
-        mc.menuItem(label=label)
-    mc.setParent('..')
+    _build_shader_tabs()
 
     state.reg('color_sl', mc.colorSliderGrp(
         label='Color', rgb=(0.86, 0.84, 0.78),
@@ -110,13 +103,14 @@ def build(wrapped=True):
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     aitoon_menu = mc.optionMenu(
+        backgroundColor=T.LINE,
         annotation='Selecciona una paleta aiToon con ramps y silhouette')
     mc.menuItem(label='(ninguna)')
     for lbl in _PALETTE_LABELS:
         mc.menuItem(label=lbl)
     state.reg('aitoon_menu', aitoon_menu)
     mc.button(label='Aplicar aiToon', h=24,
-              backgroundColor=[0.58, 0.38, 0.12],
+              backgroundColor=T.CYAN,
               command=lambda *_: _apply_aitoon_palette(),
               annotation='Aplica la paleta aiToon al mecha en escena')
     mc.setParent('..')
@@ -125,6 +119,7 @@ def build(wrapped=True):
     mc.text(label='Iluminacion procedural', align='left',
             font='smallPlainLabelFont')
     lighting_menu = mc.optionMenu(width=308,
+                                   backgroundColor=T.LINE,
                                    annotation='Preset de iluminacion (incluye aiSkyDomeLight)')
     for lbl in _LIGHTING_LABELS:
         mc.menuItem(label=lbl)
@@ -134,11 +129,11 @@ def build(wrapped=True):
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.button(label='Crear iluminacion', h=24,
-              backgroundColor=[0.60, 0.40, 0.14],
+              backgroundColor=T.CYAN,
               command=lambda *_: _apply_lighting(),
               annotation='Crea luces direccionales + aiSkyDomeLight si hay Arnold')
     mc.button(label='Eliminar luces', h=24,
-              backgroundColor=[0.46, 0.16, 0.12],
+              backgroundColor=T.SLATE,
               command=lambda *_: _remove_lighting(),
               annotation='Elimina luces y sky dome creados por RetroMecha')
     mc.setParent('..')
@@ -217,6 +212,39 @@ def _on_shader_sel(label):
     if sh:
         _current_shader[0] = sh
         _update_shader_sliders()
+
+
+def _build_shader_tabs():
+    labels = list(_SHADER_LABELS.keys())
+
+    def _select(idx):
+        label = labels[idx]
+        sh = _SHADER_LABELS.get(label)
+        if sh:
+            _current_shader[0] = sh
+            _update_shader_sliders()
+        for j, lbl in enumerate(labels):
+            btn = state.get(f'shader_tab_{lbl}')
+            if btn:
+                try:
+                    mc.button(btn, e=True, backgroundColor=T.CYAN if j == idx else T.PANEL)
+                except Exception:
+                    pass
+
+    for row_ofs in (0, 3):
+        row_labels = labels[row_ofs:row_ofs + 3]
+        n = len(row_labels)
+        mc.rowLayout(nc=n,
+            columnWidth=[(i + 1, 110) for i in range(n)],
+            columnAttach=[(i + 1, 'both', 2) for i in range(n)])
+        for i, label in enumerate(row_labels):
+            idx = row_ofs + i
+            is_active = (label == 'Armadura')
+            btn = mc.button(label=label, height=24,
+                            backgroundColor=T.CYAN if is_active else T.PANEL,
+                            command=lambda *_, idx=idx: _select(idx))
+            state.reg(f'shader_tab_{label}', btn)
+        mc.setParent('..')
 
 
 def _apply_material_preset(label, preset_labels):
