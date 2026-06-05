@@ -134,9 +134,9 @@ def _render_mecha():
     mc.separator(h=6, style='none')
 
     build_with_tabs(
-        ['general', 'head', 'arm', 'torso', 'wing', 'nucleus'],
-        ['General', 'Cabeza', 'Brazos', 'Torso', 'Alas', 'Núcleo'],
-        [[0.18, 0.18, 0.20]] * 6,
+        ['head', 'arm', 'torso', 'wing', 'nucleus'],
+        ['Cabeza', 'Brazos', 'Torso', 'Alas', 'Núcleo'],
+        [[0.18, 0.18, 0.20]] * 5,
     )
 
 

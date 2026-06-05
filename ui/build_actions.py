@@ -186,11 +186,11 @@ def _collect_mecha():
 
     params.update({
         'height_scale': _safe_val('height_sl', params.get('height_scale', 1.0)),
-        'symmetry': _safe_cb('sym_cb', params.get('symmetry', True)),
+        'symmetry': params.get('symmetry', True),
         'use_head': True,
-        'use_arms': _safe_cb('arms_cb', params.get('use_arms', True)),
-        'use_wings': _safe_cb('wings_cb', params.get('use_wings', True)),
-        'use_energy_fields': _safe_cb('energy_cb', params.get('use_energy_fields', True)),
+        'use_arms': params.get('use_arms', True),
+        'use_wings': params.get('use_wings', True),
+        'use_energy_fields': params.get('use_energy_fields', True),
         'head_style': params.get('head_style', 'helmet'),
         'arm_style': params.get('arm_style', 'standard'),
         'arm_style_right': params.get('arm_style_right'),
@@ -483,10 +483,6 @@ def _set_random_mecha_controls():
 
     _safe_set_opt('mecha_preset_menu', 'Custom')
     _safe_set_val('height_sl', quick_values['height_scale'])
-    _safe_set_cb('sym_cb', quick_values['symmetry'])
-    _safe_set_cb('arms_cb', quick_values['use_arms'])
-    _safe_set_cb('wings_cb', quick_values['use_wings'])
-    _safe_set_cb('energy_cb', quick_values['use_energy_fields'])
     state._MECHA_PARAMS['head_style'] = quick_values['head_style']
     state._MECHA_PARAMS['arm_style'] = quick_values['arm_style']
     state._MECHA_PARAMS['arm_style_right'] = quick_values['arm_style_right']
@@ -642,10 +638,6 @@ def apply_mecha_preset(key):
             if not k.startswith('_')
         })
         _safe_set_val('height_sl', preset.get('height_scale', 1.0))
-        _safe_set_cb('sym_cb', preset.get('symmetry', True))
-        _safe_set_cb('arms_cb', preset.get('use_arms', True))
-        _safe_set_cb('wings_cb', preset.get('use_wings', True))
-        _safe_set_cb('energy_cb', preset.get('use_energy_fields', True))
         state._MECHA_PARAMS['head_style'] = preset.get('head_style', 'helmet')
         state._MECHA_PARAMS['arm_style'] = preset.get('arm_style', 'standard')
         arm_right = preset.get('arm_style_right')
@@ -672,13 +664,7 @@ def apply_mecha_preset(key):
 def _toggle_symmetry_ui(*_):
     if state._UI_BUILDING[0]:
         return
-    ctrl = state.get('sym_cb')
-    if not _safe_ctrl_exists(ctrl):
-        return
-    try:
-        on = mc.checkBox(ctrl, q=True, value=True)
-    except Exception:
-        return
+    on = state._MECHA_PARAMS.get('symmetry', True)
     for row_name in ('arm_right_row', 'wing_right_row'):
         row = state.get(row_name)
         if _safe_ctrl_exists(row):

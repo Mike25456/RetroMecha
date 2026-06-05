@@ -15,17 +15,54 @@ from ui.widgets import fsl
 from ui.module_advanced import get_slider_specs
 from ui.build_actions import rebuild_mecha, _toggle_symmetry_ui, _safe_ctrl_exists
 
-_current_sub = ['general']
+_current_sub = ['head']
 
 
 def build_with_tabs(tab_ids, labels, colors):
-    _current_sub[0] = 'general'
-    widgets.tab_bar(tab_ids, labels, colors, _switch_sub, width=320, height=28)
+    _current_sub[0] = tab_ids[0] if tab_ids else 'head'
 
+    # Preset dropdown
+    params = state._MECHA_PARAMS
+    mc.rowLayout(nc=2, cw2=[80, 240])
+    mc.text(label='Preset', align='right', font='smallPlainLabelFont')
+    menu = mc.optionMenu(backgroundColor=widgets.BG_HOVER)
+    mc.menuItem(label='Custom')
+    for label in _load_preset_labels():
+        mc.menuItem(label=label)
+    mc.optionMenu(
+        menu, e=True,
+        changeCommand=lambda val: __import__(
+            'ui.build_actions', fromlist=['apply_mecha_preset']
+        ).apply_mecha_preset(_load_preset_labels().get(val, val))
+    )
+    mc.setParent('..')
+    state.reg('mecha_preset_menu', menu)
     mc.separator(h=4, style='none')
+
+    # Module sub-tabs
+    widgets.tab_bar(tab_ids, labels, colors, _switch_sub, width=320, height=28)
+    mc.separator(h=4, style='none')
+
+    # Dynamic content for the selected sub-tab
     content = mc.columnLayout(adjustableColumn=True, rowSpacing=2)
     state.reg('mecha_sub_content', content)
-    _render_general()
+    _render_module(_current_sub[0])
+    mc.setParent('..')
+
+    # Always-visible controls below sub-tabs
+    mc.separator(h=4, style='none')
+    state.reg('height_sl', fsl(
+        'Altura', 0.5, 2.0, params.get('height_scale', 1.0),
+        step=0.05, on_cc=_on_mecha_cc, annotation='Escala vertical',
+    ))
+    mc.rowLayout(nc=3, cw3=[100, 80, 80])
+    mc.text(label='Anillos de energía', align='right', font='smallPlainLabelFont')
+    col_e = mc.radioCollection()
+    en_on = mc.radioButton(label='Activados', on_cc=lambda *_: (
+        state._MECHA_PARAMS.__setitem__('use_energy_fields', True), _on_mecha_cc()))
+    en_off = mc.radioButton(label='Desactivados', on_cc=lambda *_: (
+        state._MECHA_PARAMS.__setitem__('use_energy_fields', False), _on_mecha_cc()))
+    mc.radioCollection(col_e, e=True, select=en_on if params.get('use_energy_fields', True) else en_off)
     mc.setParent('..')
 
 
@@ -46,10 +83,7 @@ def _switch_sub(tab_id):
 
     _clear_content(content)
     mc.setParent(content)
-    if tab_id == 'general':
-        _render_general()
-    else:
-        _render_module(tab_id)
+    _render_module(tab_id)
     mc.setParent('..')
 
 
@@ -63,58 +97,91 @@ def _load_preset_labels():
     return {preset.get('_name', key): key for key, preset in data.items()}
 
 
-def _render_general():
-    params = state._MECHA_PARAMS
-    mc.columnLayout(adjustableColumn=True, rowSpacing=3)
+def _sync_right_styles_on_symmetry_toggle():
+    """Al apagar simetría, copia el estilo izquierdo al derecho si está vacío."""
+    if state._MECHA_PARAMS.get('symmetry', True):
+        return
+    module = _current_sub[0]
+    if module not in ('arm', 'wing'):
+        return
+    right_key = f'{module}_style_right'
+    if not state._MECHA_PARAMS.get(right_key):
+        left = state._MECHA_PARAMS.get(f'{module}_style')
+        if left:
+            state._MECHA_PARAMS[right_key] = left
+    _update_style_colors(module)
 
-    labels = _load_preset_labels()
-    mc.rowLayout(nc=2, cw2=[100, 220])
-    mc.text(label='Preset', align='right', font='smallPlainLabelFont')
-    menu = mc.optionMenu(backgroundColor=widgets.BG_HOVER)
-    mc.menuItem(label='Custom')
-    for label in labels:
-        mc.menuItem(label=label)
-    mc.optionMenu(
-        menu, e=True,
-        changeCommand=lambda val: __import__(
-            'ui.build_actions', fromlist=['apply_mecha_preset']
-        ).apply_mecha_preset(labels.get(val, val))
-    )
-    mc.setParent('..')
-    state.reg('mecha_preset_menu', menu)
 
-    state.reg('height_sl', fsl(
-        'Altura', 0.5, 2.0, params.get('height_scale', 1.0),
-        step=0.05, on_cc=_on_mecha_cc, annotation='Escala vertical',
-    ))
-
-    mc.separator(h=4)
-    state.reg('sym_cb', mc.checkBox(
-        label='Simetría',
-        value=params.get('symmetry', True),
-        changeCommand=lambda *_: (_toggle_symmetry_ui(), _on_mecha_cc()),
-    ))
-    state.reg('arms_cb', mc.checkBox(
-        label='Brazos',
-        value=params.get('use_arms', True),
-        changeCommand=_on_mecha_cc,
-    ))
-    state.reg('wings_cb', mc.checkBox(
-        label='Alas',
-        value=params.get('use_wings', True),
-        changeCommand=_on_mecha_cc,
-    ))
-    state.reg('energy_cb', mc.checkBox(
-        label='Anillos de energía',
-        value=params.get('use_energy_fields', True),
-        changeCommand=_on_mecha_cc,
-    ))
-    mc.setParent('..')
+def _toggle_module_disabled(module):
+    """Desactiva/activa todos los controles del módulo según su estado."""
+    wrapper = state.get(f'{module}_content')
+    if not wrapper:
+        return
+    try:
+        key = 'use_arms' if module == 'arm' else 'use_wings'
+        enabled = state._MECHA_PARAMS.get(key, True)
+        if mc.control(wrapper, exists=True):
+            mc.columnLayout(wrapper, e=True, enable=enabled)
+    except Exception:
+        pass
 
 
 def _render_module(module):
     params = state._MECHA_PARAMS
     mc.columnLayout(adjustableColumn=True, rowSpacing=3)
+
+    if module == 'arm':
+        mc.rowLayout(nc=3, cw3=[60, 90, 90])
+        mc.text(label='Brazos', align='right', font='smallPlainLabelFont')
+        col_a = mc.radioCollection()
+        a_on = mc.radioButton(label='Activados', on_cc=lambda *_: (
+            state._MECHA_PARAMS.__setitem__('use_arms', True), _toggle_module_disabled('arm'), _on_mecha_cc()))
+        a_off = mc.radioButton(label='Desactivados', on_cc=lambda *_: (
+            state._MECHA_PARAMS.__setitem__('use_arms', False), _toggle_module_disabled('arm'), _on_mecha_cc()))
+        mc.radioCollection(col_a, e=True, select=a_on if params.get('use_arms', True) else a_off)
+        mc.setParent('..')
+
+        mc.rowLayout(nc=3, cw3=[60, 90, 90])
+        mc.text(label='Simetría', align='right', font='smallPlainLabelFont')
+        col_s = mc.radioCollection()
+        s_on = mc.radioButton(label='Activada', on_cc=lambda *_: (
+            state._MECHA_PARAMS.__setitem__('symmetry', True), _toggle_symmetry_ui(),
+            _sync_right_styles_on_symmetry_toggle(), _on_mecha_cc()))
+        s_off = mc.radioButton(label='Desactivada', on_cc=lambda *_: (
+            state._MECHA_PARAMS.__setitem__('symmetry', False), _toggle_symmetry_ui(),
+            _sync_right_styles_on_symmetry_toggle(), _on_mecha_cc()))
+        mc.radioCollection(col_s, e=True, select=s_on if params.get('symmetry', True) else s_off)
+        mc.setParent('..')
+        mc.separator(h=4, style='none')
+    elif module == 'wing':
+        mc.rowLayout(nc=3, cw3=[60, 90, 90])
+        mc.text(label='Alas', align='right', font='smallPlainLabelFont')
+        col_w = mc.radioCollection()
+        w_on = mc.radioButton(label='Activadas', on_cc=lambda *_: (
+            state._MECHA_PARAMS.__setitem__('use_wings', True), _toggle_module_disabled('wing'), _on_mecha_cc()))
+        w_off = mc.radioButton(label='Desactivadas', on_cc=lambda *_: (
+            state._MECHA_PARAMS.__setitem__('use_wings', False), _toggle_module_disabled('wing'), _on_mecha_cc()))
+        mc.radioCollection(col_w, e=True, select=w_on if params.get('use_wings', True) else w_off)
+        mc.setParent('..')
+
+        mc.rowLayout(nc=3, cw3=[60, 90, 90])
+        mc.text(label='Simetría', align='right', font='smallPlainLabelFont')
+        col_s2 = mc.radioCollection()
+        s2_on = mc.radioButton(label='Activada', on_cc=lambda *_: (
+            state._MECHA_PARAMS.__setitem__('symmetry', True), _toggle_symmetry_ui(),
+            _sync_right_styles_on_symmetry_toggle(), _on_mecha_cc()))
+        s2_off = mc.radioButton(label='Desactivada', on_cc=lambda *_: (
+            state._MECHA_PARAMS.__setitem__('symmetry', False), _toggle_symmetry_ui(),
+            _sync_right_styles_on_symmetry_toggle(), _on_mecha_cc()))
+        mc.radioCollection(col_s2, e=True, select=s2_on if params.get('symmetry', True) else s2_off)
+        mc.setParent('..')
+        mc.separator(h=4, style='none')
+
+    # Wrapper que se desactiva cuando el módulo está desactivado
+    if module in ('arm', 'wing'):
+        enabled = params.get('use_arms' if module == 'arm' else 'use_wings', True)
+        wrapper = mc.columnLayout(adjustableColumn=True, enable=enabled)
+        state.reg(f'{module}_content', wrapper)
 
     labels = STYLE_MAPS.get(module, {})
     if labels:
@@ -134,6 +201,8 @@ def _render_module(module):
         mc.floatSliderGrp(ctrl, e=True, dragCommand=_on_mecha_cc)
         state.reg(f'{module}.{key}', ctrl)
 
+    if module in ('arm', 'wing'):
+        mc.setParent('..')
     mc.setParent('..')
 
 
@@ -142,6 +211,9 @@ def _build_style_buttons(module, labels):
     params = state._MECHA_PARAMS
     current_val = params.get(f'{module}_style', '')
     items = list(labels.items())
+
+    if module in ('arm', 'wing'):
+        mc.text(label='Izquierdo', align='left', font='smallPlainLabelFont')
 
     for i in range(0, len(items), 4):
         chunk = items[i:i + 4]
@@ -163,6 +235,7 @@ def _build_style_buttons(module, labels):
         right_labels = ARM_STYLE_LABELS if module == 'arm' else WING_STYLE_LABELS
         right_val = params.get(f'{module}_style_right', '')
         col = mc.columnLayout(adjustableColumn=True, visible=not params.get('symmetry', True))
+        mc.text(label='Derecho', align='left', font='smallPlainLabelFont')
         state.reg(f'{module}_right_row', col)
         right_items = list(right_labels.items())
         for j in range(0, len(right_items), 4):
