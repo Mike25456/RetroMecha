@@ -201,24 +201,15 @@ def _on_preset_changed(*_):
         label = mc.optionMenu(preset_menu, q=True, value=True)
     except Exception:
         return
-    apply_preset(label)
+    state._QUICK_PALETTE[0] = label
+    _apply_palette_to_scene(label)
     _update_shader_sliders()
-    try:
-        from materials.sky_material import update_sky_ramp, has_sky_material
-        if has_sky_material():
-            update_sky_ramp(label)
-    except Exception:
-        pass
-    try:
-        from utils import lighting
-        if lighting.has_rm_lights():
-            lighting.set_palette(label)
-    except Exception:
-        pass
 
 
 def current_palette_label() -> str:
-    """Devuelve el label del preset seleccionado (Default si no hay)."""
+    """Devuelve el label del preset activo (Quick o Pro)."""
+    if state._QUICK_PALETTE[0]:
+        return state._QUICK_PALETTE[0]
     preset_menu = state.get('materials_preset_menu')
     if _safe_ctrl_exists(preset_menu):
         try:
@@ -227,17 +218,87 @@ def current_palette_label() -> str:
             pass
     return 'Predeterminado'
 
+
+def _apply_palette_to_scene(palette_key: str):
+    """Aplica paleta a shaders, cielo, luces y reasigna materiales del terreno."""
+    was_playing = False
     try:
-        from utils import lighting
-        if lighting.has_rm_lights():
-            lighting.set_palette(palette_key)
+        was_playing = bool(mc.play(q=True, state=True))
+        if was_playing:
+            mc.play(state=False)
+    except Exception:
+        was_playing = False
+
+    try:
+        try:
+            from materials.sync import apply_palette_full
+            if not apply_palette_full(palette_key):
+                apply_preset(palette_key)
+        except Exception as e:
+            print(f'[RetroMecha][Material] Sync: {e}')
+            apply_preset(palette_key)
+
+        _rematerialize_terrain_shapes()
+        try:
+            mc.dgdirty(allPlugs=True)
+            mc.refresh(force=True)
+        except Exception:
+            pass
+    finally:
+        if was_playing:
+            try:
+                mc.play(forward=True)
+            except Exception:
+                pass
+
+
+def _terrain_mesh_shapes():
+    """Devuelve shapes unicos de terreno sin recorrer el mismo arbol repetido."""
+    from ui.scene_utils import TERRAIN_PATTERNS
+    shapes = []
+    seen = set()
+    for pattern in TERRAIN_PATTERNS:
+        for node in (mc.ls(pattern, type='transform') or []):
+            if not node or not mc.objExists(node):
+                continue
+            direct = mc.listRelatives(node, shapes=True, type='mesh') or []
+            nested = mc.listRelatives(node, allDescendents=True, type='mesh') or []
+            for shape in direct + nested:
+                if shape and mc.objExists(shape) and shape not in seen:
+                    seen.add(shape)
+                    shapes.append(shape)
+    return shapes
+
+
+def _rematerialize_terrain_shapes():
+    """Fuerza los shaders del terreno directamente sobre cada mesh shape."""
+    try:
+        from materials.materializer import _resolve_terrain_material
+        shapes = _terrain_mesh_shapes()
+        count = 0
+        for shape in shapes:
+            parents = mc.listRelatives(shape, parent=True) or []
+            transform = parents[0] if parents else shape
+            mat = _resolve_terrain_material(transform)
+            sg = ensure_material(mat)
+            if not sg:
+                continue
+            mc.sets(shape, edit=True, forceElement=sg)
+            try:
+                mc.dgdirty(shape)
+            except Exception:
+                pass
+            count += 1
+        if count:
+            print(f'[RetroMecha][Material] Terreno rematerializado: {count} mesh(es)')
     except Exception as e:
-        print(f'[RetroMecha][aiToon] Luces: {e}')
+        print(f'[RetroMecha][Material] Terrain remat: {e}')
 
 
 def apply_color_preset_quick(preset_name):
     """Aplica un preset de colores por nombre (modo Rapido)."""
-    apply_preset(preset_name)
+    state._QUICK_PALETTE[0] = preset_name
+    _apply_palette_to_scene(preset_name)
     preset_menu = state.get('materials_preset_menu')
     if _safe_ctrl_exists(preset_menu):
         try:

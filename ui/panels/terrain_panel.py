@@ -28,10 +28,22 @@ def build(wrapped=True):
                  columnAttach2=['both', 'both'],
                  columnOffset2=[0, 4])
     mc.text(label='Preset escena', align='right', font='smallPlainLabelFont')
-    menu = mc.optionMenu(changeCommand=lambda *_: rebuild_terrain_only(),
-                         backgroundColor=T.LINE)
+
+    def _on_preset_changed(*_):
+        try:
+            state._TERRAIN_PRESET[0] = mc.optionMenu(menu, q=True, value=True)
+        except Exception:
+            pass
+        rebuild_terrain_only()
+
+    menu = mc.optionMenu(backgroundColor=T.LINE)
     for label in ('Avanzada', 'Hangar', 'Campo de batalla', 'Centinela'):
         mc.menuItem(label=label)
+    try:
+        mc.optionMenu(menu, e=True, value=state._TERRAIN_PRESET[0])
+    except Exception:
+        pass
+    mc.optionMenu(menu, e=True, changeCommand=_on_preset_changed)
     mc.setParent('..')
     state.reg('t_preset_menu', menu)
 

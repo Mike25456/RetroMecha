@@ -118,6 +118,10 @@ def _select_swatch(name, preset_name, btns_map):
     _ACTIVE_SWATCH[0] = name
     state._QUICK_PALETTE[0] = preset_name
     apply_color_preset_quick(preset_name)
+    try:
+        mc.refresh(force=True)
+    except Exception:
+        pass
 
 
 def _random_terrain_and_build(*_):

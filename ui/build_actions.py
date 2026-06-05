@@ -274,7 +274,10 @@ def _build_mecha(seed, support_edges=True):
 
 
 def _build_terrain(seed, support_edges=True):
-    preset_label = _safe_opt('t_preset_menu', 'Avanzada')
+    preset_label = _safe_opt('t_preset_menu', state._TERRAIN_PRESET[0] or 'Avanzada')
+    if preset_label not in TERRAIN_PRESET_MAP:
+        preset_label = 'Avanzada'
+    state._TERRAIN_PRESET[0] = preset_label
     preset_name = TERRAIN_PRESET_MAP.get(preset_label, 'avanzada')
     overrides = _collect_terrain()
     from terrain.terrain_builder import TerrainBuilder
