@@ -58,9 +58,9 @@ def build_with_tabs(tab_ids, labels, colors):
     mc.rowLayout(nc=3, cw3=[100, 80, 80])
     mc.text(label='Anillos de energía', align='right', font='smallPlainLabelFont')
     col_e = mc.radioCollection()
-    en_on = mc.radioButton(label='Activados', on_cc=lambda *_: (
+    en_on = mc.radioButton(label='Activados', onCommand=lambda *_: (
         state._MECHA_PARAMS.__setitem__('use_energy_fields', True), _on_mecha_cc()))
-    en_off = mc.radioButton(label='Desactivados', on_cc=lambda *_: (
+    en_off = mc.radioButton(label='Desactivados', onCommand=lambda *_: (
         state._MECHA_PARAMS.__setitem__('use_energy_fields', False), _on_mecha_cc()))
     mc.radioCollection(col_e, e=True, select=en_on if params.get('use_energy_fields', True) else en_off)
     mc.setParent('..')
@@ -134,9 +134,9 @@ def _render_module(module):
         mc.rowLayout(nc=3, cw3=[60, 90, 90])
         mc.text(label='Brazos', align='right', font='smallPlainLabelFont')
         col_a = mc.radioCollection()
-        a_on = mc.radioButton(label='Activados', on_cc=lambda *_: (
+        a_on = mc.radioButton(label='Activados', onCommand=lambda *_: (
             state._MECHA_PARAMS.__setitem__('use_arms', True), _toggle_module_disabled('arm'), _on_mecha_cc()))
-        a_off = mc.radioButton(label='Desactivados', on_cc=lambda *_: (
+        a_off = mc.radioButton(label='Desactivados', onCommand=lambda *_: (
             state._MECHA_PARAMS.__setitem__('use_arms', False), _toggle_module_disabled('arm'), _on_mecha_cc()))
         mc.radioCollection(col_a, e=True, select=a_on if params.get('use_arms', True) else a_off)
         mc.setParent('..')
@@ -144,10 +144,10 @@ def _render_module(module):
         mc.rowLayout(nc=3, cw3=[60, 90, 90])
         mc.text(label='Simetría', align='right', font='smallPlainLabelFont')
         col_s = mc.radioCollection()
-        s_on = mc.radioButton(label='Activada', on_cc=lambda *_: (
+        s_on = mc.radioButton(label='Activada', onCommand=lambda *_: (
             state._MECHA_PARAMS.__setitem__('symmetry', True), _toggle_symmetry_ui(),
             _sync_right_styles_on_symmetry_toggle(), _on_mecha_cc()))
-        s_off = mc.radioButton(label='Desactivada', on_cc=lambda *_: (
+        s_off = mc.radioButton(label='Desactivada', onCommand=lambda *_: (
             state._MECHA_PARAMS.__setitem__('symmetry', False), _toggle_symmetry_ui(),
             _sync_right_styles_on_symmetry_toggle(), _on_mecha_cc()))
         mc.radioCollection(col_s, e=True, select=s_on if params.get('symmetry', True) else s_off)
@@ -157,9 +157,9 @@ def _render_module(module):
         mc.rowLayout(nc=3, cw3=[60, 90, 90])
         mc.text(label='Alas', align='right', font='smallPlainLabelFont')
         col_w = mc.radioCollection()
-        w_on = mc.radioButton(label='Activadas', on_cc=lambda *_: (
+        w_on = mc.radioButton(label='Activadas', onCommand=lambda *_: (
             state._MECHA_PARAMS.__setitem__('use_wings', True), _toggle_module_disabled('wing'), _on_mecha_cc()))
-        w_off = mc.radioButton(label='Desactivadas', on_cc=lambda *_: (
+        w_off = mc.radioButton(label='Desactivadas', onCommand=lambda *_: (
             state._MECHA_PARAMS.__setitem__('use_wings', False), _toggle_module_disabled('wing'), _on_mecha_cc()))
         mc.radioCollection(col_w, e=True, select=w_on if params.get('use_wings', True) else w_off)
         mc.setParent('..')
@@ -167,10 +167,10 @@ def _render_module(module):
         mc.rowLayout(nc=3, cw3=[60, 90, 90])
         mc.text(label='Simetría', align='right', font='smallPlainLabelFont')
         col_s2 = mc.radioCollection()
-        s2_on = mc.radioButton(label='Activada', on_cc=lambda *_: (
+        s2_on = mc.radioButton(label='Activada', onCommand=lambda *_: (
             state._MECHA_PARAMS.__setitem__('symmetry', True), _toggle_symmetry_ui(),
             _sync_right_styles_on_symmetry_toggle(), _on_mecha_cc()))
-        s2_off = mc.radioButton(label='Desactivada', on_cc=lambda *_: (
+        s2_off = mc.radioButton(label='Desactivada', onCommand=lambda *_: (
             state._MECHA_PARAMS.__setitem__('symmetry', False), _toggle_symmetry_ui(),
             _sync_right_styles_on_symmetry_toggle(), _on_mecha_cc()))
         mc.radioCollection(col_s2, e=True, select=s2_on if params.get('symmetry', True) else s2_off)
