@@ -73,7 +73,10 @@ def render_now() -> bool:
     if not MAYA_AVAILABLE:
         return False
 
-    from utils.camera import CAMERA_XFORM, create_default_camera, look_through_camera, lock_camera
+    from utils.camera import (
+        CAMERA_XFORM, CAM_TRANSLATE, CAM_ROTATE,
+        create_default_camera, look_through_camera, lock_camera,
+    )
 
     # Paleta activa
     try:
@@ -82,18 +85,22 @@ def render_now() -> bool:
     except Exception:
         palette = 'Default'
 
-    # Asegurar que la camara existe
-    if not mc.objExists(CAMERA_XFORM):
-        print(f'[RetroMecha][Render] {CAMERA_XFORM} no existe — creandola')
-        create_default_camera(frame_mecha=False, look_through=False)
-        if not mc.objExists(CAMERA_XFORM):
-            print('[RetroMecha][Render] No se pudo crear la camara')
-            return False
-    try:
-        look_through_camera()
+    # Reposicionar o crear cámara sin borrarla (no pierde look-through)
+    if mc.objExists(CAMERA_XFORM):
+        lock_camera(False)
+        try:
+            mc.setAttr(f'{CAMERA_XFORM}.translateX', CAM_TRANSLATE[0])
+            mc.setAttr(f'{CAMERA_XFORM}.translateY', CAM_TRANSLATE[1])
+            mc.setAttr(f'{CAMERA_XFORM}.translateZ', CAM_TRANSLATE[2])
+            mc.setAttr(f'{CAMERA_XFORM}.rotateX', CAM_ROTATE[0])
+            mc.setAttr(f'{CAMERA_XFORM}.rotateY', CAM_ROTATE[1])
+            mc.setAttr(f'{CAMERA_XFORM}.rotateZ', CAM_ROTATE[2])
+        except Exception as e:
+            print(f'[RetroMecha][Render] Reposicion: {e}')
         lock_camera(True)
-    except Exception as e:
-        print(f'[RetroMecha][Render] Camara (look/lock): {e}')
+        look_through_camera()
+    else:
+        create_default_camera(frame_mecha=False, look_through=True)
 
     # Asegurar sky geometry
     try:
@@ -143,8 +150,8 @@ def render_now() -> bool:
         except Exception:
             pass
     for win in (mc.lsUI(type='window') or []):
-        name = mc.window(win, q=True, title=True) or ''
-        if 'arnold' in name.lower() and 'render' in name.lower():
+        title = (mc.window(win, q=True, title=True) or '').lower()
+        if 'arnold' in title and ('render' in title or 'renderView' in title):
             try:
                 mc.window(win, e=True, minimize=False)
                 mc.showWindow(win)

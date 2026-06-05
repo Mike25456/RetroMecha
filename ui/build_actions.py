@@ -601,14 +601,11 @@ def random_all(*_):
             except Exception as e:
                 print(f'[RetroMecha][Random] Idle: {e}')
 
-    # Camera setup
+    # Camera setup — solo si no existe (render_now la reposiciona si hace falta)
     try:
         from utils.camera import create_default_camera, has_rm_camera
         if not has_rm_camera():
             create_default_camera(frame_mecha=True, look_through=True)
-        else:
-            from utils.camera import look_through_camera
-            look_through_camera()
     except Exception as e:
         print(f'[RetroMecha][Random] Camara: {e}')
 

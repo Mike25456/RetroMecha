@@ -229,6 +229,7 @@ def _apply_palette_to_scene(palette_key: str):
     """Aplica paleta a shaders, cielo, luces y reasigna materiales del terreno."""
     was_playing = False
     refresh_suspended = False
+
     try:
         was_playing = bool(mc.play(q=True, state=True))
         if was_playing:
@@ -237,12 +238,19 @@ def _apply_palette_to_scene(palette_key: str):
         was_playing = False
 
     try:
-        try:
-            mc.refresh(suspend=True)
-            refresh_suspended = True
-        except Exception:
-            refresh_suspended = False
+        mc.refresh(suspend=True)
+        refresh_suspended = True
+    except Exception:
+        refresh_suspended = False
 
+    try:
+        # 1. Asegurar que los swaps existen (una sola vez)
+        _ensure_terrain_swaps()
+
+        # 2. Colorear AMBOS sets de swap con la nueva paleta
+        _color_terrain_swaps(palette_key)
+
+        # 3. Sincronizar paleta a shaders maestros + sky_ramp + luces
         try:
             from materials.sync import apply_palette_full
             if not apply_palette_full(palette_key):
@@ -252,14 +260,13 @@ def _apply_palette_to_scene(palette_key: str):
             print(f'[RetroMecha][Material] Sync: {e}')
             apply_preset(palette_key)
 
-        terrain_sgs = _create_viewport_fresh_terrain_materials(palette_key)
-        _rematerialize_terrain_shapes(terrain_sgs)
-        _cleanup_old_terrain_swaps(terrain_sgs)
-
+        # 4. Sky temp shader (pre-creado cada vez, es efimero)
         sky_data = _create_viewport_fresh_sky_material(palette_key)
+
+        # 5. Asignar set opuesto al terreno + sky bounce
+        _swap_terrain_to_opposite()
         if sky_data:
             _rematerialize_sky(sky_data)
-            _cleanup_old_sky_swaps(sky_data)
         try:
             mc.dgdirty(allPlugs=True)
         except Exception:
@@ -277,6 +284,10 @@ def _apply_palette_to_scene(palette_key: str):
             except Exception:
                 pass
 
+    # 4. Cleanup fuera del bloque suspendido (solo sky — terreno usa ping-pong fijo)
+    if sky_data:
+        _cleanup_old_sky_swaps(sky_data)
+
 
 _TERRAIN_SHADER_NAMES = (
     'rm_terrain_base_mat',
@@ -284,60 +295,83 @@ _TERRAIN_SHADER_NAMES = (
     'rm_terrain_accent_mat',
 )
 
-
-def _create_viewport_fresh_terrain_materials(palette_key: str) -> dict:
-    """Crea shaders temporales ya coloreados para evitar el frame sin material."""
-    if not has_arnold():
-        return {}
-    preset = PRESETS.get(palette_key, PRESETS.get('Predeterminado', {}))
-    result = {}
-    for shader in _TERRAIN_SHADER_NAMES:
-        try:
-            temp_shader = mc.shadingNode(
-                'aiStandardSurface',
-                asShader=True,
-                name=f'{shader}_swap#',
-            )
-            temp_sg = mc.sets(
-                renderable=True,
-                noSurfaceShader=True,
-                empty=True,
-                name=f'{shader}SG_swap#',
-            )
-            mc.connectAttr(f'{temp_shader}.outColor',
-                           f'{temp_sg}.surfaceShader',
-                           force=True)
-            set_semantic_attr(temp_shader, 'diffuseRoughness',
-                              DEFAULT_DIFFUSE_ROUGHNESS)
-            for semantic, value in preset.get(shader, {}).items():
-                set_semantic_attr(temp_shader, semantic, value)
-            result[shader] = {
-                'shader': temp_shader,
-                'sg': temp_sg,
-            }
-        except Exception as e:
-            print(f'[RetroMecha][Material] temp terrain {shader}: {e}')
-    return result
+# Ping-pong swap sets para terreno — pre-creados una sola vez
+_TERRAIN_SWAP_SETS = {'A': {}, 'B': {}}
+_TERRAIN_SWAP_ACTIVE = ['A']
+_TERRAIN_SWAPS_READY = [False]
 
 
-def _cleanup_old_terrain_swaps(current: dict):
-    """Elimina swaps antiguos despues de asignar los nuevos."""
-    keep = set()
-    for data in current.values():
-        keep.add(data.get('shader'))
-        keep.add(data.get('sg'))
-    patterns = []
-    for shader in _TERRAIN_SHADER_NAMES:
-        patterns.append(f'{shader}_swap*')
-        patterns.append(f'{shader}SG_swap*')
-    for pattern in patterns:
-        for node in (mc.ls(pattern) or []):
-            if not node or node in keep or not mc.objExists(node):
-                continue
+def _ensure_terrain_swaps():
+    """Crea los dos sets de swap shaders para el terreno (una sola vez)."""
+    if _TERRAIN_SWAPS_READY[0] or not has_arnold():
+        return
+    for label in ('A', 'B'):
+        store = _TERRAIN_SWAP_SETS[label]
+        for shader in _TERRAIN_SHADER_NAMES:
             try:
-                mc.delete(node)
+                tag = f'_ping{label}'
+                temp_shader = mc.shadingNode(
+                    'aiStandardSurface', asShader=True,
+                    name=f'{shader}{tag}')
+                temp_sg = mc.sets(
+                    renderable=True, noSurfaceShader=True, empty=True,
+                    name=f'{shader}SG{tag}')
+                mc.connectAttr(f'{temp_shader}.outColor',
+                               f'{temp_sg}.surfaceShader', force=True)
+                set_semantic_attr(temp_shader, 'diffuseRoughness',
+                                  DEFAULT_DIFFUSE_ROUGHNESS)
+                store[shader] = {'shader': temp_shader, 'sg': temp_sg}
             except Exception as e:
-                print(f'[RetroMecha][Material] cleanup swap {node}: {e}')
+                print(f'[RetroMecha][Material] ping init {shader}_{label}: {e}')
+    _TERRAIN_SWAPS_READY[0] = True
+    print('[RetroMecha][Material] Swap sets A/B listos')
+
+
+def _color_terrain_swaps(palette_key: str):
+    """Colorea ambos sets de swap con los valores del preset."""
+    preset = PRESETS.get(palette_key, PRESETS.get('Predeterminado', {}))
+    for store in (_TERRAIN_SWAP_SETS['A'], _TERRAIN_SWAP_SETS['B']):
+        for shader, data in store.items():
+            shd = data.get('shader')
+            if not shd or not mc.objExists(shd):
+                continue
+            for semantic, value in preset.get(shader, {}).items():
+                set_semantic_attr(shd, semantic, value)
+
+
+def _swap_terrain_to_opposite():
+    """Asigna el set de swap opuesto al terreno (invalida GPU cache)."""
+    active = _TERRAIN_SWAP_ACTIVE[0]
+    target_label = 'B' if active == 'A' else 'A'
+    target = _TERRAIN_SWAP_SETS[target_label]
+    # Asignar target al terreno
+    shapes = _terrain_mesh_shapes()
+    count = 0
+    for shape in shapes:
+        parents = mc.listRelatives(shape, parent=True) or []
+        transform = parents[0] if parents else shape
+        from materials.materializer import _resolve_terrain_material
+        mat = _resolve_terrain_material(transform)
+        sg = target.get(mat, {}).get('sg')
+        if not sg:
+            continue
+        mc.sets(transform, edit=True, forceElement=sg)
+        mc.sets(shape, edit=True, forceElement=sg)
+        try:
+            face_count = mc.polyEvaluate(shape, face=True)
+            if face_count:
+                mc.sets(f'{shape}.f[0:{int(face_count) - 1}]',
+                        edit=True, forceElement=sg)
+        except Exception:
+            pass
+        count += 1
+        try:
+            mc.dgdirty(shape)
+        except Exception:
+            pass
+    if count:
+        print(f'[RetroMecha][Material] Terreno swap → {target_label}: {count} mesh(es)')
+    _TERRAIN_SWAP_ACTIVE[0] = target_label
 
 
 def _create_viewport_fresh_sky_material(palette_key: str) -> dict | None:

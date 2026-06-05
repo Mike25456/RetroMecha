@@ -7,6 +7,7 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from ui import state, widgets
+import ui.theme as T
 from ui.build_actions import (
     random_all, on_reset, random_mecha, rebuild_terrain_only,
 )
@@ -105,6 +106,12 @@ def build():
         lambda *_: _quick_render(),
         height=42,
     )
+    mc.button(
+        label='Eliminar cámara', h=24,
+        backgroundColor=T.PANEL,
+        command=lambda *_: _remove_render_camera(),
+        annotation='Elimina Camara_for_render para volver a la navegación libre',
+    )
     mc.separator(h=6, style='none')
     mc.setParent('..')
 
@@ -156,16 +163,16 @@ def _quick_render(*_):
     except Exception as e:
         print(f'[RetroMecha][Quick] Sky material: {e}')
     try:
-        from utils.camera import create_default_camera, has_rm_camera
-        if not has_rm_camera():
-            create_default_camera(frame_mecha=True, look_through=True)
-        else:
-            from utils.camera import look_through_camera
-            look_through_camera()
-    except Exception as e:
-        print(f'[RetroMecha][Quick] Camara: {e}')
-    try:
         from utils.render import render_now
         render_now()
     except Exception as e:
         print(f'[RetroMecha][Quick] Render: {e}')
+
+
+def _remove_render_camera(*_):
+    try:
+        from utils.camera import remove_camera
+        remove_camera()
+        print('[RetroMecha][Quick] Cámara de render eliminada')
+    except Exception as e:
+        print(f'[RetroMecha][Quick] Eliminar cámara: {e}')
