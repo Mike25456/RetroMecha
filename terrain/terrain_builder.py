@@ -281,6 +281,7 @@ class TerrainBuilder:
         MAX_D = 18.0
         grp = mc.group(empty=True, name='rm_ramps_#')
         created = 0
+        ramps = []
 
         for i, p1 in enumerate(self._plat_pos):
             if self._rng.random() > prob:
@@ -301,10 +302,11 @@ class TerrainBuilder:
             ay = math.degrees(math.atan2(best[0]-p1[0], best[2]-p1[2]))
             ax = -math.degrees(math.atan2(best[1]-p1[1], best_d))
             mc.rotate(ax, ay, 0, ramp)
-            mc.parent(ramp, grp)
+            ramps.append(ramp)
             created += 1
 
         if created:
+            mc.parent(*ramps, grp)
             mc.parent(grp, self._root)
             print(f'[RetroMecha][Terrain] {created} rampas')
         else:
@@ -390,6 +392,7 @@ class TerrainBuilder:
     def _debris_manual(self, count, gp_y, safe, r_lo, r_hi):
         grp = mc.group(empty=True, name='rm_debris_scatter_#')
         placed = 0
+        pieces = []
         attempts = 0
         while placed < count and attempts < count * 4:
             attempts += 1
@@ -407,9 +410,10 @@ class TerrainBuilder:
             mc.rotate(self._rng.uniform(0,360),
                       self._rng.uniform(0,360),
                       self._rng.uniform(0,360), piece)
-            mc.parent(piece, grp)
+            pieces.append(piece)
             placed += 1
 
+        mc.parent(*pieces, grp)
         mc.parent(grp, self._root)
         print(f'[RetroMecha][Terrain] Debris: {placed}')
 
@@ -421,7 +425,6 @@ class TerrainBuilder:
         cls = get_module(name)
         if cls is None:
             return None
-        nodes_before = set(mc.ls(dag=True) or [])
         instance = cls(self.params)
         try:
             node = instance.generate(position=position, scale=scale,
@@ -429,10 +432,6 @@ class TerrainBuilder:
         except Exception as e:
             print(f'[RetroMecha][Terrain] ERR "{name}": {e}')
             import traceback; traceback.print_exc()
-            orphans = list(set(mc.ls(dag=True) or []) - nodes_before)
-            if orphans:
-                try: mc.delete(orphans)
-                except: pass
             return None
         if node and mc.objExists(node):
             mc.parent(node, self._root)

@@ -113,6 +113,15 @@ def create_sky_material(palette: str = DEFAULT_PRESET) -> str | None:
 
     try:
         mc.sets(SKY_MESH, edit=True, forceElement=sg)
+        for shape in (mc.listRelatives(SKY_MESH, shapes=True, type='mesh') or []):
+            mc.sets(shape, edit=True, forceElement=sg)
+            try:
+                face_count = mc.polyEvaluate(shape, face=True)
+                if face_count:
+                    mc.sets(f'{shape}.f[0:{int(face_count) - 1}]',
+                            edit=True, forceElement=sg)
+            except Exception:
+                pass
     except Exception as e:
         print(f'[RetroMecha][SkyMat] Assign to {SKY_MESH}: {e}')
 

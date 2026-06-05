@@ -17,8 +17,14 @@ from ui.build_actions import _safe_ctrl_exists
 from ui.widgets import fsl
 import ui.theme as T
 
-from materials.presets import SHADER_NAMES, list_presets, apply_preset
-from utils.maya_materials import ensure_material, set_semantic_attr, get_semantic_attr
+from materials.presets import SHADER_NAMES, PRESETS, list_presets, apply_preset
+from utils.maya_materials import (
+    DEFAULT_DIFFUSE_ROUGHNESS,
+    ensure_material,
+    get_semantic_attr,
+    has_arnold,
+    set_semantic_attr,
+)
 
 _SHADER_LABELS = {
     'Armadura': 'rm_white_armor_mat',
@@ -222,6 +228,7 @@ def current_palette_label() -> str:
 def _apply_palette_to_scene(palette_key: str):
     """Aplica paleta a shaders, cielo, luces y reasigna materiales del terreno."""
     was_playing = False
+    refresh_suspended = False
     try:
         was_playing = bool(mc.play(q=True, state=True))
         if was_playing:
@@ -231,25 +238,101 @@ def _apply_palette_to_scene(palette_key: str):
 
     try:
         try:
+            mc.refresh(suspend=True)
+            refresh_suspended = True
+        except Exception:
+            refresh_suspended = False
+
+        try:
             from materials.sync import apply_palette_full
             if not apply_palette_full(palette_key):
-                apply_preset(palette_key)
+                print(f'[RetroMecha][Material] Paleta "{palette_key}" no disponible')
+                return
         except Exception as e:
             print(f'[RetroMecha][Material] Sync: {e}')
             apply_preset(palette_key)
 
-        _rematerialize_terrain_shapes()
+        terrain_sgs = _create_viewport_fresh_terrain_materials(palette_key)
+        _rematerialize_terrain_shapes(terrain_sgs)
+        _cleanup_old_terrain_swaps(terrain_sgs)
         try:
             mc.dgdirty(allPlugs=True)
-            mc.refresh(force=True)
         except Exception:
             pass
     finally:
+        if refresh_suspended:
+            try:
+                mc.refresh(suspend=False)
+                mc.refresh(force=True)
+            except Exception:
+                pass
         if was_playing:
             try:
                 mc.play(forward=True)
             except Exception:
                 pass
+
+
+_TERRAIN_SHADER_NAMES = (
+    'rm_terrain_base_mat',
+    'rm_terrain_dark_mat',
+    'rm_terrain_accent_mat',
+)
+
+
+def _create_viewport_fresh_terrain_materials(palette_key: str) -> dict:
+    """Crea shaders temporales ya coloreados para evitar el frame sin material."""
+    if not has_arnold():
+        return {}
+    preset = PRESETS.get(palette_key, PRESETS.get('Predeterminado', {}))
+    result = {}
+    for shader in _TERRAIN_SHADER_NAMES:
+        try:
+            temp_shader = mc.shadingNode(
+                'aiStandardSurface',
+                asShader=True,
+                name=f'{shader}_swap#',
+            )
+            temp_sg = mc.sets(
+                renderable=True,
+                noSurfaceShader=True,
+                empty=True,
+                name=f'{shader}SG_swap#',
+            )
+            mc.connectAttr(f'{temp_shader}.outColor',
+                           f'{temp_sg}.surfaceShader',
+                           force=True)
+            set_semantic_attr(temp_shader, 'diffuseRoughness',
+                              DEFAULT_DIFFUSE_ROUGHNESS)
+            for semantic, value in preset.get(shader, {}).items():
+                set_semantic_attr(temp_shader, semantic, value)
+            result[shader] = {
+                'shader': temp_shader,
+                'sg': temp_sg,
+            }
+        except Exception as e:
+            print(f'[RetroMecha][Material] temp terrain {shader}: {e}')
+    return result
+
+
+def _cleanup_old_terrain_swaps(current: dict):
+    """Elimina swaps antiguos despues de asignar los nuevos."""
+    keep = set()
+    for data in current.values():
+        keep.add(data.get('shader'))
+        keep.add(data.get('sg'))
+    patterns = []
+    for shader in _TERRAIN_SHADER_NAMES:
+        patterns.append(f'{shader}_swap*')
+        patterns.append(f'{shader}SG_swap*')
+    for pattern in patterns:
+        for node in (mc.ls(pattern) or []):
+            if not node or node in keep or not mc.objExists(node):
+                continue
+            try:
+                mc.delete(node)
+            except Exception as e:
+                print(f'[RetroMecha][Material] cleanup swap {node}: {e}')
 
 
 def _terrain_mesh_shapes():
@@ -270,20 +353,29 @@ def _terrain_mesh_shapes():
     return shapes
 
 
-def _rematerialize_terrain_shapes():
+def _rematerialize_terrain_shapes(replacements=None):
     """Fuerza los shaders del terreno directamente sobre cada mesh shape."""
     try:
         from materials.materializer import _resolve_terrain_material
+        replacements = replacements or {}
         shapes = _terrain_mesh_shapes()
         count = 0
         for shape in shapes:
             parents = mc.listRelatives(shape, parent=True) or []
             transform = parents[0] if parents else shape
             mat = _resolve_terrain_material(transform)
-            sg = ensure_material(mat)
+            sg = replacements.get(mat, {}).get('sg') or ensure_material(mat)
             if not sg:
                 continue
+            mc.sets(transform, edit=True, forceElement=sg)
             mc.sets(shape, edit=True, forceElement=sg)
+            try:
+                face_count = mc.polyEvaluate(shape, face=True)
+                if face_count:
+                    mc.sets(f'{shape}.f[0:{int(face_count) - 1}]',
+                            edit=True, forceElement=sg)
+            except Exception:
+                pass
             try:
                 mc.dgdirty(shape)
             except Exception:
@@ -293,6 +385,25 @@ def _rematerialize_terrain_shapes():
             print(f'[RetroMecha][Material] Terreno rematerializado: {count} mesh(es)')
     except Exception as e:
         print(f'[RetroMecha][Material] Terrain remat: {e}')
+
+
+def _force_sky_material(palette_key: str):
+    """Recrea y reasigna el sky material tambien sobre el shape."""
+    try:
+        from materials.sky_material import create_sky_material
+        sg = create_sky_material(palette_key)
+        if not sg or not mc.objExists('sky'):
+            return
+        shapes = mc.listRelatives('sky', shapes=True, type='mesh') or []
+        mc.sets('sky', edit=True, forceElement=sg)
+        for shape in shapes:
+            mc.sets(shape, edit=True, forceElement=sg)
+            try:
+                mc.dgdirty(shape)
+            except Exception:
+                pass
+    except Exception as e:
+        print(f'[RetroMecha][Material] Sky force: {e}')
 
 
 def apply_color_preset_quick(preset_name):
@@ -306,3 +417,112 @@ def apply_color_preset_quick(preset_name):
         except Exception:
             pass
     _update_shader_sliders()
+
+
+def debug_material_state(palette_key=None, sample_limit=5):
+    """Imprime una muestra de conexiones reales de terreno y cielo."""
+    if not MAYA_AVAILABLE:
+        return
+    palette = palette_key or current_palette_label()
+    print(f'[RetroMecha][DebugMat] ===== palette={palette} =====')
+    _debug_shader('rm_terrain_base_mat')
+    _debug_shader('rm_terrain_dark_mat')
+    _debug_shader('rm_terrain_accent_mat')
+    _debug_terrain_samples(sample_limit=sample_limit)
+    _debug_sky_state()
+
+
+def _debug_shader(shader):
+    exists = mc.objExists(shader)
+    sg = f'{shader}SG'
+    sg_exists = mc.objExists(sg)
+    base = None
+    emission = None
+    sg_src = None
+    try:
+        if exists:
+            base = mc.getAttr(f'{shader}.baseColor')[0]
+            emission = mc.getAttr(f'{shader}.emission')
+    except Exception:
+        pass
+    try:
+        if sg_exists:
+            sg_src = mc.connectionInfo(f'{sg}.surfaceShader',
+                                       sourceFromDestination=True)
+    except Exception:
+        pass
+    print(
+        f'[RetroMecha][DebugMat] shader {shader}: '
+        f'exists={exists} sg={sg_exists} sgSrc={sg_src} '
+        f'base={base} emission={emission}'
+    )
+
+
+def _debug_terrain_samples(sample_limit=5):
+    try:
+        from materials.materializer import _resolve_terrain_material
+        shapes = _terrain_mesh_shapes()
+        print(f'[RetroMecha][DebugMat] terrainShapes={len(shapes)}')
+        for shape in shapes[:sample_limit]:
+            parents = mc.listRelatives(shape, parent=True) or []
+            transform = parents[0] if parents else shape
+            expected = _resolve_terrain_material(transform)
+            sgs = mc.listSets(type=1, object=shape) or []
+            face_sg = []
+            try:
+                face_sg = mc.listSets(type=1, object=f'{shape}.f[0]') or []
+            except Exception:
+                pass
+            shader_src = []
+            for sg in sgs:
+                try:
+                    shader_src.append(
+                        (sg, mc.connectionInfo(f'{sg}.surfaceShader',
+                                               sourceFromDestination=True))
+                    )
+                except Exception:
+                    shader_src.append((sg, None))
+            print(
+                f'[RetroMecha][DebugMat] terrain sample '
+                f'{transform}/{shape}: expected={expected} '
+                f'sgs={sgs} face0={face_sg} shaderSrc={shader_src}'
+            )
+    except Exception as e:
+        print(f'[RetroMecha][DebugMat] terrain sample error: {e}')
+
+
+def _debug_sky_state():
+    sky_exists = mc.objExists('sky')
+    sky_shapes = mc.listRelatives('sky', shapes=True, type='mesh') if sky_exists else []
+    sky_shape = sky_shapes[0] if sky_shapes else None
+    sky_sgs = mc.listSets(type=1, object=sky_shape) if sky_shape else []
+    print(
+        f'[RetroMecha][DebugMat] sky: exists={sky_exists} '
+        f'shape={sky_shape} sgs={sky_sgs}'
+    )
+    for node in ('sky_material', 'sky_materialSG', 'rm_sky_ramp'):
+        print(f'[RetroMecha][DebugMat] sky node {node}: exists={mc.objExists(node)}')
+    try:
+        src = mc.connectionInfo('sky_materialSG.surfaceShader',
+                                sourceFromDestination=True)
+        base_src = mc.connectionInfo('sky_material.baseColor',
+                                     sourceFromDestination=True)
+        emit_src = mc.connectionInfo('sky_material.emissionColor',
+                                     sourceFromDestination=True)
+        print(
+            f'[RetroMecha][DebugMat] sky connections: '
+            f'sgSrc={src} baseSrc={base_src} emissionSrc={emit_src}'
+        )
+    except Exception as e:
+        print(f'[RetroMecha][DebugMat] sky connections error: {e}')
+    try:
+        indices = mc.getAttr('rm_sky_ramp.colorEntryList',
+                             multiIndices=True) or []
+        entries = []
+        for i in indices:
+            pos = mc.getAttr(f'rm_sky_ramp.colorEntryList[{i}].position')
+            col = mc.getAttr(f'rm_sky_ramp.colorEntryList[{i}].color')[0]
+            entries.append((i, pos, col))
+        print(f'[RetroMecha][DebugMat] sky ramp entries={entries}')
+    except Exception as e:
+        print(f'[RetroMecha][DebugMat] sky ramp error: {e}')

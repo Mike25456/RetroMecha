@@ -327,8 +327,15 @@ def _sync_anim_ui():
 def _apply_terrain_visuals(palette: str):
     """Crea sky + sky_material + luces y sincroniza paleta completa.
 
-    Flujo automatico: cielo + materiales + luces, sin botones.
+    Flujo: paleta a shaders PRIMERO (como on_generar), luego sky + luces.
     """
+    # 0. Sincronizar shaders ANTES de crear sky/luces
+    try:
+        from materials.sync import apply_palette_full
+        apply_palette_full(palette)
+    except Exception as e:
+        print(f'[RetroMecha][Terrain] Sync: {e}')
+
     # 1. Sky geometry
     try:
         from utils.sky import create_sky
@@ -352,13 +359,6 @@ def _apply_terrain_visuals(palette: str):
             lighting.set_palette(palette)
     except Exception as e:
         print(f'[RetroMecha][Terrain] Luces: {e}')
-
-    # 4. Sync centralizada (shaders + sky_ramp + luces, idempotente)
-    try:
-        from materials.sync import apply_palette_full
-        apply_palette_full(palette)
-    except Exception as e:
-        print(f'[RetroMecha][Terrain] Sync: {e}')
 
 
 # ── rebuild ──────────────────────────────────────────────────
