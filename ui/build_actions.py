@@ -184,10 +184,6 @@ def _collect_mecha():
             if _safe_ctrl_exists(ctrl):
                 adv[spec['key']] = mc.floatSliderGrp(ctrl, q=True, value=True)
 
-    def _resolve_style(labels, ctrl_name, default):
-        label = _safe_opt(ctrl_name)
-        return labels.get(label, default) if label else default
-
     params.update({
         'height_scale': _safe_val('height_sl', params.get('height_scale', 1.0)),
         'symmetry': _safe_cb('sym_cb', params.get('symmetry', True)),
@@ -195,13 +191,13 @@ def _collect_mecha():
         'use_arms': _safe_cb('arms_cb', params.get('use_arms', True)),
         'use_wings': _safe_cb('wings_cb', params.get('use_wings', True)),
         'use_energy_fields': _safe_cb('energy_cb', params.get('use_energy_fields', True)),
-        'head_style': _resolve_style(HEAD_STYLE_LABELS, 'head_style_menu', params.get('head_style', 'helmet')),
-        'arm_style': _resolve_style(ARM_STYLE_LABELS, 'arm_style_menu', params.get('arm_style', 'standard')),
-        'arm_style_right': _resolve_style(ARM_STYLE_LABELS, 'arm_style_right_menu', params.get('arm_style_right')),
-        'wing_style': _resolve_style(WING_STYLE_LABELS, 'wing_style_menu', params.get('wing_style', 'needle')),
-        'wing_style_right': _resolve_style(WING_STYLE_LABELS, 'wing_style_right_menu', params.get('wing_style_right')),
-        'torso_style': _resolve_style(TORSO_STYLE_LABELS, 'torso_style_menu', params.get('torso_style', 'core')),
-        'nucleus_style': _resolve_style(NUCLEUS_STYLE_LABELS, 'nucleus_style_menu', params.get('nucleus_style', 'ring')),
+        'head_style': params.get('head_style', 'helmet'),
+        'arm_style': params.get('arm_style', 'standard'),
+        'arm_style_right': params.get('arm_style_right'),
+        'wing_style': params.get('wing_style', 'needle'),
+        'wing_style_right': params.get('wing_style_right'),
+        'torso_style': params.get('torso_style', 'core'),
+        'nucleus_style': params.get('nucleus_style', 'ring'),
         **adv,
     })
     if state._MODE[0] == 'quick':
@@ -274,7 +270,7 @@ def _build_mecha(seed, support_edges=True):
 
 
 def _build_terrain(seed, support_edges=True):
-    preset_label = _safe_opt('t_preset_menu', state._TERRAIN_PRESET[0] or 'Avanzada')
+    preset_label = state._TERRAIN_PRESET[0] or 'Avanzada'
     if preset_label not in TERRAIN_PRESET_MAP:
         preset_label = 'Avanzada'
     state._TERRAIN_PRESET[0] = preset_label
@@ -491,13 +487,13 @@ def _set_random_mecha_controls():
     _safe_set_cb('arms_cb', quick_values['use_arms'])
     _safe_set_cb('wings_cb', quick_values['use_wings'])
     _safe_set_cb('energy_cb', quick_values['use_energy_fields'])
-    _safe_set_opt('head_style_menu', random.choice(list(HEAD_STYLE_LABELS.keys())))
-    _safe_set_opt('arm_style_menu', random.choice(list(ARM_STYLE_LABELS.keys())))
-    _safe_set_opt('arm_style_right_menu', random.choice(list(ARM_STYLE_LABELS.keys())))
-    _safe_set_opt('wing_style_menu', random.choice(list(WING_STYLE_LABELS.keys())))
-    _safe_set_opt('wing_style_right_menu', random.choice(list(WING_STYLE_LABELS.keys())))
-    _safe_set_opt('torso_style_menu', random.choice(list(TORSO_STYLE_LABELS.keys())))
-    _safe_set_opt('nucleus_style_menu', random.choice(list(NUCLEUS_STYLE_LABELS.keys())))
+    state._MECHA_PARAMS['head_style'] = quick_values['head_style']
+    state._MECHA_PARAMS['arm_style'] = quick_values['arm_style']
+    state._MECHA_PARAMS['arm_style_right'] = quick_values['arm_style_right']
+    state._MECHA_PARAMS['wing_style'] = quick_values['wing_style']
+    state._MECHA_PARAMS['wing_style_right'] = quick_values['wing_style_right']
+    state._MECHA_PARAMS['torso_style'] = quick_values['torso_style']
+    state._MECHA_PARAMS['nucleus_style'] = quick_values['nucleus_style']
     for m in ('head', 'arm', 'wing', 'torso', 'nucleus'):
         _random_module_adv(m)
 
@@ -573,12 +569,8 @@ def random_all(*_):
     rand_preset = random.choice(presets) if presets else None
     if rand_preset:
         apply_preset(rand_preset)
-        preset_menu = state.get('materials_preset_menu')
-        if preset_menu and _safe_ctrl_exists(preset_menu):
-            try:
-                mc.optionMenu(preset_menu, e=True, value=rand_preset)
-            except Exception:
-                pass
+        from ui.panels.material_panel import apply_color_preset_quick
+        apply_color_preset_quick(rand_preset)
 
     mecha_grp = sc.find_mecha_group()
 
@@ -654,27 +646,17 @@ def apply_mecha_preset(key):
         _safe_set_cb('arms_cb', preset.get('use_arms', True))
         _safe_set_cb('wings_cb', preset.get('use_wings', True))
         _safe_set_cb('energy_cb', preset.get('use_energy_fields', True))
-        if _safe_exists('head_style_menu'):
-            sc.set_option_by_value(state.get('head_style_menu'), HEAD_STYLE_LABELS,
-                                   preset.get('head_style', 'helmet'))
-        if _safe_exists('arm_style_menu'):
-            sc.set_option_by_value(state.get('arm_style_menu'), ARM_STYLE_LABELS,
-                                   preset.get('arm_style', 'standard'))
+        state._MECHA_PARAMS['head_style'] = preset.get('head_style', 'helmet')
+        state._MECHA_PARAMS['arm_style'] = preset.get('arm_style', 'standard')
         arm_right = preset.get('arm_style_right')
-        if arm_right and _safe_exists('arm_style_right_menu'):
-            sc.set_option_by_value(state.get('arm_style_right_menu'), ARM_STYLE_LABELS, arm_right)
-        if _safe_exists('wing_style_menu'):
-            sc.set_option_by_value(state.get('wing_style_menu'), WING_STYLE_LABELS,
-                                   preset.get('wing_style', 'needle'))
+        if arm_right:
+            state._MECHA_PARAMS['arm_style_right'] = arm_right
+        state._MECHA_PARAMS['wing_style'] = preset.get('wing_style', 'needle')
         wing_right = preset.get('wing_style_right')
-        if wing_right and _safe_exists('wing_style_right_menu'):
-            sc.set_option_by_value(state.get('wing_style_right_menu'), WING_STYLE_LABELS, wing_right)
-        if _safe_exists('torso_style_menu'):
-            sc.set_option_by_value(state.get('torso_style_menu'), TORSO_STYLE_LABELS,
-                                   preset.get('torso_style', 'core'))
-        if _safe_exists('nucleus_style_menu'):
-            sc.set_option_by_value(state.get('nucleus_style_menu'), NUCLEUS_STYLE_LABELS,
-                                   preset.get('nucleus_style', 'ring'))
+        if wing_right:
+            state._MECHA_PARAMS['wing_style_right'] = wing_right
+        state._MECHA_PARAMS['torso_style'] = preset.get('torso_style', 'core')
+        state._MECHA_PARAMS['nucleus_style'] = preset.get('nucleus_style', 'ring')
         for module in ('head', 'arm', 'wing', 'torso', 'nucleus'):
             for spec in get_slider_specs(module):
                 ctrl = state.get(f'{module}.{spec["key"]}')

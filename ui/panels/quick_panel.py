@@ -7,22 +7,13 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from ui import state, widgets
+from ui.constants import PALETTE_SWATCH_COLORS
 import ui.theme as T
 from ui.build_actions import (
     random_all, on_reset, random_mecha, rebuild_terrain_only,
 )
 from ui.panels.material_panel import apply_color_preset_quick
 from ui.panels.animation_panel import apply_animation_quick
-
-_PALETTES = {
-    'Industrial': ([0.55, 0.54, 0.51], 'Predeterminado'),
-    'Oxidado': ([0.55, 0.30, 0.15], 'Oxidado'),
-    'Frio': ([0.30, 0.55, 0.75], 'Frio'),
-    'Atardecer': ([0.65, 0.22, 0.35], 'Atardecer'),
-    'Neon': ([0.85, 0.20, 0.85], 'Neon'),
-    'Magma': ([0.95, 0.30, 0.05], 'Magma'),
-    'Veneno': ([0.10, 0.90, 0.25], 'Veneno'),
-}
 
 _ACTIVE_SWATCH = [None]
 
@@ -57,7 +48,7 @@ def build():
 
     widgets.section_title('Estilo')
     swatch_btns = {}
-    items = list(_PALETTES.items())
+    items = list(PALETTE_SWATCH_COLORS.items())
 
     def _swatch_row(chunk):
         n = len(chunk)

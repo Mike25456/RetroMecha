@@ -17,16 +17,10 @@ from ui.build_actions import rebuild_mecha, _toggle_symmetry_ui, _safe_ctrl_exis
 
 _current_sub = ['general']
 
-def _label_for(mapping, value, default=None):
-    for label, mapped in mapping.items():
-        if mapped == value:
-            return label
-    return default or next(iter(mapping), '')
-
 
 def build_with_tabs(tab_ids, labels, colors):
     _current_sub[0] = 'general'
-    widgets.tab_bar(tab_ids, labels, colors, _switch_sub, width=320, height=22)
+    widgets.tab_bar(tab_ids, labels, colors, _switch_sub, width=320, height=28)
 
     mc.separator(h=4, style='none')
     content = mc.columnLayout(adjustableColumn=True, rowSpacing=2)
@@ -124,37 +118,7 @@ def _render_module(module):
 
     labels = STYLE_MAPS.get(module, {})
     if labels:
-        mc.rowLayout(nc=2, cw2=[100, 220])
-        mc.text(label='Estilo', align='right', font='smallPlainLabelFont')
-        menu = mc.optionMenu(changeCommand=_on_mecha_cc,
-                             backgroundColor=widgets.BG_HOVER)
-        for label in labels:
-            mc.menuItem(label=label)
-        current = _label_for(labels, params.get(f'{module}_style'))
-        if current:
-            mc.optionMenu(menu, e=True, value=current)
-        mc.setParent('..')
-        state.reg(f'{module}_style_menu', menu)
-
-        if module in ('arm', 'wing'):
-            row = mc.rowLayout(nc=2, cw2=[100, 220], visible=False)
-            state.reg(f'{module}_right_row', row)
-            mc.text(label=f'{module.capitalize()} der.', align='right',
-                    font='smallPlainLabelFont')
-            rmenu = mc.optionMenu(changeCommand=_on_mecha_cc,
-                                  backgroundColor=widgets.BG_HOVER)
-            src_labels = ARM_STYLE_LABELS if module == 'arm' else WING_STYLE_LABELS
-            for label in src_labels:
-                mc.menuItem(label=label)
-            current = _label_for(src_labels, params.get(f'{module}_style_right'))
-            if current:
-                mc.optionMenu(rmenu, e=True, value=current)
-            mc.setParent('..')
-            state.reg(f'{module}_style_right_menu', rmenu)
-
-            sym = params.get('symmetry', True)
-            mc.control(row, e=True, visible=not sym)
-            mc.setParent('..')
+        _build_style_buttons(module, labels)
 
     for spec in get_slider_specs(module):
         key = spec['key']
@@ -171,6 +135,84 @@ def _render_module(module):
         state.reg(f'{module}.{key}', ctrl)
 
     mc.setParent('..')
+
+
+def _build_style_buttons(module, labels):
+    """Buttons de estilo en filas, como swatches de paleta."""
+    params = state._MECHA_PARAMS
+    current_val = params.get(f'{module}_style', '')
+    items = list(labels.items())
+
+    for i in range(0, len(items), 4):
+        chunk = items[i:i + 4]
+        n = len(chunk)
+        mc.rowLayout(nc=n, columnWidth=[(i + 1, 80) for i in range(n)],
+                     columnAttach=[(i + 1, 'both', 2) for i in range(n)])
+        for label, value in chunk:
+            is_active = (current_val == value)
+            btn = mc.button(
+                label=label, height=24,
+                backgroundColor=widgets.ACCENT_ACTION if is_active else widgets.BG_HOVER,
+                command=lambda *_, v=value: _on_style_click(module, v),
+            )
+            state.reg(f'{module}_style_btn_{value}', btn)
+        mc.setParent('..')
+
+    # Botón para estilo derecho (solo arm/wing, visible cuando simetría off)
+    if module in ('arm', 'wing'):
+        right_labels = ARM_STYLE_LABELS if module == 'arm' else WING_STYLE_LABELS
+        right_val = params.get(f'{module}_style_right', '')
+        col = mc.columnLayout(adjustableColumn=True, visible=not params.get('symmetry', True))
+        state.reg(f'{module}_right_row', col)
+        right_items = list(right_labels.items())
+        for j in range(0, len(right_items), 4):
+            chunk = right_items[j:j + 4]
+            nn = len(chunk)
+            mc.rowLayout(nc=nn, columnWidth=[(k + 1, 80) for k in range(nn)],
+                         columnAttach=[(k + 1, 'both', 2) for k in range(nn)])
+            for label, value in chunk:
+                is_active = (right_val == value)
+                btn = mc.button(
+                    label=label, height=24,
+                    backgroundColor=widgets.ACCENT_ACTION if is_active else widgets.BG_HOVER,
+                    command=lambda *_, v=value: _on_style_right_click(module, v),
+                )
+                state.reg(f'{module}_style_right_btn_{value}', btn)
+            mc.setParent('..')
+        mc.setParent('..')
+
+
+def _update_style_colors(module):
+    """Actualiza backgroundColor de todos los botones de estilo del módulo."""
+    params = state._MECHA_PARAMS
+    for _, value in STYLE_MAPS.get(module, {}).items():
+        ctrl = state.get(f'{module}_style_btn_{value}')
+        if ctrl and mc.control(ctrl, q=True, exists=True):
+            is_active = (params.get(f'{module}_style', '') == value)
+            mc.button(ctrl, e=True,
+                      backgroundColor=widgets.ACCENT_ACTION if is_active else widgets.BG_HOVER)
+    if module not in ('arm', 'wing'):
+        return
+    for _, value in (ARM_STYLE_LABELS if module == 'arm' else WING_STYLE_LABELS).items():
+        ctrl = state.get(f'{module}_style_right_btn_{value}')
+        if ctrl and mc.control(ctrl, q=True, exists=True):
+            is_active = (params.get(f'{module}_style_right', '') == value)
+            mc.button(ctrl, e=True,
+                      backgroundColor=widgets.ACCENT_ACTION if is_active else widgets.BG_HOVER)
+
+
+def _on_style_click(module, value):
+    params = state._MECHA_PARAMS
+    params[f'{module}_style'] = value
+    _update_style_colors(module)
+    _on_mecha_cc()
+
+
+def _on_style_right_click(module, value):
+    params = state._MECHA_PARAMS
+    params[f'{module}_style_right'] = value
+    _update_style_colors(module)
+    _on_mecha_cc()
 
 
 def _on_mecha_cc(*_):

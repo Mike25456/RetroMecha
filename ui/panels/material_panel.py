@@ -53,25 +53,10 @@ def build(wrapped=True):
     for shader_name in SHADER_NAMES:
         ensure_material(shader_name)
 
-    presets_list = list_presets()
     _current_shader[0] = 'rm_white_armor_mat'
 
-    if presets_list:
-        mc.rowLayout(nc=2, cw2=[128, 180],
-                     columnAttach2=['both', 'both'],
-                     columnOffset2=[0, 4])
-        mc.text(label='Paleta', align='right', font='smallPlainLabelFont')
-        preset_menu = mc.optionMenu(
-            changeCommand=lambda *_: _on_preset_changed(),
-            backgroundColor=T.LINE,
-            annotation='Preset de colores aplicado a los 6 shaders del mecha y terreno')
-        for p in presets_list:
-            mc.menuItem(label=p)
-        state.reg('materials_preset_menu', preset_menu)
-        mc.setParent('..')
-    else:
-        mc.text(label='(sin presets)', align='left', font='smallPlainLabelFont')
-        state.reg('materials_preset_menu', None)
+    # Swatches de paleta (como en modo Rápido)
+    _build_palette_swatches()
 
     mc.separator(h=4)
     _build_shader_tabs()
@@ -96,6 +81,43 @@ def build(wrapped=True):
     mc.setParent('..')
     if wrapped:
         mc.setParent('..')
+
+
+def _build_palette_swatches():
+    """Swatches de paleta como en modo Rápido."""
+    from ui.constants import PALETTE_SWATCH_COLORS
+    items = list(PALETTE_SWATCH_COLORS.items())
+
+    def _swatch_row(chunk):
+        n = len(chunk)
+        mc.rowLayout(nc=n, columnWidth=[(i + 1, 80) for i in range(n)],
+                     columnAttach=[(i + 1, 'both', 2) for i in range(n)])
+        for name, (color, key) in chunk:
+            is_active = (state._QUICK_PALETTE[0] == key)
+            btn = mc.button(
+                label='',
+                width=80, height=30,
+                backgroundColor=color,
+                command=lambda *_, k=key: _on_swatch_click(k),
+            )
+            if is_active:
+                state.reg('_active_swatch_btn', btn)
+        mc.setParent('..')
+
+        mc.rowLayout(nc=n, columnWidth=[(i + 1, 80) for i in range(n)],
+                     columnAttach=[(i + 1, 'both', 2) for i in range(n)])
+        for name, _ in chunk:
+            mc.text(label=name, align='center', font='smallPlainLabelFont')
+        mc.setParent('..')
+
+    for i in range(0, len(items), 4):
+        _swatch_row(items[i:i + 4])
+
+
+def _on_swatch_click(preset_name):
+    state._QUICK_PALETTE[0] = preset_name
+    _apply_palette_to_scene(preset_name)
+    _update_shader_sliders()
 
 
 def _set_shader_color(*_):
@@ -199,30 +221,13 @@ def _build_shader_tabs():
 
 
 def _on_preset_changed(*_):
-    """Al cambiar la paleta, actualizar los shaders en memoria + sky + luces."""
-    preset_menu = state.get('materials_preset_menu')
-    if not _safe_ctrl_exists(preset_menu):
-        return
-    try:
-        label = mc.optionMenu(preset_menu, q=True, value=True)
-    except Exception:
-        return
-    state._QUICK_PALETTE[0] = label
-    _apply_palette_to_scene(label)
-    _update_shader_sliders()
+    """Alias para compatibilidad (ya no hay dropdown)."""
+    pass
 
 
 def current_palette_label() -> str:
-    """Devuelve el label del preset activo (Quick o Pro)."""
-    if state._QUICK_PALETTE[0]:
-        return state._QUICK_PALETTE[0]
-    preset_menu = state.get('materials_preset_menu')
-    if _safe_ctrl_exists(preset_menu):
-        try:
-            return mc.optionMenu(preset_menu, q=True, value=True) or 'Predeterminado'
-        except Exception:
-            pass
-    return 'Predeterminado'
+    """Devuelve el label del preset activo."""
+    return state._QUICK_PALETTE[0] or 'Predeterminado'
 
 
 def _apply_palette_to_scene(palette_key: str):
@@ -523,12 +528,6 @@ def apply_color_preset_quick(preset_name):
     """Aplica un preset de colores por nombre (modo Rapido)."""
     state._QUICK_PALETTE[0] = preset_name
     _apply_palette_to_scene(preset_name)
-    preset_menu = state.get('materials_preset_menu')
-    if _safe_ctrl_exists(preset_menu):
-        try:
-            mc.optionMenu(preset_menu, e=True, value=preset_name)
-        except Exception:
-            pass
     _update_shader_sliders()
 
 
