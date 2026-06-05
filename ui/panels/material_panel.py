@@ -255,6 +255,11 @@ def _apply_palette_to_scene(palette_key: str):
         terrain_sgs = _create_viewport_fresh_terrain_materials(palette_key)
         _rematerialize_terrain_shapes(terrain_sgs)
         _cleanup_old_terrain_swaps(terrain_sgs)
+
+        sky_data = _create_viewport_fresh_sky_material(palette_key)
+        if sky_data:
+            _rematerialize_sky(sky_data)
+            _cleanup_old_sky_swaps(sky_data)
         try:
             mc.dgdirty(allPlugs=True)
         except Exception:
@@ -333,6 +338,80 @@ def _cleanup_old_terrain_swaps(current: dict):
                 mc.delete(node)
             except Exception as e:
                 print(f'[RetroMecha][Material] cleanup swap {node}: {e}')
+
+
+def _create_viewport_fresh_sky_material(palette_key: str) -> dict | None:
+    """Crea shader temporal para el sky con colores planos derivados de la paleta."""
+    if not has_arnold() or not mc.objExists('sky'):
+        return None
+    preset = PRESETS.get(palette_key, PRESETS.get('Predeterminado', {}))
+    top_rgb = preset.get('rm_cyan_glow_mat', {}).get('color', (0.04, 0.75, 1.0))
+    bottom_rgb = tuple(round(c * 0.10, 4) for c in top_rgb)
+    try:
+        temp_shader = mc.shadingNode(
+            'aiStandardSurface', asShader=True, name='sky_material_swap#')
+        temp_sg = mc.sets(
+            renderable=True, noSurfaceShader=True, empty=True,
+            name='sky_materialSG_swap#')
+        mc.connectAttr(f'{temp_shader}.outColor',
+                       f'{temp_sg}.surfaceShader', force=True)
+        set_semantic_attr(temp_shader, 'color', bottom_rgb)
+        set_semantic_attr(temp_shader, 'diffuseRoughness', DEFAULT_DIFFUSE_ROUGHNESS)
+        set_semantic_attr(temp_shader, 'emission', 0.5)
+        set_semantic_attr(temp_shader, 'incandescence', top_rgb)
+        return {'shader': temp_shader, 'sg': temp_sg}
+    except Exception as e:
+        print(f'[RetroMecha][Material] temp sky: {e}')
+        return None
+
+
+def _rematerialize_sky(sky_data: dict):
+    """Asigna el SG temporal al sky (invalida GPU cache) y restaura el real con ramp."""
+    sg = sky_data.get('sg')
+    if not sg or not mc.objExists('sky'):
+        return
+    real_sg = 'sky_materialSG'
+    try:
+        mc.sets('sky', edit=True, forceElement=sg)
+        for shape in (mc.listRelatives('sky', shapes=True, type='mesh') or []):
+            mc.sets(shape, edit=True, forceElement=sg)
+            try:
+                face_count = mc.polyEvaluate(shape, face=True)
+                if face_count:
+                    mc.sets(f'{shape}.f[0:{int(face_count) - 1}]',
+                            edit=True, forceElement=sg)
+            except Exception:
+                pass
+
+        # Restaurar el material real con ramp
+        if mc.objExists(real_sg):
+            mc.sets('sky', edit=True, forceElement=real_sg)
+            for shape in (mc.listRelatives('sky', shapes=True, type='mesh') or []):
+                mc.sets(shape, edit=True, forceElement=real_sg)
+                try:
+                    face_count = mc.polyEvaluate(shape, face=True)
+                    if face_count:
+                        mc.sets(f'{shape}.f[0:{int(face_count) - 1}]',
+                                edit=True, forceElement=real_sg)
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f'[RetroMecha][Material] Sky remat: {e}')
+
+
+def _cleanup_old_sky_swaps(current: dict | None):
+    """Elimina swaps antiguos del sky."""
+    if not current:
+        return
+    keep = {current.get('shader'), current.get('sg')}
+    for pattern in ('sky_material_swap*', 'sky_materialSG_swap*'):
+        for node in (mc.ls(pattern) or []):
+            if not node or node in keep or not mc.objExists(node):
+                continue
+            try:
+                mc.delete(node)
+            except Exception:
+                pass
 
 
 def _terrain_mesh_shapes():

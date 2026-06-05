@@ -132,6 +132,14 @@ def create_sky_material(palette: str = DEFAULT_PRESET) -> str | None:
     mc.setAttr(f'{shader}.{SHADER_TAG}', True)
 
     print(f'[RetroMecha][SkyMat] {SHADER_NAME} aplicado (palette={palette})')
+
+    # Activar texturas en todos los paneles 3D para que el ramp sea visible
+    try:
+        for panel in (mc.getPanel(type='modelPanel') or []):
+            mc.modelEditor(panel, e=True, displayTextures=True)
+    except Exception:
+        pass
+
     return sg
 
 
