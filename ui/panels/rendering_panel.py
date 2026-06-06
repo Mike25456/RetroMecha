@@ -322,7 +322,7 @@ def _look_through_camera(*_):
         from utils.camera import look_through_camera
         look_through_camera()
     except Exception as e:
-        print('[RetroMecha][Render] Look through: {e}')
+        print(f'[RetroMecha][Render] Look through: {e}')
 
 
 def _lift_mecha_default(*_):

@@ -98,11 +98,13 @@ def _switch_sub(tab_id):
     content = state.get('mecha_sub_content')
     if not _safe_ctrl_exists(content):
         return
-
-    _clear_content(content)
-    mc.setParent(content)
-    _render_module(tab_id)
-    mc.setParent('..')
+    try:
+        _clear_content(content)
+        mc.setParent(content)
+        _render_module(tab_id)
+        mc.setParent('..')
+    except Exception as e:
+        print(f'[RetroMecha][Mecha] Error en subtab {tab_id}: {e}')
 
 
 def _load_preset_labels():

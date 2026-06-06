@@ -228,8 +228,16 @@ def scene_update(fn):
     except Exception:
         pass
     try:
+        mc.undoInfo(stateWithoutFlush=False)
+    except Exception:
+        pass
+    try:
         return fn()
     finally:
+        try:
+            mc.undoInfo(stateWithoutFlush=True)
+        except Exception:
+            pass
         try:
             mc.refresh(suspend=False)
             mc.refresh(force=True)
