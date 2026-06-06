@@ -131,7 +131,9 @@ def _set_shader_color(*_):
         return
     try:
         rgb = mc.colorSliderGrp(state.get('color_sl'), q=True, rgb=True)
-        set_semantic_attr(sh, 'color', tuple(float(c) for c in rgb))
+        color = tuple(float(c) for c in rgb)
+        set_semantic_attr(sh, 'color', color)
+        _sync_terrain_swaps(sh, 'color', color)
     except Exception:
         pass
 
@@ -143,7 +145,9 @@ def _set_shader_diffuse(val):
     if sh:
         ensure_material(sh)
     if sh and mc.objExists(sh):
-        set_semantic_attr(sh, 'diffuse', float(val))
+        val = float(val)
+        set_semantic_attr(sh, 'diffuse', val)
+        _sync_terrain_swaps(sh, 'diffuse', val)
 
 
 def _set_shader_incandescence(val):
@@ -154,7 +158,22 @@ def _set_shader_incandescence(val):
         ensure_material(sh)
     if sh and mc.objExists(sh) and sh == 'rm_cyan_glow_mat':
         v = float(val)
-        set_semantic_attr(sh, 'incandescence', (v, v, v))
+        color = (v, v, v)
+        set_semantic_attr(sh, 'incandescence', color)
+        _sync_terrain_swaps(sh, 'incandescence', color)
+
+
+def _sync_terrain_swaps(master_shader, semantic, value):
+    """Copia el cambio a los ping-pong swaps si es un shader de terreno."""
+    if master_shader not in _TERRAIN_SHADER_NAMES_SET:
+        return
+    for store in (_TERRAIN_SWAP_SETS['A'], _TERRAIN_SWAP_SETS['B']):
+        data = store.get(master_shader)
+        if not data:
+            continue
+        target = data.get('shader')
+        if target and mc.objExists(target):
+            set_semantic_attr(target, semantic, value)
 
 
 def _update_shader_sliders():
@@ -294,6 +313,7 @@ _TERRAIN_SHADER_NAMES = (
     'rm_terrain_dark_mat',
     'rm_terrain_accent_mat',
 )
+_TERRAIN_SHADER_NAMES_SET = set(_TERRAIN_SHADER_NAMES)
 
 # Ping-pong swap sets para terreno — pre-creados una sola vez
 _TERRAIN_SWAP_SETS = {'A': {}, 'B': {}}

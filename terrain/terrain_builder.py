@@ -293,9 +293,8 @@ class TerrainBuilder:
             if self._rng.random() > prob:
                 continue
             best_d, best = float('inf'), None
-            for j, p2 in enumerate(self._plat_pos):
-                if i == j: continue
-                d = math.dist(p1, p2)
+            for j in range(i + 1, len(self._plat_pos)):
+                p2 = self._plat_pos[j]
                 if d < best_d and d < MAX_D:
                     best_d, best = d, p2
             if best is None:

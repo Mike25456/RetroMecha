@@ -101,9 +101,12 @@ class MechaBuilder:
             return 'RetroMecha_DEBUG'
 
         self._root_group = mc.group(empty=True, name='RetroMecha_#')
+        self._parent_queue = []
 
         try:
             self._build_body()
+            if self._parent_queue:
+                mc.parent(self._parent_queue, self._root_group)
             if self.params.get('use_support_edges', True):
                 count = apply_support_edges(
                     self._root_group, max_faces=500,
@@ -305,7 +308,7 @@ class MechaBuilder:
             return None
 
         if node and mc.objExists(node):
-            mc.parent(node, self._root_group)
+            self._parent_queue.append(node)
         return node
 
     def _debug_build(self):

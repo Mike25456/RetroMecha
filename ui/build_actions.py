@@ -243,16 +243,19 @@ def _sync_anim_ui():
 
 
 def _apply_terrain_visuals(palette: str):
-    """Crea sky + sky_material + luces y sincroniza paleta completa.
+    """Crea sky + sky_material + luces y asigna ping-pong swaps al terreno.
 
-    Flujo: paleta a shaders PRIMERO (como on_generar), luego sky + luces.
+    NO re-aplica colores de preset — preserva cambios manuales del usuario.
+    Los colores se aplican solo cuando el usuario hace click en un swatch de paleta.
     """
-    # 0. Sincronizar shaders ANTES de crear sky/luces
+    # 0. Asegurar que el terreno use los ping-pong swap shaders
     try:
-        from materials.sync import apply_palette_full
-        apply_palette_full(palette)
+        from ui.panels.material_panel import (
+            _ensure_terrain_swaps, _swap_terrain_to_opposite)
+        _ensure_terrain_swaps()
+        _swap_terrain_to_opposite()
     except Exception as e:
-        print(f'[RetroMecha][Terrain] Sync: {e}')
+        print(f'[RetroMecha][Terrain] Ping-pong: {e}')
 
     # 1. Sky geometry
     try:
@@ -281,9 +284,19 @@ def _apply_terrain_visuals(palette: str):
 
 # ── rebuild ──────────────────────────────────────────────────
 
+def _clear_scene_label():
+    menu = state.get('scene_menu')
+    if _safe_ctrl_exists(menu):
+        try:
+            mc.optionMenu(menu, e=True, value='auto')
+        except Exception:
+            pass
+
+
 def rebuild_mecha(*_):
     def _work():
         try:
+            _clear_scene_label()
             seed = state._SEED[0] if isinstance(state._SEED[0], int) else _resolve_seed()
             state._SEED[0] = seed
             sc.clean_mecha()
@@ -300,6 +313,7 @@ def rebuild_mecha(*_):
 def rebuild_terrain_only(*_):
     def _work():
         try:
+            _clear_scene_label()
             seed = state._SEED[0] if isinstance(state._SEED[0], int) else _resolve_seed()
             state._SEED[0] = seed
             sc.clean_terrain()
@@ -488,6 +502,7 @@ def random_all(*_):
         state._APPLYING_MECHA_PRESET[0] = False
 
     state._SEED[0] = random.randint(0, 99999)
+    _clear_scene_label()
     on_generar()
 
     # Apply random color preset (aiStandardSurface) and sync UI
