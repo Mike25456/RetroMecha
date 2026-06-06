@@ -19,34 +19,38 @@ _ACTIVE_SWATCH = [None]
 
 
 def build():
+    mc.rowLayout(nc=1, columnAttach=[(1, 'both', 20)])
     mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 
-    mc.rowLayout(nc=2, cw2=[165, 165],
+    mc.rowLayout(nc=2, cw2=[155, 155],
                  columnAttach2=['both', 'both'])
     widgets.secondary_button('Ensamblar escena', widgets.ACCENT_ACTION, random_all, height=32)
     widgets.secondary_button('Limpiar', widgets.ACCENT_DANGER, on_reset, height=32)
     mc.setParent('..')
-    mc.separator(h=8, style='none')
+    mc.separator(h=20, style='none')
 
     widgets.section_title('Mecha')
+    mc.separator(h=20, style='none')
     widgets.big_button(
         'Ensamblar Mecha',
         widgets.ACCENT_RAND,
         lambda *_: random_mecha(),
-        height=42,
+        height=44,
     )
-    mc.separator(h=6, style='none')
+    mc.separator(h=20, style='none')
 
     widgets.section_title('Escenario')
+    mc.separator(h=20, style='none')
     widgets.big_button(
         'Ensamblar Escenario',
         widgets.ACCENT_RAND,
         lambda *_: _random_terrain_and_build(),
-        height=42,
+        height=44,
     )
-    mc.separator(h=8, style='none')
+    mc.separator(h=20, style='none')
 
     widgets.section_title('Estilo')
+    mc.separator(h=30, style='none')
     swatch_btns = {}
     items = list(PALETTE_SWATCH_COLORS.items())
 
@@ -72,9 +76,10 @@ def build():
     for i in range(0, len(items), 4):
         _swatch_row(items[i:i + 4])
 
-    mc.separator(h=8, style='none')
+    mc.separator(h=20, style='none')
 
     mc.text(label='Movimiento', align='left', font='smallPlainLabelFont')
+    mc.separator(h=10, style='none')
     coll = mc.radioCollection()
     mc.rowLayout(nc=4, cw4=[80, 80, 80, 80])
     rb_map = {}
@@ -88,22 +93,25 @@ def build():
     from ui.build_actions import _sync_anim_ui
     _sync_anim_ui()
 
-    mc.separator(h=8, style='none')
+    mc.separator(h=20, style='none')
 
     widgets.section_title('Renderizar')
+    mc.separator(h=20, style='none')
     widgets.big_button(
         'Ensamblar Render',
         widgets.ACCENT_ACTION,
         lambda *_: _quick_render(),
-        height=42,
+        height=44,
     )
+    mc.separator(h=6, style='none')
     mc.button(
-        label='Eliminar cámara', h=24,
+        label='Eliminar cámara', height=28,
         backgroundColor=T.PANEL,
         command=lambda *_: _remove_render_camera(),
         annotation='Elimina Camara_for_render para volver a la navegación libre',
     )
-    mc.separator(h=6, style='none')
+    mc.separator(h=20, style='none')
+    mc.setParent('..')
     mc.setParent('..')
 
 

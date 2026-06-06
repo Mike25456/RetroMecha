@@ -64,10 +64,12 @@ def build_ui(*, recreate: bool = True):
     mc.setParent('..')
 
     # ── SWITCH RÁPIDO / PRO ────────────────────────────────
-    mc.separator(h=6, style='none', backgroundColor=T.BG)
+    mc.separator(h=8, style='none', backgroundColor=T.BG)
+    mc.text(label='  Modo', align='left', font='boldLabelFont', backgroundColor=T.BG)
+    mc.separator(h=4, style='none')
     mode_switch(_switch_mode, active_mode='quick')
     T.sep()
-    mc.separator(h=4, style='none')
+    mc.separator(h=20, style='none')
 
     # ═══════════════════════════════════════════════════════
     # CONTENT

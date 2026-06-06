@@ -13,34 +13,52 @@ from ui import state, widgets
 from ui.constants import ARM_STYLE_LABELS, WING_STYLE_LABELS, STYLE_MAPS
 from ui.widgets import fsl
 from ui.module_advanced import get_slider_specs
-from ui.build_actions import rebuild_mecha, _toggle_symmetry_ui, _safe_ctrl_exists
+from ui.build_actions import rebuild_mecha, _toggle_symmetry_ui, _safe_ctrl_exists, apply_mecha_preset
 
 _current_sub = ['head']
+
+
+def _on_mecha_preset_click(label, key):
+    apply_mecha_preset(key)
+    _update_mecha_preset_btn_colors(label)
+
+
+def _update_mecha_preset_btn_colors(active_label=None):
+    for label, key in _load_preset_labels().items():
+        ctrl = state.get(f'm_preset_btn_{key}')
+        if ctrl and mc.control(ctrl, q=True, exists=True):
+            is_active = (label == active_label)
+            mc.button(ctrl, e=True,
+                      backgroundColor=widgets.ACCENT_ACTION if is_active else widgets.BG_HOVER)
 
 
 def build_with_tabs(tab_ids, labels, colors):
     _current_sub[0] = tab_ids[0] if tab_ids else 'head'
 
-    # Preset dropdown
     params = state._MECHA_PARAMS
-    mc.rowLayout(nc=2, cw2=[80, 240])
-    mc.text(label='Preset', align='right', font='smallPlainLabelFont')
-    menu = mc.optionMenu(backgroundColor=widgets.BG_HOVER)
-    mc.menuItem(label='Custom')
-    for label in _load_preset_labels():
-        mc.menuItem(label=label)
-    mc.optionMenu(
-        menu, e=True,
-        changeCommand=lambda val: __import__(
-            'ui.build_actions', fromlist=['apply_mecha_preset']
-        ).apply_mecha_preset(_load_preset_labels().get(val, val))
-    )
-    mc.setParent('..')
-    state.reg('mecha_preset_menu', menu)
-    mc.separator(h=4, style='none')
+
+    # Preset buttons
+    mc.text(label='Presets', align='left', font='smallPlainLabelFont')
+    preset_items = list(_load_preset_labels().items())
+    for i in range(0, len(preset_items), 4):
+        chunk = preset_items[i:i + 4]
+        n = len(chunk)
+        mc.rowLayout(nc=n, columnWidth=[(j + 1, 80) for j in range(n)],
+                     columnAttach=[(j + 1, 'both', 2) for j in range(n)])
+        for p_label, p_key in chunk:
+            btn = mc.button(
+                label=p_label, height=32,
+                backgroundColor=widgets.BG_HOVER,
+                command=lambda *_, l=p_label, k=p_key: _on_mecha_preset_click(l, k),
+            )
+            state.reg(f'm_preset_btn_{p_key}', btn)
+        mc.setParent('..')
+    mc.separator(h=8, style='in')
+    mc.separator(h=2, style='none')
 
     # Module sub-tabs
-    widgets.tab_bar(tab_ids, labels, colors, _switch_sub, width=320, height=28)
+    mc.text(label='Módulos', align='left', font='smallPlainLabelFont')
+    widgets.tab_bar(tab_ids, labels, colors, _switch_sub, width=500, height=38)
     mc.separator(h=4, style='none')
 
     # Dynamic content for the selected sub-tab
@@ -50,7 +68,8 @@ def build_with_tabs(tab_ids, labels, colors):
     mc.setParent('..')
 
     # Always-visible controls below sub-tabs
-    mc.separator(h=4, style='none')
+    mc.separator(h=8, style='in')
+    mc.separator(h=2, style='none')
     state.reg('height_sl', fsl(
         'Altura', 0.5, 2.0, params.get('height_scale', 1.0),
         step=0.05, on_cc=_on_mecha_cc, annotation='Escala vertical',
@@ -212,7 +231,10 @@ def _build_style_buttons(module, labels):
     current_val = params.get(f'{module}_style', '')
     items = list(labels.items())
 
+    mc.text(label='Estilos', align='left', font='smallPlainLabelFont')
+
     if module in ('arm', 'wing'):
+        mc.separator(h=8, style='none')
         mc.text(label='Izquierdo', align='left', font='smallPlainLabelFont')
 
     for i in range(0, len(items), 4):
@@ -223,7 +245,7 @@ def _build_style_buttons(module, labels):
         for label, value in chunk:
             is_active = (current_val == value)
             btn = mc.button(
-                label=label, height=24,
+                label=label, height=22,
                 backgroundColor=widgets.ACCENT_ACTION if is_active else widgets.BG_HOVER,
                 command=lambda *_, v=value: _on_style_click(module, v),
             )
@@ -246,7 +268,7 @@ def _build_style_buttons(module, labels):
             for label, value in chunk:
                 is_active = (right_val == value)
                 btn = mc.button(
-                    label=label, height=24,
+                    label=label, height=22,
                     backgroundColor=widgets.ACCENT_ACTION if is_active else widgets.BG_HOVER,
                     command=lambda *_, v=value: _on_style_right_click(module, v),
                 )
