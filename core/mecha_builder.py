@@ -111,7 +111,6 @@ class MechaBuilder:
                 print(f'[RetroMecha] Support edges aplicados: {count}')
             materialize_mecha(self._root_group)
             force_preview_one(self._root_group)
-            mc.select(self._root_group)
             print(f'[RetroMecha] Build completo: {self._root_group}')
         except Exception as e:
             print(f'[RetroMecha] ERROR durante build: {e}')
@@ -285,20 +284,11 @@ class MechaBuilder:
                scale=1.0,
                rotation=(0, 0, 0),
                overrides: dict | None = None) -> str | None:
-        """Instancia un módulo y lo parenta al grupo raíz.
-
-        Los errores dentro de generate() se aíslan aquí para que un módulo
-        roto no cancele el build completo. Los nodos huérfanos que pudiera
-        haber creado el módulo antes de fallar se eliminan automáticamente.
-        """
+        """Instancia un módulo y lo parenta al grupo raíz."""
         cls = get_module(module_name)
         if cls is None:
             print(f'[RetroMecha] Módulo "{module_name}" no registrado, omitiendo')
             return None
-
-        # Snapshot de nodos antes de intentar el generate, para poder
-        # limpiar cualquier nodo huérfano si el módulo lanza una excepción.
-        nodes_before = set(mc.ls(dag=True) or [])
 
         mod_params = dict(self.params)
         if overrides:
@@ -312,17 +302,6 @@ class MechaBuilder:
             print(f'[RetroMecha] ERROR en módulo "{module_name}": {e}')
             import traceback
             traceback.print_exc()
-
-            # Limpia nodos huérfanos creados durante el generate() fallido
-            nodes_after = set(mc.ls(dag=True) or [])
-            orphans = list(nodes_after - nodes_before)
-            if orphans:
-                try:
-                    mc.delete(orphans)
-                    print(f'[RetroMecha] Limpiados {len(orphans)} nodo(s) huérfano(s) '
-                          f'de "{module_name}"')
-                except Exception:
-                    pass
             return None
 
         if node and mc.objExists(node):

@@ -18,6 +18,7 @@ from ui.build_actions import rebuild_mecha, _toggle_symmetry_ui, _safe_ctrl_exis
 _current_sub = ['head']
 
 
+
 def _on_mecha_preset_click(label, key):
     apply_mecha_preset(key)
     _update_mecha_preset_btn_colors(label)
@@ -40,25 +41,23 @@ def build_with_tabs(tab_ids, labels, colors):
     # Preset buttons
     mc.text(label='Presets', align='left', font='smallPlainLabelFont')
     preset_items = list(_load_preset_labels().items())
-    for i in range(0, len(preset_items), 4):
-        chunk = preset_items[i:i + 4]
-        n = len(chunk)
-        mc.rowLayout(nc=n, columnWidth=[(j + 1, 80) for j in range(n)],
-                     columnAttach=[(j + 1, 'both', 2) for j in range(n)])
-        for p_label, p_key in chunk:
-            btn = mc.button(
-                label=p_label, height=32,
-                backgroundColor=widgets.BG_HOVER,
-                command=lambda *_, l=p_label, k=p_key: _on_mecha_preset_click(l, k),
-            )
-            state.reg(f'm_preset_btn_{p_key}', btn)
-        mc.setParent('..')
+
+    def _preset_btn(item, _j, _i):
+        lbl, key = item
+        btn = mc.button(
+            label=lbl, height=32,
+            backgroundColor=widgets.BG_HOVER,
+            command=lambda *_, l=lbl, k=key: _on_mecha_preset_click(l, k),
+        )
+        state.reg(f'm_preset_btn_{key}', btn)
+
+    widgets.button_grid(preset_items, cols=4, btn_width=80, btn_height=32, on_build=_preset_btn)
     mc.separator(h=8, style='in')
     mc.separator(h=2, style='none')
 
     # Module sub-tabs
     mc.text(label='Módulos', align='left', font='smallPlainLabelFont')
-    widgets.tab_bar(tab_ids, labels, colors, _switch_sub, width=500, height=38)
+    widgets.tab_bar(tab_ids, labels, colors, _switch_sub, width=320, height=38)
     mc.separator(h=4, style='none')
 
     # Dynamic content for the selected sub-tab
@@ -217,7 +216,7 @@ def _render_module(module):
             annotation=spec.get('description', ''),
             on_cc=_on_mecha_cc,
         )
-        mc.floatSliderGrp(ctrl, e=True, dragCommand=_on_mecha_cc)
+        mc.floatSliderGrp(ctrl, e=True, dragCommand=_on_mecha_drag)
         state.reg(f'{module}.{key}', ctrl)
 
     if module in ('arm', 'wing'):
@@ -237,20 +236,17 @@ def _build_style_buttons(module, labels):
         mc.separator(h=8, style='none')
         mc.text(label='Izquierdo', align='left', font='smallPlainLabelFont')
 
-    for i in range(0, len(items), 4):
-        chunk = items[i:i + 4]
-        n = len(chunk)
-        mc.rowLayout(nc=n, columnWidth=[(i + 1, 80) for i in range(n)],
-                     columnAttach=[(i + 1, 'both', 2) for i in range(n)])
-        for label, value in chunk:
-            is_active = (current_val == value)
-            btn = mc.button(
-                label=label, height=22,
-                backgroundColor=widgets.ACCENT_ACTION if is_active else widgets.BG_HOVER,
-                command=lambda *_, v=value: _on_style_click(module, v),
-            )
-            state.reg(f'{module}_style_btn_{value}', btn)
-        mc.setParent('..')
+    def _left_btn(item, _j, _i):
+        lbl, val = item
+        active = (current_val == val)
+        btn = mc.button(
+            label=lbl, height=22,
+            backgroundColor=widgets.ACCENT_ACTION if active else widgets.BG_HOVER,
+            command=lambda *_, v=val: _on_style_click(module, v),
+        )
+        state.reg(f'{module}_style_btn_{val}', btn)
+
+    widgets.button_grid(items, cols=4, btn_width=80, btn_height=22, on_build=_left_btn)
 
     # Botón para estilo derecho (solo arm/wing, visible cuando simetría off)
     if module in ('arm', 'wing'):
@@ -260,20 +256,18 @@ def _build_style_buttons(module, labels):
         mc.text(label='Derecho', align='left', font='smallPlainLabelFont')
         state.reg(f'{module}_right_row', col)
         right_items = list(right_labels.items())
-        for j in range(0, len(right_items), 4):
-            chunk = right_items[j:j + 4]
-            nn = len(chunk)
-            mc.rowLayout(nc=nn, columnWidth=[(k + 1, 80) for k in range(nn)],
-                         columnAttach=[(k + 1, 'both', 2) for k in range(nn)])
-            for label, value in chunk:
-                is_active = (right_val == value)
-                btn = mc.button(
-                    label=label, height=22,
-                    backgroundColor=widgets.ACCENT_ACTION if is_active else widgets.BG_HOVER,
-                    command=lambda *_, v=value: _on_style_right_click(module, v),
-                )
-                state.reg(f'{module}_style_right_btn_{value}', btn)
-            mc.setParent('..')
+
+        def _right_btn(item, _j, _i):
+            lbl, val = item
+            active = (right_val == val)
+            btn = mc.button(
+                label=lbl, height=22,
+                backgroundColor=widgets.ACCENT_ACTION if active else widgets.BG_HOVER,
+                command=lambda *_, v=val: _on_style_right_click(module, v),
+            )
+            state.reg(f'{module}_style_right_btn_{val}', btn)
+
+        widgets.button_grid(right_items, cols=4, btn_width=80, btn_height=22, on_build=_right_btn)
         mc.setParent('..')
 
 
@@ -309,6 +303,10 @@ def _on_style_right_click(module, value):
     _update_style_colors(module)
     _on_mecha_cc()
 
+
+def _on_mecha_drag(*_):
+    """No-op durante drag — el rebuild completo solo en changeCommand (mouse release)."""
+    pass
 
 def _on_mecha_cc(*_):
     if state._UI_BUILDING[0] or state._APPLYING_MECHA_PRESET[0]:

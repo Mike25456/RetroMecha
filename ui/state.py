@@ -18,7 +18,7 @@ _MECHA_PARAMS = {}
 _TERRAIN_PARAMS = {}
 
 # Controles que NUNCA se destruyen al cambiar de modo (seed, layouts raíz)
-_PERMANENT = {'seed_field', 'main_content'}
+_PERMANENT = {'main_content', 'scene_menu'}
 
 
 def clear():

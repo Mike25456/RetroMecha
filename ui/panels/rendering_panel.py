@@ -194,22 +194,6 @@ def _current_palette():
     except Exception:
         return 'Predeterminado'
 
-
-def _ensure_default_lighting():
-    try:
-        from utils import lighting
-        if not lighting.has_rm_lights():
-            lighting.apply_lighting(_current_palette())
-    except Exception as e:
-        print(f'[RetroMecha][Render] Auto-luces: {e}')
-    try:
-        from utils import atmosphere
-        if not atmosphere.has_atmosphere():
-            atmosphere.ensure_atmosphere(DEFAULT_DENSITY, DEFAULT_ANISOTROPY)
-    except Exception as e:
-        print(f'[RetroMecha][Render] Auto-atmosfera: {e}')
-
-
 # ══════════════════════════════════════════════════════════════
 #  CALLBACKS — Render
 # ══════════════════════════════════════════════════════════════

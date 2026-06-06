@@ -240,14 +240,6 @@ def scene_update(fn):
         except Exception:
             pass
 
-
-def set_option_by_value(menu, mapping, value):
-    for label, mapped in mapping.items():
-        if mapped == value:
-            mc.optionMenu(menu, e=True, value=label)
-            return
-
-
 def delimit_roots():
     scene = find_scene_group()
     if scene:

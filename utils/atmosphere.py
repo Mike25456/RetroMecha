@@ -28,17 +28,12 @@ DEFAULT_ANISOTROPY = 0.666
 DENSITY_MIN = 0.02
 DENSITY_MAX = 0.08
 
+from utils.maya_materials import has_arnold
+
 
 # ══════════════════════════════════════════════════════════════════════
 #  ARNOLD
 # ══════════════════════════════════════════════════════════════════════
-
-def _has_arnold() -> bool:
-    try:
-        from utils.maya_materials import has_arnold
-        return has_arnold()
-    except Exception:
-        return False
 
 
 def _ensure_arnold_options():
@@ -65,7 +60,7 @@ def ensure_atmosphere(density: float = DEFAULT_DENSITY,
     """
     if not MAYA_AVAILABLE:
         return None
-    if not _has_arnold():
+    if not has_arnold():
         print('[RetroMecha][Atmosphere] Arnold no cargado — '
               'aiAtmosphereVolume omitido')
         return None

@@ -13,13 +13,7 @@ except ImportError:
 RENDER_WIDTH  = 1920
 RENDER_HEIGHT = 1080
 
-
-def _has_arnold() -> bool:
-    try:
-        from utils.maya_materials import has_arnold
-        return has_arnold()
-    except Exception:
-        return False
+from utils.maya_materials import has_arnold
 
 
 def set_render_settings():
@@ -135,7 +129,7 @@ def render_now() -> bool:
     except Exception as e:
         print(f'[RetroMecha][Render] Sync: {e}')
 
-    if not _has_arnold():
+    if not has_arnold():
         print('[RetroMecha][Render] Arnold no cargado — abortando')
         return False
 

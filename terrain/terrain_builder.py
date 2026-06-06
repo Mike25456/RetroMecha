@@ -65,7 +65,7 @@ class TerrainBuilder:
         # Pilares, rampas, debris
         'pillar_count':          8,
         'ramp_probability':      0.55,
-        'debris_count':         80,
+        'debris_count':         50,
         'tower_probability':     0.65,
 
         # Radios del anillo
@@ -99,6 +99,7 @@ class TerrainBuilder:
         if not MAYA_AVAILABLE:
             return 'rm_terrain_DEBUG'
 
+        self._all_pieces = []
         self._root = mc.group(empty=True, name='rm_terrain_#')
         try:
             self._ground()
@@ -108,6 +109,11 @@ class TerrainBuilder:
             self._pillars()
             self._fragments()
             self._debris()
+
+            # Batch parentear todas las piezas al root (una sola operación DAG)
+            if self._all_pieces:
+                mc.parent(self._all_pieces, self._root)
+
             if self.params.get('use_support_edges', True):
                 count = apply_support_edges(self._root, offset=0.018,
                                              fraction=0.045, segments=2,
@@ -297,7 +303,7 @@ class TerrainBuilder:
             mx = (p1[0]+best[0])*0.5
             my = (p1[1]+best[1])*0.5
             mz = (p1[2]+best[2])*0.5
-            ramp = mc.polyCube(w=0.5, h=0.10, d=best_d, name='rm_ramp_#')[0]
+            ramp = mc.polyCube(w=0.5, h=0.10, d=best_d, ch=False, name='rm_ramp_#')[0]
             mc.move(mx, my+0.06, mz, ramp)
             ay = math.degrees(math.atan2(best[0]-p1[0], best[2]-p1[2]))
             ax = -math.degrees(math.atan2(best[1]-p1[1], best_d))
@@ -404,7 +410,7 @@ class TerrainBuilder:
             sw = s * self._rng.uniform(0.5, 2.2)
             sh = s * self._rng.uniform(0.3, 1.6)
             sd = s * self._rng.uniform(0.4, 1.9)
-            piece = mc.polyCube(w=sw, h=sh, d=sd,
+            piece = mc.polyCube(w=sw, h=sh, d=sd, ch=False,
                                 name=f'rm_deb_{placed}_#')[0]
             mc.move(px, gp_y + sh*0.5, pz, piece)
             mc.rotate(self._rng.uniform(0,360),
@@ -434,7 +440,7 @@ class TerrainBuilder:
             import traceback; traceback.print_exc()
             return None
         if node and mc.objExists(node):
-            mc.parent(node, self._root)
+            self._all_pieces.append(node)
         return node
 
     def _load_preset(self, name):

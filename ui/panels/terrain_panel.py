@@ -9,7 +9,7 @@ except ImportError:
 import ui.theme as T
 from ui import state
 from ui.constants import TERRAIN_PRESET_MAP
-from ui.widgets import fsl, isl, ACCENT_ACTION, BG_HOVER
+from ui.widgets import fsl, isl, ACCENT_ACTION, BG_HOVER, button_grid
 from ui.build_actions import rebuild_terrain_only
 
 
@@ -43,20 +43,18 @@ def build(wrapped=True):
     mc.text(label='Preset escena', align='left', font='smallPlainLabelFont')
     active = state._TERRAIN_PRESET[0]
     presets = list(TERRAIN_PRESET_MAP.keys())
-    for i in range(0, len(presets), 4):
-        chunk = presets[i:i + 4]
-        n = len(chunk)
-        mc.rowLayout(nc=n, columnWidth=[(j + 1, 80) for j in range(n)],
-                     columnAttach=[(j + 1, 'both', 2) for j in range(n)])
-        for label in chunk:
-            is_active = (label == active)
-            btn = mc.button(
-                label=label, height=24,
-                backgroundColor=ACCENT_ACTION if is_active else BG_HOVER,
-                command=lambda *_, l=label: _on_terrain_preset_click(l),
-            )
-            state.reg(f't_preset_btn_{label}', btn)
-        mc.setParent('..')
+
+    def _tpreset_btn(item, _j, _i):
+        lbl = item
+        is_active = (lbl == active)
+        btn = mc.button(
+            label=lbl, height=24,
+            backgroundColor=ACCENT_ACTION if is_active else BG_HOVER,
+            command=lambda *_, l=lbl: _on_terrain_preset_click(l),
+        )
+        state.reg(f't_preset_btn_{lbl}', btn)
+
+    button_grid(presets, cols=4, btn_width=80, btn_height=24, on_build=_tpreset_btn)
 
     mc.separator(h=4)
     state.reg('t_mon_sl', fsl(
