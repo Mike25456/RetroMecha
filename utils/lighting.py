@@ -30,6 +30,8 @@ try:
 except ImportError:
     MAYA_AVAILABLE = False
 
+from utils.maya_materials import has_arnold
+
 _LIGHT_TAG = 'rmLight'
 
 # ── Z offset respecto al fondo ───────────────────────────────────────
@@ -94,13 +96,6 @@ _VEAM_I    = [VEAM_INTENSITY]
 #  HELPERS
 # ══════════════════════════════════════════════════════════════════════
 
-def _has_arnold() -> bool:
-    try:
-        from utils.maya_materials import has_arnold
-        return has_arnold()
-    except Exception:
-        return False
-
 
 def _clamp_intensity(v) -> float:
     return max(INTENSITY_MIN, float(v))
@@ -117,10 +112,6 @@ def _palette_mecha_color(palette_label: str = 'Predeterminado'):
                           .get('color', (0.04, 0.75, 1.0))
     except Exception:
         pass
-
-    toon_col, _ = _toon_palette_colors(palette_label)
-    if toon_col:
-        return toon_col
     return (0.04, 0.75, 1.0)
 
 
@@ -135,10 +126,6 @@ def _palette_terrain_color(palette_label: str = 'Predeterminado'):
                           .get('color', (0.42, 0.36, 0.28))
     except Exception:
         pass
-
-    _, toon_col = _toon_palette_colors(palette_label)
-    if toon_col:
-        return toon_col
     return (0.42, 0.36, 0.28)
 
 
@@ -212,23 +199,6 @@ def _resolve_preset_key(label: str, presets: dict) -> str | None:
     return None
 
 
-def _ramp_mid_color(ramp):
-    if not ramp:
-        return None
-    try:
-        best = min(ramp, key=lambda item: abs(float(item[0]) - 0.5))
-        rgb = best[1]
-        return (float(rgb[0]), float(rgb[1]), float(rgb[2]))
-    except Exception:
-        return None
-
-
-def _toon_palette_colors(palette_key: str):
-    """Stub — aiToon palettes were removed. Always returns (None, None).
-    Kept as a safe fallback for _palette_mecha_color / _palette_terrain_color."""
-    return None, None
-
-
 def _set_light_attr(shape: str, candidates: tuple[str, ...], value) -> bool:
     for attr in candidates:
         try:
@@ -292,7 +262,7 @@ def _apply_mesh_visibility(mesh_shape: str):
 
 def _create_meshlight_with_mtoa(cube_xform: str, cube_shape: str, light_xform_name: str):
     """Intenta crear aiMeshLight usando mtoa.utils (si está disponible)."""
-    if not _has_arnold():
+    if not has_arnold():
         return None, None
     try:
         import mtoa.utils as mutils
@@ -504,7 +474,7 @@ def apply_lighting(palette_label: str = 'Predeterminado'):
 
     remove_lighting()
 
-    if not _has_arnold():
+    if not has_arnold():
         print('[RetroMecha][Lighting] Arnold no cargado — abortando')
         return
 
@@ -534,9 +504,8 @@ def remove_lighting():
         return
 
     candidates = set()
-    for ltype in ('directionalLight', 'aiAreaLight', 'aiMeshLight',
-                  'aiSkyDomeLight'):
-        for shape in (mc.ls(type=ltype) or []):
+    for shape in (mc.ls(type=('directionalLight', 'aiAreaLight',
+                              'aiMeshLight', 'aiSkyDomeLight')) or []):
             parents = mc.listRelatives(shape, parent=True) or []
             xform = parents[0] if parents else shape
             candidates.add(xform)
@@ -603,16 +572,6 @@ def set_veam_intensity(value: float):
             _set_light_intensity(shape, _VEAM_I[0])
 
 
-def get_intensities() -> dict:
-    """Retorna las intensidades actuales por luz (clampadas)."""
-    return {
-        'ambient':    _AMBIENT_I[0],
-        'foco':       _FOCO_I[0],
-        'background': _BG_I[0],
-        'veam':       _VEAM_I[0],
-    }
-
-
 def set_palette(palette_label: str):
     """Recolorea luz_ambiente y veam_lights con el glow del mecha."""
     if not MAYA_AVAILABLE:
@@ -634,18 +593,5 @@ def set_palette(palette_label: str):
     print(
         f'[RetroMecha][Lighting] palette recoloreada → {palette_label} '
         f'terrain={tuple(round(v,3) for v in terrain_col)} '
-        f'mecha={tuple(round(v,3) for v in mecha_col)}'
+                       f'mecha={tuple(round(v,3) for v in mecha_col)}'
     )
-
-
-def list_rm_lights() -> list:
-    if not MAYA_AVAILABLE:
-        return []
-    result = []
-    for ltype in ('aiAreaLight', 'aiMeshLight'):
-        for shape in (mc.ls(type=ltype) or []):
-            parents = mc.listRelatives(shape, parent=True) or []
-            xform = parents[0] if parents else shape
-            if mc.attributeQuery(_LIGHT_TAG, node=xform, exists=True):
-                result.append(xform)
-    return result

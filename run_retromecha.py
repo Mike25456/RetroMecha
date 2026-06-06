@@ -7,7 +7,7 @@ Uso:
   Doble clic en "Run RetroMecha.bat"
 
 Comportamiento:
-  • Maya cerrado  → abre Maya y carga el plugin
+  • Maya cerrado  → abre Maya y carga el plugin d   
   • Maya abierto  → envía el plugin a la sesión actual (Windows: maya -script)
 """
 
@@ -37,3 +37,4 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except KeyboardInterrupt:
         raise SystemExit(130)
+        

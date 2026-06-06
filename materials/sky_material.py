@@ -39,6 +39,8 @@ SG_NAME     = 'sky_materialSG'
 RAMP_NAME   = 'rm_sky_ramp'           # equivalente al 'ramp1' del setup
 SKY_MESH    = 'sky'
 
+from utils.maya_materials import has_arnold
+
 # Tag para limpieza segura
 SHADER_TAG  = 'rmSkyShader'
 
@@ -80,7 +82,7 @@ def create_sky_material(palette: str = DEFAULT_PRESET) -> str | None:
     """
     if not MAYA_AVAILABLE:
         return None
-    if not _has_arnold():
+    if not has_arnold():
         print('[RetroMecha][SkyMat] Arnold no cargado — sky_material omitido')
         return None
     if not mc.objExists(SKY_MESH):
@@ -113,6 +115,15 @@ def create_sky_material(palette: str = DEFAULT_PRESET) -> str | None:
 
     try:
         mc.sets(SKY_MESH, edit=True, forceElement=sg)
+        for shape in (mc.listRelatives(SKY_MESH, shapes=True, type='mesh') or []):
+            mc.sets(shape, edit=True, forceElement=sg)
+            try:
+                face_count = mc.polyEvaluate(shape, face=True)
+                if face_count:
+                    mc.sets(f'{shape}.f[0:{int(face_count) - 1}]',
+                            edit=True, forceElement=sg)
+            except Exception:
+                pass
     except Exception as e:
         print(f'[RetroMecha][SkyMat] Assign to {SKY_MESH}: {e}')
 
@@ -123,6 +134,14 @@ def create_sky_material(palette: str = DEFAULT_PRESET) -> str | None:
     mc.setAttr(f'{shader}.{SHADER_TAG}', True)
 
     print(f'[RetroMecha][SkyMat] {SHADER_NAME} aplicado (palette={palette})')
+
+    # Activar texturas en todos los paneles 3D para que el ramp sea visible
+    try:
+        for panel in (mc.getPanel(type='modelPanel') or []):
+            mc.modelEditor(panel, e=True, displayTextures=True)
+    except Exception:
+        pass
+
     return sg
 
 
@@ -162,15 +181,7 @@ def list_palettes() -> list[str]:
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  INTERNOS
-# ══════════════════════════════════════════════════════════════════════
-
-def _has_arnold() -> bool:
-    try:
-        from utils.maya_materials import has_arnold
-        return has_arnold()
-    except Exception:
-        return False
+# END API RETROMECHA
 
 
 def _stops_for_palette(palette: str):

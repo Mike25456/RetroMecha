@@ -19,105 +19,36 @@ from ui.module_advanced import get_slider_specs
 
 # ── safe control access (mode-agnostic) ──────────────────────
 
-def _safe_val(name, default=1.0):
+_MC = {
+    'fsl': mc.floatSliderGrp,
+    'isl': mc.intSliderGrp,
+    'opt': mc.optionMenu,
+    'cb': mc.checkBox,
+    'txt': mc.textField,
+}
+
+def _safe_get(name, default=None, kind='fsl', flag='value'):
     ctrl = state.get(name)
     if not ctrl:
         return default
     try:
         if mc.control(ctrl, exists=True):
-            return mc.floatSliderGrp(ctrl, q=True, value=True)
+            fn = _MC.get(kind)
+            if fn:
+                return fn(ctrl, q=True, **{flag: True})
     except Exception:
         pass
     return default
 
-
-def _safe_int(name, default=8):
-    ctrl = state.get(name)
-    if not ctrl:
-        return default
-    try:
-        if mc.control(ctrl, exists=True):
-            return mc.intSliderGrp(ctrl, q=True, value=True)
-    except Exception:
-        pass
-    return default
-
-
-def _safe_opt(name, default_label=None):
-    ctrl = state.get(name)
-    if not ctrl:
-        return default_label
-    try:
-        if mc.control(ctrl, exists=True):
-            return mc.optionMenu(ctrl, q=True, value=True)
-    except Exception:
-        pass
-    return default_label
-
-
-def _safe_cb(name, default=True):
-    ctrl = state.get(name)
-    if not ctrl:
-        return default
-    try:
-        if mc.control(ctrl, exists=True):
-            return mc.checkBox(ctrl, q=True, value=True)
-    except Exception:
-        pass
-    return default
-
-
-def _safe_set_opt(name, value):
+def _safe_set(name, value, kind='fsl', flag='value'):
     ctrl = state.get(name)
     if not ctrl:
         return
     try:
         if mc.control(ctrl, exists=True):
-            mc.optionMenu(ctrl, e=True, value=value)
-    except Exception:
-        pass
-
-
-def _safe_set_val(name, value):
-    ctrl = state.get(name)
-    if not ctrl:
-        return
-    try:
-        if mc.control(ctrl, exists=True):
-            mc.floatSliderGrp(ctrl, e=True, value=value)
-    except Exception:
-        pass
-
-
-def _safe_set_int(name, value):
-    ctrl = state.get(name)
-    if not ctrl:
-        return
-    try:
-        if mc.control(ctrl, exists=True):
-            mc.intSliderGrp(ctrl, e=True, value=value)
-    except Exception:
-        pass
-
-
-def _safe_set_cb(name, value):
-    ctrl = state.get(name)
-    if not ctrl:
-        return
-    try:
-        if mc.control(ctrl, exists=True):
-            mc.checkBox(ctrl, e=True, value=value)
-    except Exception:
-        pass
-
-
-def _safe_set_txt(name, value):
-    ctrl = state.get(name)
-    if not ctrl:
-        return
-    try:
-        if mc.control(ctrl, exists=True):
-            mc.textField(ctrl, e=True, text=str(value))
+            fn = _MC.get(kind)
+            if fn:
+                fn(ctrl, e=True, **{flag: value})
     except Exception:
         pass
 
@@ -142,16 +73,7 @@ def _safe_exists(name):
 # ── helpers ──────────────────────────────────────────────────
 
 def _resolve_seed():
-    ctrl = state.get('seed_field')
-    if _safe_ctrl_exists(ctrl):
-        txt = mc.textField(ctrl, q=True, text=True).strip()
-        if txt.isdigit():
-            seed = int(txt)
-        else:
-            seed = random.randint(0, 99999)
-            mc.textField(ctrl, e=True, text=str(seed))
-    else:
-        seed = random.randint(0, 99999)
+    seed = random.randint(0, 99999)
     state._SEED[0] = seed
     return seed
 
@@ -182,26 +104,22 @@ def _collect_mecha():
             key = f'{module}.{spec["key"]}'
             ctrl = state.get(key)
             if _safe_ctrl_exists(ctrl):
-                adv[spec['key']] = mc.floatSliderGrp(ctrl, q=True, value=True)
-
-    def _resolve_style(labels, ctrl_name, default):
-        label = _safe_opt(ctrl_name)
-        return labels.get(label, default) if label else default
+                adv[spec['key']] = _safe_get(key, spec.get('default', 0.5), 'fsl')
 
     params.update({
-        'height_scale': _safe_val('height_sl', params.get('height_scale', 1.0)),
-        'symmetry': _safe_cb('sym_cb', params.get('symmetry', True)),
+        'height_scale': _safe_get('height_sl', params.get('height_scale', 1.0), 'fsl'),
+        'symmetry': params.get('symmetry', True),
         'use_head': True,
-        'use_arms': _safe_cb('arms_cb', params.get('use_arms', True)),
-        'use_wings': _safe_cb('wings_cb', params.get('use_wings', True)),
-        'use_energy_fields': _safe_cb('energy_cb', params.get('use_energy_fields', True)),
-        'head_style': _resolve_style(HEAD_STYLE_LABELS, 'head_style_menu', params.get('head_style', 'helmet')),
-        'arm_style': _resolve_style(ARM_STYLE_LABELS, 'arm_style_menu', params.get('arm_style', 'standard')),
-        'arm_style_right': _resolve_style(ARM_STYLE_LABELS, 'arm_style_right_menu', params.get('arm_style_right')),
-        'wing_style': _resolve_style(WING_STYLE_LABELS, 'wing_style_menu', params.get('wing_style', 'needle')),
-        'wing_style_right': _resolve_style(WING_STYLE_LABELS, 'wing_style_right_menu', params.get('wing_style_right')),
-        'torso_style': _resolve_style(TORSO_STYLE_LABELS, 'torso_style_menu', params.get('torso_style', 'core')),
-        'nucleus_style': _resolve_style(NUCLEUS_STYLE_LABELS, 'nucleus_style_menu', params.get('nucleus_style', 'ring')),
+        'use_arms': params.get('use_arms', True),
+        'use_wings': params.get('use_wings', True),
+        'use_energy_fields': params.get('use_energy_fields', True),
+        'head_style': params.get('head_style', 'helmet'),
+        'arm_style': params.get('arm_style', 'standard'),
+        'arm_style_right': params.get('arm_style_right'),
+        'wing_style': params.get('wing_style', 'needle'),
+        'wing_style_right': params.get('wing_style_right'),
+        'torso_style': params.get('torso_style', 'core'),
+        'nucleus_style': params.get('nucleus_style', 'ring'),
         **adv,
     })
     if state._MODE[0] == 'quick':
@@ -226,23 +144,23 @@ def _collect_terrain():
     }
     result.update(state._TERRAIN_PARAMS)
     result = {
-        'monument_scale': _safe_val('t_mon_sl', result['monument_scale']),
-        'platform_count': _safe_int('t_plat_sl', result['platform_count']),
-        'fragment_count': _safe_int('t_frag_sl', result['fragment_count']),
-        'debris_count': _safe_int('t_deb_sl', result['debris_count']),
-        'pillar_count': _safe_int('t_pil_sl', result['pillar_count']),
-        'ramp_probability': _safe_val('t_ramp_sl', result['ramp_probability']),
-        'ring_max_r': _safe_val('t_ring_sl', result['ring_max_r']),
+        'monument_scale': _safe_get('t_mon_sl', result['monument_scale'], 'fsl'),
+        'platform_count': _safe_get('t_plat_sl', result['platform_count'], 'isl'),
+        'fragment_count': _safe_get('t_frag_sl', result['fragment_count'], 'isl'),
+        'debris_count': _safe_get('t_deb_sl', result['debris_count'], 'isl'),
+        'pillar_count': _safe_get('t_pil_sl', result['pillar_count'], 'isl'),
+        'ramp_probability': _safe_get('t_ramp_sl', result['ramp_probability'], 'fsl'),
+        'ring_max_r': _safe_get('t_ring_sl', result['ring_max_r'], 'fsl'),
         'skyline_count': result['skyline_count'],
         'skyline_distance_z': result['skyline_distance_z'],
         'skyline_spread_x': result['skyline_spread_x'],
     }
     if state.get('t_sky_n_sl'):
-        result['skyline_count'] = _safe_int('t_sky_n_sl', result['skyline_count'])
+        result['skyline_count'] = _safe_get('t_sky_n_sl', result['skyline_count'], 'isl')
     if state.get('t_sky_z_sl'):
-        result['skyline_distance_z'] = _safe_val('t_sky_z_sl', result['skyline_distance_z'])
+        result['skyline_distance_z'] = _safe_get('t_sky_z_sl', result['skyline_distance_z'], 'fsl')
     if state.get('t_sky_sp_sl'):
-        result['skyline_spread_x'] = _safe_val('t_sky_sp_sl', result['skyline_spread_x'])
+        result['skyline_spread_x'] = _safe_get('t_sky_sp_sl', result['skyline_spread_x'], 'fsl')
     if state._MODE[0] == 'quick':
         result.update(state._QUICK_TERRAIN_OVERRIDES)
     state._TERRAIN_PARAMS.clear()
@@ -274,7 +192,10 @@ def _build_mecha(seed, support_edges=True):
 
 
 def _build_terrain(seed, support_edges=True):
-    preset_label = _safe_opt('t_preset_menu', 'Avanzada')
+    preset_label = state._TERRAIN_PRESET[0] or 'Avanzada'
+    if preset_label not in TERRAIN_PRESET_MAP:
+        preset_label = 'Avanzada'
+    state._TERRAIN_PRESET[0] = preset_label
     preset_name = TERRAIN_PRESET_MAP.get(preset_label, 'avanzada')
     overrides = _collect_terrain()
     from terrain.terrain_builder import TerrainBuilder
@@ -322,10 +243,20 @@ def _sync_anim_ui():
 
 
 def _apply_terrain_visuals(palette: str):
-    """Crea sky + sky_material + luces y sincroniza paleta completa.
+    """Crea sky + sky_material + luces y asigna ping-pong swaps al terreno.
 
-    Flujo automatico: cielo + materiales + luces, sin botones.
+    NO re-aplica colores de preset — preserva cambios manuales del usuario.
+    Los colores se aplican solo cuando el usuario hace click en un swatch de paleta.
     """
+    # 0. Asegurar que el terreno use los ping-pong swap shaders
+    try:
+        from ui.panels.material_panel import (
+            _ensure_terrain_swaps, _swap_terrain_to_opposite)
+        _ensure_terrain_swaps()
+        _swap_terrain_to_opposite()
+    except Exception as e:
+        print(f'[RetroMecha][Terrain] Ping-pong: {e}')
+
     # 1. Sky geometry
     try:
         from utils.sky import create_sky
@@ -350,49 +281,57 @@ def _apply_terrain_visuals(palette: str):
     except Exception as e:
         print(f'[RetroMecha][Terrain] Luces: {e}')
 
-    # 4. Sync centralizada (shaders + sky_ramp + luces, idempotente)
-    try:
-        from materials.sync import apply_palette_full
-        apply_palette_full(palette)
-    except Exception as e:
-        print(f'[RetroMecha][Terrain] Sync: {e}')
-
 
 # ── rebuild ──────────────────────────────────────────────────
 
+def _clear_scene_label():
+    menu = state.get('scene_menu')
+    if _safe_ctrl_exists(menu):
+        try:
+            mc.optionMenu(menu, e=True, value='auto')
+        except Exception:
+            pass
+
+
 def rebuild_mecha(*_):
     def _work():
-        seed = state._SEED[0] if isinstance(state._SEED[0], int) else _resolve_seed()
-        state._SEED[0] = seed
-        sc.clean_mecha()
-        grp = _build_mecha(seed, support_edges=False)
-        if grp and mc.objExists(grp):
-            sc.parent_to_scene(grp)
-            sc.mark_undelimited(sc.find_scene_group() or grp)
-            mc.select(grp)
-        _apply_idle_to_mecha()
+        try:
+            _clear_scene_label()
+            seed = state._SEED[0] if isinstance(state._SEED[0], int) else _resolve_seed()
+            state._SEED[0] = seed
+            sc.clean_mecha()
+            grp = _build_mecha(seed, support_edges=False)
+            if grp and mc.objExists(grp):
+                sc.parent_to_scene(grp)
+                sc.mark_undelimited(sc.find_scene_group() or grp)
+            _apply_idle_to_mecha()
+        except Exception as e:
+            print(f'[RetroMecha][RebuildMecha] Error: {e}')
     return sc.scene_update(_work)
 
 
 def rebuild_terrain_only(*_):
     def _work():
-        seed = state._SEED[0] if isinstance(state._SEED[0], int) else _resolve_seed()
-        state._SEED[0] = seed
-        sc.clean_terrain()
-        grp = _build_terrain(seed, support_edges=False)
-        if grp and mc.objExists(grp):
-            sc.parent_to_scene(grp)
-            sc.mark_undelimited(sc.find_scene_group() or grp)
-            mc.select(grp)
-
-        # Paleta actual (para sky_material y lights)
         try:
-            from ui.panels.material_panel import current_palette_label
-            palette = current_palette_label()
-        except Exception:
-            palette = 'Predeterminado'
+            _clear_scene_label()
+            seed = state._SEED[0] if isinstance(state._SEED[0], int) else _resolve_seed()
+            state._SEED[0] = seed
+            sc.clean_terrain()
+            grp = _build_terrain(seed, support_edges=False)
+            if grp and mc.objExists(grp):
+                sc.parent_to_scene(grp)
+                sc.mark_undelimited(sc.find_scene_group() or grp)
 
-        _apply_terrain_visuals(palette)
+            # Paleta actual (para sky_material y lights)
+            try:
+                from ui.panels.material_panel import current_palette_label
+                palette = current_palette_label()
+            except Exception:
+                palette = 'Predeterminado'
+
+            _apply_terrain_visuals(palette)
+        except Exception as e:
+            print(f'[RetroMecha][RebuildTerrain] Error: {e}')
 
     return sc.scene_update(_work)
 
@@ -401,47 +340,55 @@ def rebuild_terrain_only(*_):
 
 def on_generar(*_):
     def _work():
-        seed = _resolve_seed()
-        sc.clean_scene()
-        scene_grp = mc.group(empty=True, name='RetroMecha_Scene_#')
-        mecha_grp = _build_mecha(seed, support_edges=False)
-        if mecha_grp and mc.objExists(mecha_grp):
-            mc.parent(mecha_grp, scene_grp)
-        terrain_grp = _build_terrain(seed, support_edges=False)
-        if terrain_grp and mc.objExists(terrain_grp):
-            mc.parent(terrain_grp, scene_grp)
-        if state._QUICK_PALETTE[0]:
+        try:
+            seed = _resolve_seed()
+            sc.clean_scene()
+            scene_grp = mc.group(empty=True, name='RetroMecha_Scene_#')
+            mecha_grp = _build_mecha(seed, support_edges=False)
+            if mecha_grp and mc.objExists(mecha_grp):
+                mc.parent(mecha_grp, scene_grp)
+            terrain_grp = _build_terrain(seed, support_edges=False)
+            if terrain_grp and mc.objExists(terrain_grp):
+                mc.parent(terrain_grp, scene_grp)
+            if state._QUICK_PALETTE[0]:
+                try:
+                    from ui.panels.material_panel import apply_color_preset_quick
+                    apply_color_preset_quick(state._QUICK_PALETTE[0])
+                except Exception as e:
+                    print(f'[RetroMecha][Quick] No se pudo aplicar paleta: {e}')
+
+            # Lift default +6 en Y al mecha
             try:
-                from ui.panels.material_panel import apply_color_preset_quick
-                apply_color_preset_quick(state._QUICK_PALETTE[0])
+                from utils.camera import lift_mecha_default
+                lift_mecha_default()
             except Exception as e:
-                print(f'[RetroMecha][Quick] No se pudo aplicar paleta: {e}')
+                print(f'[RetroMecha][Generar] Lift: {e}')
 
-        # Lift default +6 en Y al mecha (replica el ajuste manual del setup)
-        try:
-            from utils.camera import lift_mecha_default
-            lift_mecha_default()
+            # Camara default
+            try:
+                from utils.camera import create_default_camera
+                create_default_camera(frame_mecha=False, look_through=True)
+            except Exception as e:
+                print(f'[RetroMecha][Generar] Camara: {e}')
+
+            # Sky + luces
+            try:
+                from ui.panels.material_panel import current_palette_label
+                palette = current_palette_label()
+            except Exception:
+                palette = 'Default'
+            try:
+                _apply_terrain_visuals(palette)
+            except Exception as e:
+                print(f'[RetroMecha][Generar] Visuals: {e}')
+
+            # Animacion idle + auto-play
+            try:
+                _apply_idle_to_mecha()
+            except Exception as e:
+                print(f'[RetroMecha][Generar] Idle: {e}')
         except Exception as e:
-            print(f'[RetroMecha][Generar] Lift: {e}')
-
-        # Camara default compo (se reposiciona contra el bbox actualizado)
-        try:
-            from utils.camera import create_default_camera
-            create_default_camera(frame_mecha=False, look_through=True)
-        except Exception as e:
-            print(f'[RetroMecha][Generar] Camara: {e}')
-
-        # Sky + luces siempre desde el terreno
-        try:
-            from ui.panels.material_panel import current_palette_label
-            palette = current_palette_label()
-        except Exception:
-            palette = 'Default'
-        _apply_terrain_visuals(palette)
-
-        # Animacion idle + auto-play
-        _apply_idle_to_mecha()
-        mc.select(scene_grp)
+            print(f'[RetroMecha][Generar] Error: {e}')
     return sc.scene_update(_work)
 
 
@@ -482,19 +429,14 @@ def _set_random_mecha_controls():
         state._QUICK_MECHA_OVERRIDES.update(quick_values)
     state._MECHA_PARAMS.update(quick_values)
 
-    _safe_set_opt('mecha_preset_menu', 'Custom')
-    _safe_set_val('height_sl', quick_values['height_scale'])
-    _safe_set_cb('sym_cb', quick_values['symmetry'])
-    _safe_set_cb('arms_cb', quick_values['use_arms'])
-    _safe_set_cb('wings_cb', quick_values['use_wings'])
-    _safe_set_cb('energy_cb', quick_values['use_energy_fields'])
-    _safe_set_opt('head_style_menu', random.choice(list(HEAD_STYLE_LABELS.keys())))
-    _safe_set_opt('arm_style_menu', random.choice(list(ARM_STYLE_LABELS.keys())))
-    _safe_set_opt('arm_style_right_menu', random.choice(list(ARM_STYLE_LABELS.keys())))
-    _safe_set_opt('wing_style_menu', random.choice(list(WING_STYLE_LABELS.keys())))
-    _safe_set_opt('wing_style_right_menu', random.choice(list(WING_STYLE_LABELS.keys())))
-    _safe_set_opt('torso_style_menu', random.choice(list(TORSO_STYLE_LABELS.keys())))
-    _safe_set_opt('nucleus_style_menu', random.choice(list(NUCLEUS_STYLE_LABELS.keys())))
+    _safe_set('height_sl', quick_values['height_scale'], 'fsl')
+    state._MECHA_PARAMS['head_style'] = quick_values['head_style']
+    state._MECHA_PARAMS['arm_style'] = quick_values['arm_style']
+    state._MECHA_PARAMS['arm_style_right'] = quick_values['arm_style_right']
+    state._MECHA_PARAMS['wing_style'] = quick_values['wing_style']
+    state._MECHA_PARAMS['wing_style_right'] = quick_values['wing_style_right']
+    state._MECHA_PARAMS['torso_style'] = quick_values['torso_style']
+    state._MECHA_PARAMS['nucleus_style'] = quick_values['nucleus_style']
     for m in ('head', 'arm', 'wing', 'torso', 'nucleus'):
         _random_module_adv(m)
 
@@ -507,7 +449,6 @@ def random_mecha(*_):
         state._APPLYING_MECHA_PRESET[0] = False
     _toggle_symmetry_ui()
     state._SEED[0] = random.randint(0, 99999)
-    _safe_set_txt('seed_field', str(state._SEED[0]))
     rebuild_mecha()
 
 
@@ -530,19 +471,19 @@ def randomize_terrain_controls():
 
     state._APPLYING_TERRAIN_VALUES[0] = True
     try:
-        _safe_set_val('t_mon_sl', quick_values['monument_scale'])
-        _safe_set_int('t_plat_sl', quick_values['platform_count'])
-        _safe_set_int('t_frag_sl', quick_values['fragment_count'])
-        _safe_set_int('t_deb_sl', quick_values['debris_count'])
-        _safe_set_int('t_pil_sl', quick_values['pillar_count'])
-        _safe_set_val('t_ramp_sl', quick_values['ramp_probability'])
-        _safe_set_val('t_ring_sl', quick_values['ring_max_r'])
+        _safe_set('t_mon_sl', quick_values['monument_scale'], 'fsl')
+        _safe_set('t_plat_sl', quick_values['platform_count'], 'isl')
+        _safe_set('t_frag_sl', quick_values['fragment_count'], 'isl')
+        _safe_set('t_deb_sl', quick_values['debris_count'], 'isl')
+        _safe_set('t_pil_sl', quick_values['pillar_count'], 'isl')
+        _safe_set('t_ramp_sl', quick_values['ramp_probability'], 'fsl')
+        _safe_set('t_ring_sl', quick_values['ring_max_r'], 'fsl')
         if state.get('t_sky_n_sl'):
-            _safe_set_int('t_sky_n_sl', quick_values['skyline_count'])
+            _safe_set('t_sky_n_sl', quick_values['skyline_count'], 'isl')
         if state.get('t_sky_z_sl'):
-            _safe_set_val('t_sky_z_sl', quick_values['skyline_distance_z'])
+            _safe_set('t_sky_z_sl', quick_values['skyline_distance_z'], 'fsl')
         if state.get('t_sky_sp_sl'):
-            _safe_set_val('t_sky_sp_sl', quick_values['skyline_spread_x'])
+            _safe_set('t_sky_sp_sl', quick_values['skyline_spread_x'], 'fsl')
     finally:
         state._APPLYING_TERRAIN_VALUES[0] = False
 
@@ -561,7 +502,7 @@ def random_all(*_):
         state._APPLYING_MECHA_PRESET[0] = False
 
     state._SEED[0] = random.randint(0, 99999)
-    _safe_set_txt('seed_field', str(state._SEED[0]))
+    _clear_scene_label()
     on_generar()
 
     # Apply random color preset (aiStandardSurface) and sync UI
@@ -570,12 +511,8 @@ def random_all(*_):
     rand_preset = random.choice(presets) if presets else None
     if rand_preset:
         apply_preset(rand_preset)
-        preset_menu = state.get('materials_preset_menu')
-        if preset_menu and _safe_ctrl_exists(preset_menu):
-            try:
-                mc.optionMenu(preset_menu, e=True, value=rand_preset)
-            except Exception:
-                pass
+        from ui.panels.material_panel import apply_color_preset_quick
+        apply_color_preset_quick(rand_preset)
 
     mecha_grp = sc.find_mecha_group()
 
@@ -598,14 +535,11 @@ def random_all(*_):
             except Exception as e:
                 print(f'[RetroMecha][Random] Idle: {e}')
 
-    # Camera setup
+    # Camera setup — solo si no existe (render_now la reposiciona si hace falta)
     try:
         from utils.camera import create_default_camera, has_rm_camera
         if not has_rm_camera():
             create_default_camera(frame_mecha=True, look_through=True)
-        else:
-            from utils.camera import look_through_camera
-            look_through_camera()
     except Exception as e:
         print(f'[RetroMecha][Random] Camara: {e}')
 
@@ -615,7 +549,6 @@ def random_all(*_):
 def on_reset(*_):
     def _work():
         sc.clean_scene()
-        _safe_set_txt('seed_field', '')
         state._SEED[0] = None
         print('[RetroMecha] Escena limpiada')
     return sc.scene_update(_work)
@@ -649,32 +582,18 @@ def apply_mecha_preset(key):
             k: v for k, v in preset.items()
             if not k.startswith('_')
         })
-        _safe_set_val('height_sl', preset.get('height_scale', 1.0))
-        _safe_set_cb('sym_cb', preset.get('symmetry', True))
-        _safe_set_cb('arms_cb', preset.get('use_arms', True))
-        _safe_set_cb('wings_cb', preset.get('use_wings', True))
-        _safe_set_cb('energy_cb', preset.get('use_energy_fields', True))
-        if _safe_exists('head_style_menu'):
-            sc.set_option_by_value(state.get('head_style_menu'), HEAD_STYLE_LABELS,
-                                   preset.get('head_style', 'helmet'))
-        if _safe_exists('arm_style_menu'):
-            sc.set_option_by_value(state.get('arm_style_menu'), ARM_STYLE_LABELS,
-                                   preset.get('arm_style', 'standard'))
+        _safe_set('height_sl', preset.get('height_scale', 1.0), 'fsl')
+        state._MECHA_PARAMS['head_style'] = preset.get('head_style', 'helmet')
+        state._MECHA_PARAMS['arm_style'] = preset.get('arm_style', 'standard')
         arm_right = preset.get('arm_style_right')
-        if arm_right and _safe_exists('arm_style_right_menu'):
-            sc.set_option_by_value(state.get('arm_style_right_menu'), ARM_STYLE_LABELS, arm_right)
-        if _safe_exists('wing_style_menu'):
-            sc.set_option_by_value(state.get('wing_style_menu'), WING_STYLE_LABELS,
-                                   preset.get('wing_style', 'needle'))
+        if arm_right:
+            state._MECHA_PARAMS['arm_style_right'] = arm_right
+        state._MECHA_PARAMS['wing_style'] = preset.get('wing_style', 'needle')
         wing_right = preset.get('wing_style_right')
-        if wing_right and _safe_exists('wing_style_right_menu'):
-            sc.set_option_by_value(state.get('wing_style_right_menu'), WING_STYLE_LABELS, wing_right)
-        if _safe_exists('torso_style_menu'):
-            sc.set_option_by_value(state.get('torso_style_menu'), TORSO_STYLE_LABELS,
-                                   preset.get('torso_style', 'core'))
-        if _safe_exists('nucleus_style_menu'):
-            sc.set_option_by_value(state.get('nucleus_style_menu'), NUCLEUS_STYLE_LABELS,
-                                   preset.get('nucleus_style', 'ring'))
+        if wing_right:
+            state._MECHA_PARAMS['wing_style_right'] = wing_right
+        state._MECHA_PARAMS['torso_style'] = preset.get('torso_style', 'core')
+        state._MECHA_PARAMS['nucleus_style'] = preset.get('nucleus_style', 'ring')
         for module in ('head', 'arm', 'wing', 'torso', 'nucleus'):
             for spec in get_slider_specs(module):
                 ctrl = state.get(f'{module}.{spec["key"]}')
@@ -690,13 +609,7 @@ def apply_mecha_preset(key):
 def _toggle_symmetry_ui(*_):
     if state._UI_BUILDING[0]:
         return
-    ctrl = state.get('sym_cb')
-    if not _safe_ctrl_exists(ctrl):
-        return
-    try:
-        on = mc.checkBox(ctrl, q=True, value=True)
-    except Exception:
-        return
+    on = state._MECHA_PARAMS.get('symmetry', True)
     for row_name in ('arm_right_row', 'wing_right_row'):
         row = state.get(row_name)
         if _safe_ctrl_exists(row):
@@ -704,3 +617,74 @@ def _toggle_symmetry_ui(*_):
                 mc.control(row, e=True, visible=not on)
             except Exception:
                 pass
+
+
+# ── guardar / cargar escena ───────────────────────────────────
+
+_SCENES_PATH = Path(__file__).resolve().parent.parent / 'config' / 'saved_scenes.json'
+
+def save_scene(name: str):
+    data = {
+        'seed': state._SEED[0],
+        'palette': state._QUICK_PALETTE[0] or 'Predeterminado',
+        'terrain_preset': state._TERRAIN_PRESET[0],
+        'mecha_params': dict(state._MECHA_PARAMS),
+        'terrain_params': dict(state._TERRAIN_PARAMS),
+    }
+    scenes = {}
+    if _SCENES_PATH.exists():
+        try:
+            scenes = json.loads(_SCENES_PATH.read_text(encoding='utf-8'))
+        except Exception:
+            pass
+    scenes[name] = data
+    _SCENES_PATH.write_text(json.dumps(scenes, indent=2, ensure_ascii=False), encoding='utf-8')
+    print(f'[RetroMecha] Escena guardada: {name}')
+
+def load_scene(name: str):
+    if not _SCENES_PATH.exists():
+        print('[RetroMecha] No hay escenas guardadas')
+        return
+    try:
+        scenes = json.loads(_SCENES_PATH.read_text(encoding='utf-8'))
+    except Exception:
+        return
+    data = scenes.get(name)
+    if not data:
+        print(f'[RetroMecha] Escena "{name}" no encontrada')
+        return
+    state._SEED[0] = data.get('seed')
+    state._QUICK_PALETTE[0] = data.get('palette')
+    state._TERRAIN_PRESET[0] = data.get('terrain_preset', 'avanzada')
+    state._MECHA_PARAMS.clear()
+    state._MECHA_PARAMS.update(data.get('mecha_params', {}))
+    state._TERRAIN_PARAMS.clear()
+    state._TERRAIN_PARAMS.update(data.get('terrain_params', {}))
+    on_generar()
+    print(f'[RetroMecha] Escena cargada: {name}')
+
+def list_saved_scenes():
+    if not _SCENES_PATH.exists():
+        return []
+    try:
+        scenes = json.loads(_SCENES_PATH.read_text(encoding='utf-8'))
+        return list(scenes.keys())
+    except Exception:
+        return []
+
+
+def delete_scene(name: str):
+    if not _SCENES_PATH.exists():
+        return
+    try:
+        scenes = json.loads(_SCENES_PATH.read_text(encoding='utf-8'))
+    except Exception:
+        return
+    if name not in scenes:
+        return
+    del scenes[name]
+    if scenes:
+        _SCENES_PATH.write_text(json.dumps(scenes, indent=2, ensure_ascii=False), encoding='utf-8')
+    else:
+        _SCENES_PATH.unlink(missing_ok=True)
+    print(f'[RetroMecha] Escena eliminada: {name}')

@@ -22,7 +22,9 @@ class BaseAnimation(ABC):
         root_long = (mc.ls(self.mecha_root, long=True) or [self.mecha_root])[0]
         if not root_long.startswith('|'):
             root_long = f'|{root_long}'
-        for node in (mc.ls(type='transform', long=True) or []):
+        descendants = mc.listRelatives(self.mecha_root, allDescendents=True,
+                                       type='transform', fullPath=True) or []
+        for node in descendants:
             short = node.rsplit('|', 1)[-1]
             if not short.startswith(pattern):
                 continue
@@ -66,41 +68,6 @@ class BaseAnimation(ABC):
             WING_R=wing_r,
         )
         return self._resolved
-
-    def clear_keys(self, nodes: list, attrs: list = None):
-        """Borra keyframes y reseta atributos de una lista de nodos.
-        Por defecto no toca escala (sx/sy/sz)."""
-        if not MAYA_AVAILABLE:
-            return
-        if attrs is None:
-            attrs = ['tx', 'ty', 'tz', 'rx', 'ry', 'rz']
-        scale_default = 1.0
-        for node in nodes:
-            if not node or not mc.objExists(node):
-                continue
-            try:
-                mc.cutKey(node, clear=True)
-            except Exception:
-                pass
-            for attr in attrs:
-                try:
-                    val = scale_default if attr in ('sx', 'sy', 'sz') else 0
-                    mc.setAttr(f'{node}.{attr}', val)
-                except Exception:
-                    pass
-
-    def freeze(self):
-        """Freeze Transformations en el root del mecha (translate, rotate, scale)."""
-        if not MAYA_AVAILABLE:
-            return
-        if not mc.objExists(self.mecha_root):
-            return
-        try:
-            mc.makeIdentity(self.mecha_root, apply=True,
-                            translate=True, rotate=True, scale=True,
-                            normal=False, preserveNormals=True)
-        except Exception as e:
-            print(f'[RetroMecha][Anim] Error al freeze: {e}')
 
     def _clean_all(self, reset_root: bool = False):
         """Limpia la animacion de RetroMecha sin tocar animaciones externas."""
@@ -293,22 +260,6 @@ class BaseAnimation(ABC):
         except Exception:
             return default
 
-    def _clear_rotation_keys(self, node, attrs=('rx', 'ry', 'rz')):
-        if not node or not mc.objExists(node):
-            return
-        for attr in attrs:
-            try:
-                mc.cutKey(node, at=attr, clear=True)
-            except Exception:
-                pass
-
-    def _remove_expr(self, name: str):
-        if mc.objExists(name):
-            try:
-                mc.delete(name)
-            except Exception:
-                pass
-
     def _build_reactor_expr(self) -> list:
         lines = []
         ring = self._find('rm_reactor_orb_ring_1')
@@ -418,17 +369,6 @@ class BaseAnimation(ABC):
                 mc.setAttr(f'{root}.{a}', 1)
             except Exception as e:
                 print(f'[RetroMecha] _clean_all setAttr {root}.{a} error: {e}')
-
-    def delete_objects(self, names: list):
-        """Borra objetos por nombre si existen."""
-        if not MAYA_AVAILABLE:
-            return
-        for name in names:
-            if mc.objExists(name):
-                try:
-                    mc.delete(name)
-                except Exception:
-                    pass
 
     # ──────────────────────────────────────────────────────────────────────────
     # Limpieza de offset groups residuales: esta clase ya no los crea.

@@ -30,9 +30,10 @@ def build():
     _current_tab[0] = 'mecha'
     _tab_buttons.clear()
 
+    mc.rowLayout(nc=1, columnAttach=[(1, 'both', 20)])
     mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 
-    mc.rowLayout(nc=2, cw2=[165, 165],
+    mc.rowLayout(nc=2, cw2=[150, 150],
                  columnAttach2=['both', 'both'])
     widgets.secondary_button('Ensamblar escena', widgets.ACCENT_ACTION, random_all, height=30)
     widgets.secondary_button('Limpiar', widgets.ACCENT_DANGER, on_reset, height=30)
@@ -41,7 +42,7 @@ def build():
 
     mc.text(label='Movimiento', align='left', font='smallPlainLabelFont')
     coll = mc.radioCollection()
-    mc.rowLayout(nc=4, cw4=[85, 85, 85, 85])
+    mc.rowLayout(nc=4, cw4=[80, 80, 80, 80])
     rb_map = {}
     try:
         for key, label in [('idle', 'Reposo'), ('flight', 'Vuelo'), ('spin', 'Giro'), ('charge', 'Carga')]:
@@ -66,10 +67,11 @@ def build():
     _render_tab('mecha')
     mc.setParent('..')
     mc.setParent('..')
+    mc.setParent('..')
 
 
 def _build_tab_bar():
-    width = 340
+    width = 320
     count = len(_TABS)
     cw = width // count
     mc.rowLayout(
@@ -112,10 +114,14 @@ def _switch_tab(tab_id):
     if not _safe_ctrl_exists(content):
         return
 
-    _clear_content(content)
-    mc.setParent(content)
-    _render_tab(tab_id)
-    mc.setParent('..')
+    state._UI_BUILDING[0] = True
+    try:
+        _clear_content(content)
+        mc.setParent(content)
+        _render_tab(tab_id)
+        mc.setParent('..')
+    finally:
+        state._UI_BUILDING[0] = False
 
 
 def _render_tab(tab_id):
@@ -134,9 +140,9 @@ def _render_mecha():
     mc.separator(h=6, style='none')
 
     build_with_tabs(
-        ['general', 'head', 'arm', 'torso', 'wing', 'nucleus'],
-        ['General', 'Cabeza', 'Brazos', 'Torso', 'Alas', 'Núcleo'],
-        [[0.18, 0.18, 0.20]] * 6,
+        ['head', 'arm', 'torso', 'wing', 'nucleus'],
+        ['Cabeza', 'Brazos', 'Torso', 'Alas', 'Núcleo'],
+        [[0.18, 0.18, 0.20]] * 5,
     )
 
 

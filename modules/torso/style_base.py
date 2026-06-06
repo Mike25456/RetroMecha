@@ -307,15 +307,6 @@ def build_reactor(aggr: float, body: str, style: str,
             mc.move(0, 0, size * 0.024, arm, relative=True)
             mc.rotate(0, 0, angle, arm)
 
-            bb_a = mc.exactWorldBoundingBox(arm)
-            cx_a = (bb_a[0] + bb_a[3]) * 0.5
-            for v in mc.ls(f'{arm}.vtx[*]', flatten=True) or []:
-                pos = mc.pointPosition(v, w=True)
-                t = abs(pos[0] - cx_a) / (length_val * 0.5 or 1.0)
-                taper = 1.0 - t * 0.80
-                cy_a = (bb_a[1] + bb_a[4]) * 0.5
-                mc.move(pos[0], cy_a + (pos[1] - cy_a) * taper, pos[2], v, ws=True)
-
             assign_material(arm, 'rm_cyan_glow_mat')
             finish_bevel(arm, 0.006, hard=True)
             cross_parts.append(arm)

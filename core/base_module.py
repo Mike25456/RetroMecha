@@ -160,13 +160,7 @@ class BaseModule(ABC):
         if not MAYA_AVAILABLE:
             return
         try:
-            descendants = mc.listRelatives(
-                grp, allDescendents=True, type='transform') or []
-            for n in descendants:
-                try: mc.delete(n, constructionHistory=True)
-                except: pass
-            try: mc.delete(grp, constructionHistory=True)
-            except: pass
+            mc.delete(grp, constructionHistory=True)
         except Exception:
             pass
 
@@ -228,14 +222,17 @@ class BaseModule(ABC):
             return (0,0,0)
 
     def _load_subpieces(self) -> dict:
-        path = os.path.join(os.path.dirname(__file__),
-                            '..', 'config', 'subpieces.json')
-        try:
-            if os.path.exists(path):
-                return json.load(open(path)).get(self.MODULE_NAME, {})
-        except Exception:
-            pass
-        return {}
+        if not hasattr(BaseModule, '_subpieces_cache'):
+            path = os.path.join(os.path.dirname(__file__),
+                                '..', 'config', 'subpieces.json')
+            try:
+                if os.path.exists(path):
+                    BaseModule._subpieces_cache = json.load(open(path))
+                else:
+                    BaseModule._subpieces_cache = {}
+            except Exception:
+                BaseModule._subpieces_cache = {}
+        return BaseModule._subpieces_cache.get(self.MODULE_NAME, {})
 
     # ══════════════════════════════════════════════════════════════════════════
     #  INTERFAZ PÚBLICA HEREDADA

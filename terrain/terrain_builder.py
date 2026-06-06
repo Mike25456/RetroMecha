@@ -65,7 +65,7 @@ class TerrainBuilder:
         # Pilares, rampas, debris
         'pillar_count':          8,
         'ramp_probability':      0.55,
-        'debris_count':         80,
+        'debris_count':         50,
         'tower_probability':     0.65,
 
         # Radios del anillo
@@ -99,6 +99,7 @@ class TerrainBuilder:
         if not MAYA_AVAILABLE:
             return 'rm_terrain_DEBUG'
 
+        self._all_pieces = []
         self._root = mc.group(empty=True, name='rm_terrain_#')
         try:
             self._ground()
@@ -108,6 +109,11 @@ class TerrainBuilder:
             self._pillars()
             self._fragments()
             self._debris()
+
+            # Batch parentear todas las piezas al root (una sola operación DAG)
+            if self._all_pieces:
+                mc.parent(self._all_pieces, self._root)
+
             if self.params.get('use_support_edges', True):
                 count = apply_support_edges(self._root, offset=0.018,
                                              fraction=0.045, segments=2,
@@ -281,14 +287,14 @@ class TerrainBuilder:
         MAX_D = 18.0
         grp = mc.group(empty=True, name='rm_ramps_#')
         created = 0
+        ramps = []
 
         for i, p1 in enumerate(self._plat_pos):
             if self._rng.random() > prob:
                 continue
             best_d, best = float('inf'), None
-            for j, p2 in enumerate(self._plat_pos):
-                if i == j: continue
-                d = math.dist(p1, p2)
+            for j in range(i + 1, len(self._plat_pos)):
+                p2 = self._plat_pos[j]
                 if d < best_d and d < MAX_D:
                     best_d, best = d, p2
             if best is None:
@@ -296,15 +302,16 @@ class TerrainBuilder:
             mx = (p1[0]+best[0])*0.5
             my = (p1[1]+best[1])*0.5
             mz = (p1[2]+best[2])*0.5
-            ramp = mc.polyCube(w=0.5, h=0.10, d=best_d, name='rm_ramp_#')[0]
+            ramp = mc.polyCube(w=0.5, h=0.10, d=best_d, ch=False, name='rm_ramp_#')[0]
             mc.move(mx, my+0.06, mz, ramp)
             ay = math.degrees(math.atan2(best[0]-p1[0], best[2]-p1[2]))
             ax = -math.degrees(math.atan2(best[1]-p1[1], best_d))
             mc.rotate(ax, ay, 0, ramp)
-            mc.parent(ramp, grp)
+            ramps.append(ramp)
             created += 1
 
         if created:
+            mc.parent(*ramps, grp)
             mc.parent(grp, self._root)
             print(f'[RetroMecha][Terrain] {created} rampas')
         else:
@@ -390,6 +397,7 @@ class TerrainBuilder:
     def _debris_manual(self, count, gp_y, safe, r_lo, r_hi):
         grp = mc.group(empty=True, name='rm_debris_scatter_#')
         placed = 0
+        pieces = []
         attempts = 0
         while placed < count and attempts < count * 4:
             attempts += 1
@@ -401,15 +409,16 @@ class TerrainBuilder:
             sw = s * self._rng.uniform(0.5, 2.2)
             sh = s * self._rng.uniform(0.3, 1.6)
             sd = s * self._rng.uniform(0.4, 1.9)
-            piece = mc.polyCube(w=sw, h=sh, d=sd,
+            piece = mc.polyCube(w=sw, h=sh, d=sd, ch=False,
                                 name=f'rm_deb_{placed}_#')[0]
             mc.move(px, gp_y + sh*0.5, pz, piece)
             mc.rotate(self._rng.uniform(0,360),
                       self._rng.uniform(0,360),
                       self._rng.uniform(0,360), piece)
-            mc.parent(piece, grp)
+            pieces.append(piece)
             placed += 1
 
+        mc.parent(*pieces, grp)
         mc.parent(grp, self._root)
         print(f'[RetroMecha][Terrain] Debris: {placed}')
 
@@ -421,7 +430,6 @@ class TerrainBuilder:
         cls = get_module(name)
         if cls is None:
             return None
-        nodes_before = set(mc.ls(dag=True) or [])
         instance = cls(self.params)
         try:
             node = instance.generate(position=position, scale=scale,
@@ -429,13 +437,9 @@ class TerrainBuilder:
         except Exception as e:
             print(f'[RetroMecha][Terrain] ERR "{name}": {e}')
             import traceback; traceback.print_exc()
-            orphans = list(set(mc.ls(dag=True) or []) - nodes_before)
-            if orphans:
-                try: mc.delete(orphans)
-                except: pass
             return None
         if node and mc.objExists(node):
-            mc.parent(node, self._root)
+            self._all_pieces.append(node)
         return node
 
     def _load_preset(self, name):

@@ -145,3 +145,18 @@ def mode_switch(change_command, active_mode='quick'):
     )
     mc.setParent('..')
     return q_btn, p_btn
+
+
+def button_grid(items, cols, btn_width, btn_height, on_build):
+    """Iterate items in rows of `cols`, creating rowLayout + button per item.
+    
+    `on_build(item, col_idx, row_start)` is called per item to create the button.
+    """
+    for i in range(0, len(items), cols):
+        chunk = items[i:i + cols]
+        n = len(chunk)
+        mc.rowLayout(nc=n, columnWidth=[(j + 1, btn_width) for j in range(n)],
+                     columnAttach=[(j + 1, 'both', 2) for j in range(n)])
+        for j, item in enumerate(chunk):
+            on_build(item, j, i)
+        mc.setParent('..')

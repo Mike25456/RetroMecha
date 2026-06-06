@@ -228,8 +228,16 @@ def scene_update(fn):
     except Exception:
         pass
     try:
+        mc.undoInfo(stateWithoutFlush=False)
+    except Exception:
+        pass
+    try:
         return fn()
     finally:
+        try:
+            mc.undoInfo(stateWithoutFlush=True)
+        except Exception:
+            pass
         try:
             mc.refresh(suspend=False)
             mc.refresh(force=True)
@@ -239,14 +247,6 @@ def scene_update(fn):
             mc.undoInfo(closeChunk=True)
         except Exception:
             pass
-
-
-def set_option_by_value(menu, mapping, value):
-    for label, mapped in mapping.items():
-        if mapped == value:
-            mc.optionMenu(menu, e=True, value=label)
-            return
-
 
 def delimit_roots():
     scene = find_scene_group()

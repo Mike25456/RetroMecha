@@ -7,56 +7,52 @@ except ImportError:
     MAYA_AVAILABLE = False
 
 from ui import state, widgets
+from ui.constants import PALETTE_SWATCH_COLORS
+import ui.theme as T
 from ui.build_actions import (
     random_all, on_reset, random_mecha, rebuild_terrain_only,
 )
 from ui.panels.material_panel import apply_color_preset_quick
 from ui.panels.animation_panel import apply_animation_quick
 
-_PALETTES = {
-    'Industrial': ([0.55, 0.54, 0.51], 'Predeterminado'),
-    'Oxidado': ([0.55, 0.30, 0.15], 'Oxidado'),
-    'Frio': ([0.30, 0.55, 0.75], 'Frio'),
-    'Atardecer': ([0.65, 0.22, 0.35], 'Atardecer'),
-    'Neon': ([0.85, 0.20, 0.85], 'Neon'),
-    'Magma': ([0.95, 0.30, 0.05], 'Magma'),
-    'Veneno': ([0.10, 0.90, 0.25], 'Veneno'),
-}
-
 _ACTIVE_SWATCH = [None]
 
 
 def build():
+    mc.rowLayout(nc=1, columnAttach=[(1, 'both', 20)])
     mc.columnLayout(adjustableColumn=True, rowSpacing=0)
 
-    mc.rowLayout(nc=2, cw2=[165, 165],
+    mc.rowLayout(nc=2, cw2=[155, 155],
                  columnAttach2=['both', 'both'])
     widgets.secondary_button('Ensamblar escena', widgets.ACCENT_ACTION, random_all, height=32)
     widgets.secondary_button('Limpiar', widgets.ACCENT_DANGER, on_reset, height=32)
     mc.setParent('..')
-    mc.separator(h=8, style='none')
+    mc.separator(h=20, style='none')
 
     widgets.section_title('Mecha')
+    mc.separator(h=20, style='none')
     widgets.big_button(
         'Ensamblar Mecha',
         widgets.ACCENT_RAND,
         lambda *_: random_mecha(),
-        height=42,
+        height=44,
     )
-    mc.separator(h=6, style='none')
+    mc.separator(h=20, style='none')
 
     widgets.section_title('Escenario')
+    mc.separator(h=20, style='none')
     widgets.big_button(
         'Ensamblar Escenario',
         widgets.ACCENT_RAND,
         lambda *_: _random_terrain_and_build(),
-        height=42,
+        height=44,
     )
-    mc.separator(h=8, style='none')
+    mc.separator(h=20, style='none')
 
     widgets.section_title('Estilo')
+    mc.separator(h=30, style='none')
     swatch_btns = {}
-    items = list(_PALETTES.items())
+    items = list(PALETTE_SWATCH_COLORS.items())
 
     def _swatch_row(chunk):
         n = len(chunk)
@@ -80,9 +76,10 @@ def build():
     for i in range(0, len(items), 4):
         _swatch_row(items[i:i + 4])
 
-    mc.separator(h=8, style='none')
+    mc.separator(h=20, style='none')
 
     mc.text(label='Movimiento', align='left', font='smallPlainLabelFont')
+    mc.separator(h=10, style='none')
     coll = mc.radioCollection()
     mc.rowLayout(nc=4, cw4=[80, 80, 80, 80])
     rb_map = {}
@@ -96,16 +93,25 @@ def build():
     from ui.build_actions import _sync_anim_ui
     _sync_anim_ui()
 
-    mc.separator(h=8, style='none')
+    mc.separator(h=20, style='none')
 
     widgets.section_title('Renderizar')
+    mc.separator(h=20, style='none')
     widgets.big_button(
         'Ensamblar Render',
         widgets.ACCENT_ACTION,
         lambda *_: _quick_render(),
-        height=42,
+        height=44,
     )
     mc.separator(h=6, style='none')
+    mc.button(
+        label='Eliminar cámara', height=28,
+        backgroundColor=T.PANEL,
+        command=lambda *_: _remove_render_camera(),
+        annotation='Elimina Camara_for_render para volver a la navegación libre',
+    )
+    mc.separator(h=20, style='none')
+    mc.setParent('..')
     mc.setParent('..')
 
 
@@ -118,6 +124,10 @@ def _select_swatch(name, preset_name, btns_map):
     _ACTIVE_SWATCH[0] = name
     state._QUICK_PALETTE[0] = preset_name
     apply_color_preset_quick(preset_name)
+    try:
+        mc.refresh(force=True)
+    except Exception:
+        pass
 
 
 def _random_terrain_and_build(*_):
@@ -152,16 +162,16 @@ def _quick_render(*_):
     except Exception as e:
         print(f'[RetroMecha][Quick] Sky material: {e}')
     try:
-        from utils.camera import create_default_camera, has_rm_camera
-        if not has_rm_camera():
-            create_default_camera(frame_mecha=True, look_through=True)
-        else:
-            from utils.camera import look_through_camera
-            look_through_camera()
-    except Exception as e:
-        print(f'[RetroMecha][Quick] Camara: {e}')
-    try:
         from utils.render import render_now
         render_now()
     except Exception as e:
         print(f'[RetroMecha][Quick] Render: {e}')
+
+
+def _remove_render_camera(*_):
+    try:
+        from utils.camera import remove_camera
+        remove_camera()
+        print('[RetroMecha][Quick] Cámara de render eliminada')
+    except Exception as e:
+        print(f'[RetroMecha][Quick] Eliminar cámara: {e}')

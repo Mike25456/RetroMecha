@@ -3,7 +3,7 @@ try:
 except ImportError:
     mc = None
 
-from utils.maya_materials import assign_material
+from utils.maya_materials import assign_material, ensure_material
 
 _IGNORE_TOKENS = frozenset({'rm', 'l', 'r', 'head', 'arm', 'wing', 'torso'})
 
@@ -122,11 +122,23 @@ def materialize_terrain(root_group: str) -> int:
 
     meshes = mc.listRelatives(root_group, allDescendents=True, type="mesh") or []
     meshes = list(set(meshes))
+    sgs = {
+        'rm_terrain_base_mat': ensure_material('rm_terrain_base_mat'),
+        'rm_terrain_dark_mat': ensure_material('rm_terrain_dark_mat'),
+        'rm_terrain_accent_mat': ensure_material('rm_terrain_accent_mat'),
+    }
     count = 0
     for mesh in meshes:
         transform = mc.listRelatives(mesh, parent=True)[0]
         mat = _resolve_terrain_material(transform)
-        assign_material(transform, mat)
+        sg = sgs.get(mat)
+        if sg:
+            try:
+                mc.sets(transform, edit=True, forceElement=sg)
+            except Exception:
+                assign_material(transform, mat)
+        else:
+            assign_material(transform, mat)
         count += 1
 
     if count:
