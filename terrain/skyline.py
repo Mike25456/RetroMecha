@@ -14,7 +14,6 @@ except ImportError:
 
 from core.base_module import BaseModule
 from core.module_registry import register
-from utils.maya_materials import assign_material
 
 
 def _finish(mesh):
@@ -88,7 +87,6 @@ class SkylineModule(BaseModule):
         if parts:
             mc.parent(*parts, grp)
 
-        self._assign_materials(grp)
         return self._finalize_group(grp, position, rotation, scale)
 
     # ── Bloques base ──────────────────────────────────────────────────────────
@@ -103,7 +101,6 @@ class SkylineModule(BaseModule):
         # Cuerpo principal
         base = mc.polyCube(w=bw, h=bh, d=bd, name='rm_skyline_tower_#')[0]
         mc.move(bx, bh*0.5, bz, base)
-        assign_material(base, 'rm_white_armor_mat')
         parts.append(_finish(base))
 
         # Retranqueo superior (sección más estrecha)
@@ -111,7 +108,6 @@ class SkylineModule(BaseModule):
         sx = bw * rng.uniform(0.55, 0.80)
         step = mc.polyCube(w=sx, h=sh, d=bd*0.8, name='rm_skyline_tower_step_#')[0]
         mc.move(bx, bh + sh*0.5, bz, step)
-        assign_material(step, 'rm_graphite_mat')
         parts.append(_finish(step))
 
         # Antena / remate
@@ -119,7 +115,6 @@ class SkylineModule(BaseModule):
             ah = rng.uniform(1.5, 4.0)
             ant = mc.polyCylinder(r=0.08, h=ah, sa=6, name='rm_skyline_ant_#')[0]
             mc.move(bx, bh + sh + ah*0.5, bz, ant)
-            assign_material(ant, 'rm_graphite_mat')
             parts.append(_finish(ant))
 
         return parts
@@ -133,14 +128,12 @@ class SkylineModule(BaseModule):
 
         body = mc.polyCube(w=bw, h=bh, d=bd, name='rm_skyline_slab_#')[0]
         mc.move(bx, bh*0.5, bz, body)
-        assign_material(body, 'rm_white_armor_mat')
         parts.append(_finish(body))
 
         # Placa superior saliente
         cap = mc.polyCube(w=bw*1.1, h=bh*0.08, d=bd*1.1,
                           name='rm_skyline_slab_cap_#')[0]
         mc.move(bx, bh + bh*0.04, bz, cap)
-        assign_material(cap, 'rm_graphite_mat')
         parts.append(_finish(cap))
 
         return parts
@@ -169,7 +162,6 @@ class SkylineModule(BaseModule):
         except Exception:
             pass
 
-        assign_material(wedge, 'rm_white_armor_mat')
         parts.append(_finish(wedge))
         return parts
 
@@ -182,14 +174,12 @@ class SkylineModule(BaseModule):
         shaft = mc.polyCone(r=br, h=bh, sa=4, name='rm_skyline_obelisk_#')[0]
         mc.move(bx, bh*0.5, bz, shaft)
         mc.rotate(0, rng.uniform(0, 45), 0, shaft)
-        assign_material(shaft, 'rm_white_armor_mat')
         parts.append(_finish(shaft))
 
         # Base del obelisco
         base = mc.polyCube(w=br*3.5, h=br*1.2, d=br*3.5,
                            name='rm_skyline_obelisk_base_#')[0]
         mc.move(bx, br*0.6, bz, base)
-        assign_material(base, 'rm_graphite_mat')
         parts.append(_finish(base))
 
         return parts
@@ -207,7 +197,6 @@ class SkylineModule(BaseModule):
         # Cuerpo A (principal)
         bodyA = mc.polyCube(w=w1, h=h1, d=d1, name='rm_skyline_mega_a_#')[0]
         mc.move(bx, h1*0.5, bz, bodyA)
-        assign_material(bodyA, 'rm_white_armor_mat')
         parts.append(_finish(bodyA))
 
         # Cuerpo B (adosado, desplazado)
@@ -216,7 +205,6 @@ class SkylineModule(BaseModule):
         bodyB = mc.polyCube(w=w1*0.6, h=h2, d=d1*0.75,
                             name='rm_skyline_mega_b_#')[0]
         mc.move(bx+ox, h2*0.5, bz, bodyB)
-        assign_material(bodyB, 'rm_graphite_mat')
         parts.append(_finish(bodyB))
 
         # Puente entre cuerpos
@@ -224,7 +212,6 @@ class SkylineModule(BaseModule):
         bridge = mc.polyCube(w=abs(ox)+w1*0.3, h=w1*0.18, d=d1*0.5,
                              name='rm_skyline_mega_bridge_#')[0]
         mc.move(bx+ox*0.5, bridge_h, bz, bridge)
-        assign_material(bridge, 'rm_graphite_mat')
         parts.append(_finish(bridge))
 
         # Antena triple
@@ -233,7 +220,6 @@ class SkylineModule(BaseModule):
             ant = mc.polyCylinder(r=0.10, h=ah, sa=6,
                                   name=f'rm_skyline_mega_ant_{i}_#')[0]
             mc.move(bx+off, h1+ah*0.5, bz, ant)
-            assign_material(ant, 'rm_cyan_glow_mat')
             parts.append(_finish(ant))
 
         return parts
@@ -250,14 +236,12 @@ class SkylineModule(BaseModule):
             pillar = mc.polyCube(w=pt_w, h=ah, d=pt_w*1.3,
                                  name=f'rm_skyline_arch_pillar_{name_sfx}_#')[0]
             mc.move(bx + side*(aw*0.5 - pt_w*0.3), ah*0.5, bz, pillar)
-            assign_material(pillar, 'rm_white_armor_mat')
             parts.append(_finish(pillar))
 
         # Dintel (parte horizontal superior)
         lintel = mc.polyCube(w=aw+pt_w, h=pt_w*0.9, d=pt_w*1.2,
                              name='rm_skyline_arch_lintel_#')[0]
         mc.move(bx, ah + pt_w*0.45, bz, lintel)
-        assign_material(lintel, 'rm_white_armor_mat')
         parts.append(_finish(lintel))
 
         # Remate en punta sobre el dintel
@@ -265,7 +249,6 @@ class SkylineModule(BaseModule):
         peak = mc.polyCone(r=pt_w*0.8, h=peak_h, sa=4,
                            name='rm_skyline_arch_peak_#')[0]
         mc.move(bx, ah + pt_w*0.9 + peak_h*0.5, bz, peak)
-        assign_material(peak, 'rm_graphite_mat')
         parts.append(_finish(peak))
 
         return parts
@@ -281,7 +264,6 @@ class SkylineModule(BaseModule):
         # Losa vertical principal
         slabA = mc.polyCube(w=w, h=h, d=d, name='rm_skyline_cross_a_#')[0]
         mc.move(bx, h*0.5, bz, slabA)
-        assign_material(slabA, 'rm_white_armor_mat')
         parts.append(_finish(slabA))
 
         # Losa rotada 20-30° (intersecta la primera)
@@ -289,7 +271,6 @@ class SkylineModule(BaseModule):
                             name='rm_skyline_cross_b_#')[0]
         mc.move(bx, h*0.5*0.75, bz, slabB)
         mc.rotate(0, rng.uniform(20, 35), 0, slabB)
-        assign_material(slabB, 'rm_graphite_mat')
         parts.append(_finish(slabB))
 
         # Aguja central
@@ -297,7 +278,6 @@ class SkylineModule(BaseModule):
         spire = mc.polyCone(r=0.25, h=sp_h, sa=4,
                             name='rm_skyline_cross_spire_#')[0]
         mc.move(bx, h + sp_h*0.5, bz, spire)
-        assign_material(spire, 'rm_cyan_glow_mat')
         parts.append(_finish(spire))
 
         return parts
@@ -315,6 +295,5 @@ class SkylineModule(BaseModule):
         cornice = mc.polyCube(w=cw, h=ch, d=rng.uniform(0.4, 1.0),
                               name='rm_skyline_cornice_#')[0]
         mc.move(bx, cy, bz, cornice)
-        assign_material(cornice, 'rm_graphite_mat')
         parts.append(_finish(cornice))
         return parts

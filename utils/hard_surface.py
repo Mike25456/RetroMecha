@@ -170,18 +170,22 @@ def apply_support_edges(root: str, offset: float = 0.012,
                         fraction: float = 0.045,
                         segments: int = 2,
                         max_faces: int = 80,
+                        min_faces: int = 20,
                         hard_angle: float = 35.0,
-                        crease_value: float = 0.0) -> int:
+                        crease_value: float = 0.0,
+                        transforms: list = None) -> int:
     """Apply a bevel/n-gon cleanup pass to low-poly meshes under root.
 
     Args:
-        root: Transform group or mesh transform.
+        root: Transform group or mesh transform (ignored if transforms provided).
         offset: Fallback bevel width if polyBevel3 is unavailable.
         fraction: Relative support bevel size used by polyBevel3.
         segments: Bevel segment count. Two gives center edge plus two supports.
-        max_faces: Skip dense meshes like torus/spheres to avoid unnecessary cost.
+        max_faces: Skip dense meshes (e.g. torus, ground plane).
+        min_faces: Skip trivial meshes that don't need beveling (e.g. small debris).
         hard_angle: polySoftEdge angle after bevel.
         crease_value: Optional Maya crease strength. Zero disables creasing.
+        transforms: Optional pre-resolved list of transform names (avoids DAG walk).
 
     Returns:
         Number of transforms processed.
@@ -189,17 +193,18 @@ def apply_support_edges(root: str, offset: float = 0.012,
     if mc is None:
         return 0
 
+    nodes = transforms if transforms is not None else _mesh_transforms(root)
+
     processed = 0
     found = 0
     skipped = 0
-    for node in _mesh_transforms(root):
+    skipped_small = 0
+    for node in nodes:
         found += 1
         short = node.rsplit("|", 1)[-1].lower()
         if any(token in short for token in SKIP_TOKENS):
             skipped += 1
             continue
-
-        _triangulate_ngons(node)
 
         try:
             faces = mc.polyEvaluate(node, face=True) or 0
@@ -207,6 +212,11 @@ def apply_support_edges(root: str, offset: float = 0.012,
             continue
         if faces <= 0 or faces > max_faces:
             continue
+        if faces < min_faces:
+            skipped_small += 1
+            continue
+
+        _triangulate_ngons(node)
 
         changed = _support_bevel(node, offset, fraction, segments, hard_angle)
 
@@ -231,6 +241,6 @@ def apply_support_edges(root: str, offset: float = 0.012,
             processed += 1
 
     print(f'[RetroMecha][HardSurface] encontrados={found}, '
-          f'omitidos={skipped}, procesados={processed}, '
-          f'segments={segments}')
+          f'omitidos={skipped}, pequeños={skipped_small}, '
+          f'procesados={processed}, segments={segments}')
     return processed

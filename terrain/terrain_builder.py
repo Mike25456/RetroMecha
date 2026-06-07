@@ -117,7 +117,7 @@ class TerrainBuilder:
             if self.params.get('use_support_edges', True):
                 count = apply_support_edges(self._root, offset=0.018,
                                              fraction=0.045, segments=2,
-                                             max_faces=500)
+                                             max_faces=80, min_faces=20)
                 print(f'[RetroMecha][Terrain] Support edges aplicados: {count}')
             materialize_terrain(self._root)
             force_preview_one(self._root)
@@ -295,6 +295,7 @@ class TerrainBuilder:
             best_d, best = float('inf'), None
             for j in range(i + 1, len(self._plat_pos)):
                 p2 = self._plat_pos[j]
+                d = math.dist(p1, p2)
                 if d < best_d and d < MAX_D:
                     best_d, best = d, p2
             if best is None:
@@ -323,7 +324,6 @@ class TerrainBuilder:
 
     def _pillars(self):
         n   = self.preset.get('pillar_count', 8)
-        grp = mc.group(empty=True, name='rm_pillars_#')
 
         positions = self._composition_pos(n)
         for (px, pz) in positions:
@@ -343,9 +343,8 @@ class TerrainBuilder:
                                   name='rm_pillar_cap_#')[0]
             mc.move(px, GROUND_Y + ph, pz, cap)
 
-            mc.parent(shaft, ring, cap, grp)
-
-        mc.parent(grp, self._root)
+            pillar_grp = mc.group(shaft, ring, cap, name='rm_pillar_grp_#')
+            self._all_pieces.append(pillar_grp)
 
     # ─────────────────────────────────────────────────────────────────────────
     #  FRAGMENTOS — laterales + fondo, respetando safe_radius
@@ -383,18 +382,10 @@ class TerrainBuilder:
         safe  = self.preset.get('safe_radius', 6.0)
         r_lo  = self.preset.get('ring_min_r', 10.0)
         r_hi  = self.preset.get('ring_max_r', 35.0)
-
-        mash_ok = False
-        try:
-            mc.loadPlugin('MASH', quiet=True)
-            mash_ok = True
-        except Exception:
-            pass
-
-        # MASH no respeta la zona frontal — siempre usar scatter manual
         self._debris_manual(n, gp_y, safe, r_lo, r_hi)
 
     def _debris_manual(self, count, gp_y, safe, r_lo, r_hi):
+        """Debris — el pase de support edges los salta (min_faces=20)."""
         grp = mc.group(empty=True, name='rm_debris_scatter_#')
         placed = 0
         pieces = []
@@ -412,14 +403,14 @@ class TerrainBuilder:
             piece = mc.polyCube(w=sw, h=sh, d=sd, ch=False,
                                 name=f'rm_deb_{placed}_#')[0]
             mc.move(px, gp_y + sh*0.5, pz, piece)
-            mc.rotate(self._rng.uniform(0,360),
-                      self._rng.uniform(0,360),
-                      self._rng.uniform(0,360), piece)
+            mc.rotate(self._rng.uniform(0, 360),
+                      self._rng.uniform(0, 360),
+                      self._rng.uniform(0, 360), piece)
             pieces.append(piece)
             placed += 1
 
         mc.parent(*pieces, grp)
-        mc.parent(grp, self._root)
+        self._all_pieces.append(grp)
         print(f'[RetroMecha][Terrain] Debris: {placed}')
 
     # ─────────────────────────────────────────────────────────────────────────
