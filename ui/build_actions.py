@@ -446,12 +446,11 @@ def on_generar(*_):
             terrain_grp = _build_terrain(seed, support_edges=False)
             if terrain_grp and mc.objExists(terrain_grp):
                 mc.parent(terrain_grp, scene_grp)
-            if state._QUICK_PALETTE[0]:
-                try:
-                    from ui.panels.material_panel import apply_color_preset_quick
-                    apply_color_preset_quick(state._QUICK_PALETTE[0])
-                except Exception as e:
-                    print(f'[RetroMecha][Quick] No se pudo aplicar paleta: {e}')
+            try:
+                from ui.panels.material_panel import apply_color_preset_quick
+                apply_color_preset_quick(state._QUICK_PALETTE[0])
+            except Exception as e:
+                print(f'[RetroMecha][Quick] No se pudo aplicar paleta: {e}')
 
             # Lift default +6 en Y al mecha
             try:

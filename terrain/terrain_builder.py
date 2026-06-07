@@ -512,6 +512,7 @@ class TerrainBuilder:
                 ox = side * bw * 0.42 * math.cos(math.radians(angle_to_center))
                 oz = side * bw * 0.42 * math.sin(math.radians(angle_to_center))
                 mc.move(bx + ox, GROUND_Y + leg_h * 0.5, bz + oz, leg)
+                pieces.append(leg)
 
             # Franja de acento (ranura horizontal)
             slot = mc.polyCube(

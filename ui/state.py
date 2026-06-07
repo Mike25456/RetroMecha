@@ -12,7 +12,7 @@ _MODE = ['quick']
 _QUICK_PROFILE_BTNS = {}
 _QUICK_MECHA_OVERRIDES = {}
 _QUICK_TERRAIN_OVERRIDES = {}
-_QUICK_PALETTE = [None]
+_QUICK_PALETTE = ['Predeterminado']
 _TERRAIN_PRESET = ['Avanzada']
 _MECHA_PARAMS = {}
 _TERRAIN_PARAMS = {}
@@ -30,7 +30,7 @@ def clear():
     _QUICK_PROFILE_BTNS.clear()
     _QUICK_MECHA_OVERRIDES.clear()
     _QUICK_TERRAIN_OVERRIDES.clear()
-    _QUICK_PALETTE[0] = None
+    _QUICK_PALETTE[0] = 'Predeterminado'
     _TERRAIN_PRESET[0] = 'Avanzada'
     _MECHA_PARAMS.clear()
     _TERRAIN_PARAMS.clear()
