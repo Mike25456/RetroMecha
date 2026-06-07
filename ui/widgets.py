@@ -19,7 +19,7 @@ ACCENT_DANGER= T.PURPLE
 TEXT_MUTED   = T.DIM
 
 
-def fsl(label, mn, mx, val, step=0.01, prec=2, on_cc=None, annotation=''):
+def fsl(label, mn, mx, val, step=0.01, prec=2, on_cc=None, on_drag=None, annotation=''):
     ctrl = mc.floatSliderGrp(
         label=label, field=True,
         min=mn, max=mx, value=val, step=step, precision=prec,
@@ -29,10 +29,12 @@ def fsl(label, mn, mx, val, step=0.01, prec=2, on_cc=None, annotation=''):
     )
     if on_cc:
         mc.floatSliderGrp(ctrl, e=True, changeCommand=on_cc)
+    if on_drag:
+        mc.floatSliderGrp(ctrl, e=True, dragCommand=on_drag)
     return ctrl
 
 
-def isl(label, mn, mx, val, on_cc=None, annotation=''):
+def isl(label, mn, mx, val, on_cc=None, on_drag=None, annotation=''):
     ctrl = mc.intSliderGrp(
         label=label, field=True,
         min=mn, max=mx, value=val,
@@ -42,6 +44,8 @@ def isl(label, mn, mx, val, on_cc=None, annotation=''):
     )
     if on_cc:
         mc.intSliderGrp(ctrl, e=True, changeCommand=on_cc)
+    if on_drag:
+        mc.intSliderGrp(ctrl, e=True, dragCommand=on_drag)
     return ctrl
 
 

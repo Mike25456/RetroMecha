@@ -59,46 +59,46 @@ def build(wrapped=True):
     mc.separator(h=4)
     state.reg('t_mon_sl', fsl(
         'Monumento', 3.0, 9.0, params.get('monument_scale', 5.5),
-        step=0.1, on_cc=rebuild_terrain_only,
+        step=0.1, on_cc=rebuild_terrain_only, on_drag=lambda *_: None,
     ))
     state.reg('t_plat_sl', isl(
         'Plataformas', 3, 16, params.get('platform_count', 8),
-        on_cc=rebuild_terrain_only,
+        on_cc=rebuild_terrain_only, on_drag=lambda *_: None,
     ))
     state.reg('t_frag_sl', isl(
         'Fragmentos', 2, 24, params.get('fragment_count', 12),
-        on_cc=rebuild_terrain_only,
+        on_cc=rebuild_terrain_only, on_drag=lambda *_: None,
     ))
     state.reg('t_deb_sl', isl(
         'Escombros', 20, 150, params.get('debris_count', 80),
-        on_cc=rebuild_terrain_only,
+        on_cc=rebuild_terrain_only, on_drag=lambda *_: None,
     ))
     state.reg('t_pil_sl', isl(
         'Pilares', 2, 16, params.get('pillar_count', 8),
-        on_cc=rebuild_terrain_only,
+        on_cc=rebuild_terrain_only, on_drag=lambda *_: None,
     ))
     state.reg('t_ramp_sl', fsl(
         'Rampas', 0.0, 1.0, params.get('ramp_probability', 0.55),
-        on_cc=rebuild_terrain_only,
+        on_cc=rebuild_terrain_only, on_drag=lambda *_: None,
     ))
     state.reg('t_ring_sl', fsl(
         'Radio', 8.0, 35.0, params.get('ring_max_r', 22.0),
-        step=0.5, on_cc=rebuild_terrain_only,
+        step=0.5, on_cc=rebuild_terrain_only, on_drag=lambda *_: None,
     ))
 
     mc.separator(h=4)
     mc.text(label='Horizonte', align='left', font='smallPlainLabelFont')
     state.reg('t_sky_n_sl', isl(
         'Edificios', 1, 6, params.get('skyline_count', 3),
-        on_cc=rebuild_terrain_only,
+        on_cc=rebuild_terrain_only, on_drag=lambda *_: None,
     ))
     state.reg('t_sky_z_sl', fsl(
         'Distancia Z', -80.0, -30.0, params.get('skyline_distance_z', -55.0),
-        step=1.0, on_cc=rebuild_terrain_only,
+        step=1.0, on_cc=rebuild_terrain_only, on_drag=lambda *_: None,
     ))
     state.reg('t_sky_sp_sl', fsl(
         'Expansión X', 10.0, 80.0, params.get('skyline_spread_x', 40.0),
-        step=1.0, on_cc=rebuild_terrain_only,
+        step=1.0, on_cc=rebuild_terrain_only, on_drag=lambda *_: None,
     ))
 
     mc.separator(h=4, style='none')
