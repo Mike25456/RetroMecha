@@ -295,8 +295,7 @@ class TerrainBuilder:
                     scale=ms * self._rng.uniform(0.4, 0.65)
                 )
                 if node:
-                    try: mc.rename(node, 'rm_bg_tower_#')
-                    except: pass
+                    self._rename_piece(node, 'rm_bg_tower_#')
 
     # ─────────────────────────────────────────────────────────────────────────
     #  SKYLINE
@@ -342,8 +341,7 @@ class TerrainBuilder:
                                    position=(px, py, pz),
                                    scale=ps * self._rng.uniform(0.5, 0.9))
                 if node:
-                    try: mc.rename(node, 'rm_plat_tower_#')
-                    except: pass
+                    self._rename_piece(node, 'rm_plat_tower_#')
 
             for _sp in range(2):
                 if self._rng.random() < 0.75:
@@ -710,6 +708,20 @@ class TerrainBuilder:
         if node and mc.objExists(node):
             self._all_pieces.append(node)
         return node
+
+    def _rename_piece(self, node, new_pattern):
+        """Renombra un piece y actualiza _all_pieces para que batch parent funcione."""
+        if not node or not mc.objExists(node):
+            return None
+        try:
+            new_name = mc.rename(node, new_pattern)
+            for i, item in enumerate(self._all_pieces):
+                if item == node:
+                    self._all_pieces[i] = new_name
+                    break
+            return new_name
+        except Exception:
+            return node
 
     def _load_preset(self, name):
         path = os.path.join(os.path.dirname(__file__),
