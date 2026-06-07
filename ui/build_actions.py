@@ -330,10 +330,106 @@ def rebuild_terrain_only(*_):
                 palette = 'Predeterminado'
 
             _apply_terrain_visuals(palette)
+
+            sc.ensure_scene_group()
         except Exception as e:
             print(f'[RetroMecha][RebuildTerrain] Error: {e}')
 
     return sc.scene_update(_work)
+
+
+# ── rebuild parcial por componente ──────────────────────────
+
+def _get_terrain_root():
+    """Busca el grupo raiz del terreno existente."""
+    for node in (mc.ls('rm_terrain_*', type='transform') or []):
+        if mc.objExists(node):
+            return node
+    return None
+
+
+def _rebuild_terrain_component(component):
+    """Reconstruye UN componente del terreno.
+
+    Args:
+        component: 'monument', 'skyline', 'platforms', 'pillars',
+                   'fragments', 'debris', 'ramps'
+    """
+    def _work():
+        try:
+            root = _get_terrain_root()
+            if not root:
+                print('[RetroMecha] No hay terreno que modificar')
+                return
+
+            seed = state._SEED[0] if isinstance(state._SEED[0], int) else _resolve_seed()
+            state._SEED[0] = seed
+
+            preset_label = state._TERRAIN_PRESET[0] or 'Avanzada'
+            if preset_label not in TERRAIN_PRESET_MAP:
+                preset_label = 'Avanzada'
+            preset_name = TERRAIN_PRESET_MAP.get(preset_label, 'avanzada')
+
+            from terrain.terrain_builder import TerrainBuilder
+            tb = TerrainBuilder(
+                params=_collect_terrain_params(seed, support_edges=False),
+                seed=seed + 1000,
+                preset_name=preset_name,
+                mecha_bbox=sc.mecha_bbox(),
+            )
+            overrides = _collect_terrain()
+            tb.rebuild_component(component, root, overrides=overrides)
+
+            # Re-aplicar paleta al terreno (swap shaders)
+            try:
+                from ui.panels.material_panel import current_palette_label
+                palette = current_palette_label()
+            except Exception:
+                palette = 'Predeterminado'
+            _apply_terrain_visuals(palette)
+
+            # Safety: re-materializar cualquier mesh que el swap haya saltado
+            try:
+                from materials.materializer import materialize_terrain
+                materialize_terrain(root)
+            except Exception:
+                pass
+
+            sc.ensure_scene_group()
+            sc.mark_undelimited(root)
+
+        except Exception as e:
+            print(f'[RetroMecha][Rebuild{component}] Error: {e}')
+
+    return sc.scene_update(_work)
+
+
+def rebuild_monument(*_):
+    return _rebuild_terrain_component('monument')
+
+
+def rebuild_skyline(*_):
+    return _rebuild_terrain_component('skyline')
+
+
+def rebuild_platforms(*_):
+    return _rebuild_terrain_component('platforms')
+
+
+def rebuild_pillars(*_):
+    return _rebuild_terrain_component('pillars')
+
+
+def rebuild_fragments(*_):
+    return _rebuild_terrain_component('fragments')
+
+
+def rebuild_debris(*_):
+    return _rebuild_terrain_component('debris')
+
+
+def rebuild_ramps(*_):
+    return _rebuild_terrain_component('ramps')
 
 
 # ── generar ──────────────────────────────────────────────────

@@ -33,6 +33,7 @@ _SHADER_LABELS = {
     'Terreno base': 'rm_terrain_base_mat',
     'Terreno oscuro': 'rm_terrain_dark_mat',
     'Terreno acento': 'rm_terrain_accent_mat',
+    'Terreno estr.': 'rm_terrain_accent2_mat',   # ← nuevo v2
 }
 
 _current_shader = ['rm_white_armor_mat']
@@ -312,6 +313,7 @@ _TERRAIN_SHADER_NAMES = (
     'rm_terrain_base_mat',
     'rm_terrain_dark_mat',
     'rm_terrain_accent_mat',
+    'rm_terrain_accent2_mat',
 )
 _TERRAIN_SHADER_NAMES_SET = set(_TERRAIN_SHADER_NAMES)
 

@@ -11,7 +11,9 @@ SCENE_PATTERNS = ['RetroMecha_Scene_*']
 TERRAIN_PATTERNS = [
     'rm_terrain_*', 'rm_ground_*', 'rm_monument_*',
     'rm_platform_*', 'rm_fragment_*', 'rm_debris_*',
-    'rm_ramps_*', 'rm_pillars_*', 'rm_tower_*', 'rm_skyline_*',
+    'rm_ramps_*', 'rm_pillars_*', 'rm_tower_*',
+    'rm_bg_tower_*', 'rm_plat_tower_*',
+    'rm_skyline_*',
 ]
 ANIM_AUX_PATTERNS = [
     'rm_anim_offset_*', 'rm_flight_path*', 'rm_motionPath*',
@@ -58,6 +60,27 @@ def parent_to_scene(node):
             mc.parent(node, scene)
         except Exception:
             pass
+
+
+def ensure_scene_group():
+    """Encuentra o crea el grupo escena y mueve mecha + terreno adentro.
+
+    Garantiza que todo el escenario esta bajo un solo grupo en el outliner.
+    """
+    scene = find_scene_group()
+    if not scene:
+        scene = mc.group(empty=True, name='RetroMecha_Scene_#')
+    for root_name in ('rm_terrain_*', 'RetroMecha_*'):
+        for node in (mc.ls(root_name, type='transform') or []):
+            if 'Scene' in node or not mc.objExists(node):
+                continue
+            parent = mc.listRelatives(node, parent=True) or [None]
+            if parent[0] != scene:
+                try:
+                    mc.parent(node, scene)
+                except Exception:
+                    pass
+    return scene
 
 
 def delete_nodes(nodes):
@@ -206,6 +229,32 @@ def clean_terrain():
     for pat in TERRAIN_PATTERNS:
         nodes.extend(mc.ls(pat, type='transform') or [])
     delete_nodes(nodes)
+
+
+# Patrones de limpieza por componente de terreno (para rebuild parcial)
+COMPONENT_CLEAN_PATTERNS = {
+    'monument':  ['rm_monument_*', 'rm_bg_tower_*'],
+    'skyline':   ['rm_skyline_*'],
+    'platforms': ['rm_platform_*', 'rm_plat_tower_*'],
+    'pillars':   ['rm_pillar_*'],
+    'fragments': ['rm_fragment_*'],
+    'debris':    ['rm_debris_*', 'rm_deb_*'],
+    'ramps':     ['rm_ramps_*', 'rm_ramp_*'],
+    'ground':    ['rm_ground_*'],
+}
+
+
+def clean_terrain_component(component):
+    """Borra solo las piezas de UN componente del terreno."""
+    patterns = COMPONENT_CLEAN_PATTERNS.get(component)
+    if not patterns:
+        return
+    for pat in patterns:
+        for node in (mc.ls(pat, type='transform') or []):
+            try:
+                mc.delete(node)
+            except Exception:
+                pass
 
 
 def lift_mecha(group):
